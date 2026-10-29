@@ -32,6 +32,29 @@ git submodule update --init --depth 1 upstream/kate upstream/ktexteditor upstrea
 
 ## License
 
-Undecided. See `docs/design/06-licensing.md` for the analysis and the
-recommendation; the owner decides. Until then this repository carries no
-license grant.
+The copyright holder is John Valdez, 2026.
+
+| Part | License |
+|---|---|
+| Application and workspace default | GPL-3.0-or-later (`LICENSE`) |
+| Core crates `kate-text`, `kate-fileio`, `kate-search`, `kate-core` | LGPL-2.1-or-later (`LICENSES/LGPL-2.1-or-later.txt`) |
+| `kate-syntax` | MIT (`LICENSES/MIT.txt`) |
+
+If you distribute a modified version of a GPL-3.0-or-later part, keep the
+attribution below. Put it in the About box or in the equivalent Appropriate
+Legal Notices:
+
+    Based on KateM5Rust by John Valdez, a Rust rewrite of KDE Kate
+
+That duty is an additional term under GPL-3.0 section 7(b). It preserves a
+reasonable author attribution. It is not a further restriction. The full
+term is in `LICENSE` and `NOTICE`.
+
+## Credits
+
+John Valdez is the author of the Rust work.
+
+KateM5Rust is a Rust rewrite derived from study of KDE Kate, KTextEditor,
+and KSyntaxHighlighting. The KDE contributors wrote those works. Their names
+are in the upstream SPDX headers and in the upstream commit history. See
+`AUTHORS` and `NOTICE`.

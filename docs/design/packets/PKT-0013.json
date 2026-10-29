@@ -92,7 +92,8 @@
     "depends_on_packets": [
       "PKT-0001",
       "PKT-0009",
-      "PKT-0012"
+      "PKT-0012",
+      "PKT-0043"
     ]
   },
   "data_contracts": {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
 //! `kate-fileio`: files on disk.
 //!
 //! Encoding detection and conversion, byte-order marks, line-ending

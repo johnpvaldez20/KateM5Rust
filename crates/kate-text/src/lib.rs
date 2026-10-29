@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
 //! `kate-text`: the text storage layer.
 //!
 //! Owns the rope buffer, flat character offsets, invertible edits grouped into

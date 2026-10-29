@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
+license = "GPL-3.0-or-later"
 
 [[bin]]
 name = "katem5rust"

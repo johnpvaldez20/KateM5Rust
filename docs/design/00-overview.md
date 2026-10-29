@@ -34,7 +34,7 @@ purpose.
 | `03-gui-toolkit.md` | The macOS GUI decision: GPUI, with the honest tradeoffs and the kill criteria. |
 | `04-parity-map.md` | Kate subsystem to Rust module, with status: port, adapt, defer, cut. |
 | `05-backlog.md` | Sequenced work packets, phases, lanes (local vs cloud), and why. |
-| `06-licensing.md` | What (L)GPL upstream means for a rewrite that reads it, and the license recommendation. Owner decides. |
+| `06-licensing.md` | What (L)GPL upstream means for a rewrite that reads it. The owner accepted the license split. |
 | `packets/PKT-*.json` | The first thirteen packets as Gate 1 payloads. They validate against `docs/governance/schemas/gate1-planning-handoff.schema.json`. |
 
 ## Decisions, in one place
@@ -58,7 +58,7 @@ the files above with the reasoning; this is the index.
 | D12 | LSP client is synchronous Rust over threads and pipes, `lsp-types` for the wire types, configuration file-compatible with Kate's `lspclient` `settings.json`. | `01` §11 |
 | D13 | GUI toolkit is GPUI, behind a `kate-ui` crate that owns no model state. Kill criteria and the AppKit fallback are written down before the first line. | `03` |
 | D14 | Vi mode, completion, spell check, printing, scripting, and 30 of 36 addons are deferred or cut from v1. | `04` |
-| D15 | Recommended license: GPL-3.0-or-later for the application, with core library crates under LGPL-2.1-or-later. Owner decides; no LICENSE file in this PR. | `06` |
+| D15 | License, accepted by the owner: GPL-3.0-or-later for the application and the workspace default, LGPL-2.1-or-later for the core crates, MIT for `kate-syntax`. Copyright 2026 John Valdez. | `06` |
 
 ## Principles the plan is written against
 

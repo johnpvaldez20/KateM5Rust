@@ -86,7 +86,8 @@
     "is_atomic": true,
     "depends_on_packets": [
       "PKT-0001",
-      "PKT-0002"
+      "PKT-0002",
+      "PKT-0043"
     ]
   },
   "data_contracts": {
