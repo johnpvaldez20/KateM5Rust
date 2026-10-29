@@ -3,5 +3,25 @@
 version = 4
 
 [[package]]
+name = "kate-core"
+version = "0.1.0"
+
+[[package]]
+name = "kate-fileio"
+version = "0.1.0"
+
+[[package]]
+name = "kate-search"
+version = "0.1.0"
+
+[[package]]
+name = "kate-syntax"
+version = "0.1.0"
+
+[[package]]
+name = "kate-text"
+version = "0.1.0"
+
+[[package]]
 name = "katem5rust"
 version = "0.1.0"

@@ -1,0 +1,13 @@
+[package]
+name = "kate-fileio"
+description = "Loading and atomic saving of files: encodings, byte-order marks, line endings, on-disk change detection."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

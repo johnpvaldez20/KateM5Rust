@@ -1,0 +1,9 @@
+//! `kate-syntax`: syntax highlighting.
+//!
+//! A Rust implementation of the KSyntaxHighlighting definition format
+//! (`language.xsd`): definition loading, the context-stack highlighting
+//! engine, and theme loading. The engine works on one line at a time plus an
+//! opaque state; it does not depend on `kate-text`.
+//!
+//! Specified in `docs/design/01-data-structures.md`, section "Syntax
+//! highlighting". Arrives with packets PKT-0007 to PKT-0009.
