@@ -1,0 +1,98 @@
+{
+  "gate": "G3_QA_MERGE",
+  "packet_id": "PKT-0006",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-09T19:15:48Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "ollama-qwen3-coder-local",
+      "role": "CODER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "OLLAMA", "name": "qwen3-coder:30b", "settings": { "quantization": "Q4_K_M", "context_window_tokens": 65536, "temperature": 0.1 } },
+      "tool": { "name": "OLLAMA" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 6,
+    "branch": "pkt/PKT-0006-atomic-save",
+    "base_sha": "a3f2c9d1e8b74650f1c2d3e4a5b6c7d8e9f0a1b2",
+    "pr_number": 30,
+    "head_sha": "77aa88bb99cc00dd11ee22ff33aa44bb55cc66dd",
+    "merge_base_is_main_head": true
+  },
+  "handoff_artifact": {
+    "kind": "PR_REVIEW",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/pull/30#pullrequestreview-3300000030"
+  },
+  "gate2_verdict_url": "https://github.com/johnpvaldez20/KateM5Rust/pull/30#pullrequestreview-3300000029",
+  "verdict": "REJECT_CI_MISSING",
+  "ci_evidence": {
+    "provider": "GITHUB_ACTIONS",
+    "workflow": "ci.yml",
+    "head_sha": "77aa88bb99cc00dd11ee22ff33aa44bb55cc66dd",
+    "conclusion": "MISSING"
+  },
+  "local_runs": [
+    {
+      "agent": {
+        "agent_id": "ollama-qwen3-coder-local",
+        "role": "CODER",
+        "runtime": "LOCAL",
+        "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "arch": "aarch64" },
+        "model": { "provider": "OLLAMA", "name": "qwen3-coder:30b" }
+      },
+      "command": "cargo test -p kate-fileio",
+      "exit_code": 0,
+      "rustc_version": "1.99.1",
+      "advisory": true,
+      "note": "Worker pasted a local terminal transcript into the PR description as proof. The PR head on GitHub is 77aa88bb; the transcript mentions commit 71f0e2a, which was never pushed."
+    }
+  ],
+  "isolation_telemetry": {
+    "worker_lane_id": "local-lane-01",
+    "runtime": "LOCAL",
+    "temp_dir_strategy": "TEMPDIR_PER_TEST",
+    "env_isolation": { "home_overridden": true, "cargo_target_dir_isolated": false, "network_disabled": true },
+    "shared_state_pollution_detected": false
+  },
+  "test_integrity_audit": {
+    "existing_assertions_weakened": false,
+    "skips_or_ignores_added": false,
+    "core_state_mocked_out": false,
+    "deterministic_fixtures_used": true,
+    "regression_test": {
+      "required": true,
+      "name": "save::tests::rename_over_existing_preserves_mode_bits",
+      "reproduces_failure_without_patch": false
+    }
+  },
+  "coverage": {
+    "tool": "NONE",
+    "line_percentage": 0,
+    "scope": ["kate-fileio"]
+  },
+  "blocking_defects": [
+    {
+      "code": "CI_MISSING",
+      "message": "No GitHub Actions run exists for head_sha 77aa88bb99cc00dd11ee22ff33aa44bb55cc66dd. The workflow was never triggered because the branch was pushed with [skip ci] in the commit message."
+    },
+    {
+      "code": "LOCAL_RUN_ONLY",
+      "message": "The only evidence offered is a terminal transcript from the owner's machine for a commit that is not on GitHub. Local runs are advisory. A transcript is not a check run."
+    },
+    {
+      "code": "REGRESSION_TEST_MISSING",
+      "message": "No red run and no green run recorded in CI for save::tests::rename_over_existing_preserves_mode_bits. Nothing to evaluate."
+    }
+  ]
+}

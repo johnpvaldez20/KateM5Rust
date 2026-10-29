@@ -1,0 +1,106 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0007",
+  "title": "kate-syntax: Definition model and KSyntaxHighlighting XML loader, first vendored definitions",
+  "summary": "The data side of syntax highlighting. Rust types for the KSyntaxHighlighting language.xsd format (definition, contexts, rules, keyword lists, formats, folding, comments) and a quick-xml loader that resolves context switches, IncludeRules and cross-definition references into dense ids. Vendors six MIT-licensed definitions (rust, cpp, c, json, markdown, cmake) with their license headers and a SOURCES.md that names the upstream commit. No matching engine yet; that is PKT-0008.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:05:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-03",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
+      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 7,
+    "branch": "pkt/PKT-0007-syntax-definition-loader",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/7"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "XML parsing into plain data with a large, well-specified schema. Independent of every other crate, so it runs in parallel with the kate-text lane. Needs the upstream submodule checked out to copy the six XML files and read language.xsd.",
+    "requires": ["NONE"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": ["crates/kate-syntax/"],
+    "forbidden_paths": ["upstream/", "crates/kate-text/", "crates/kate-core/"],
+    "crates_touched": ["kate-syntax"],
+    "is_atomic": true,
+    "depends_on_packets": ["PKT-0001"]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/definition.rs",
+        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)] pub struct DefId(pub u32);\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)] pub struct ContextId(pub u32); // global across the repository\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)] pub struct FormatId(pub u16);  // global\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)] pub struct KeywordListId(pub u16);\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)] pub struct FoldId(pub u16);\n\npub struct Definition {\n    pub name: String, pub section: String, pub version: u32, pub priority: i32, pub hidden: bool,\n    pub extensions: Vec<String>, pub mime_types: Vec<String>,\n    pub case_sensitive_keywords: bool, pub indenter: Option<String>,\n    pub word_delimiters: WordDelimiters,\n    pub comments: Vec<CommentStyle>,\n    pub indentation_based_folding: bool,\n    pub initial_context: ContextId,\n    pub contexts: std::ops::Range<u32>, // this definition's slice of Repository::contexts\n    pub formats: std::ops::Range<u16>,\n    pub license: String,            // verbatim from the XML `license` attribute; vendoring policy depends on it\n}\n\npub struct WordDelimiters { pub delimiters: Vec<char>, pub weak: Vec<char> }\npub enum CommentStyle { SingleLine { start: String, position: CommentPosition }, MultiLine { start: String, end: String } }\npub enum CommentPosition { Anywhere, AfterWhitespace }\n\npub struct Context {\n    pub name: String,\n    pub attribute: FormatId,\n    pub rules: Vec<Rule>,\n    pub line_end: ContextSwitch, pub line_empty: ContextSwitch, pub fallthrough: Option<ContextSwitch>,\n    pub no_indentation_based_folding: bool, pub stop_empty_line_context_switch_loop: bool,\n}\n\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum ContextSwitch { Stay, Pop(u8), Push(ContextId), PopPush(u8, ContextId) }\n\npub struct Rule {\n    pub kind: RuleKind, pub attribute: Option<FormatId>, pub switch: ContextSwitch,\n    pub lookahead: bool, pub first_non_space: bool, pub column: Option<u32>,\n    pub begin_region: Option<FoldId>, pub end_region: Option<FoldId>, pub dynamic: bool,\n}\n\npub enum RuleKind {\n    AnyChar(Vec<char>), DetectChar(char), Detect2Chars(char, char), DetectIdentifier, DetectSpaces,\n    Float, Int, HlCChar, HlCHex, HlCOct, HlCStringChar,\n    Keyword { list: KeywordListId, insensitive: bool },\n    LineContinue(char), RangeDetect(char, char),\n    RegExpr { pattern: String, insensitive: bool, minimal: bool }, // compiled lazily in PKT-0008\n    StringDetect { text: String, insensitive: bool }, WordDetect { word: String, insensitive: bool },\n}\n\npub struct KeywordList { pub name: String, pub words: Vec<String> } // sorted, deduplicated; includes resolved `<include>`\n\npub struct Format {\n    pub name: String, pub style: DefaultStyle,\n    pub color: Option<Rgb>, pub selected_color: Option<Rgb>, pub background: Option<Rgb>, pub selected_background: Option<Rgb>,\n    pub bold: Option<bool>, pub italic: Option<bool>, pub underline: Option<bool>, pub strikeout: Option<bool>,\n    pub spell_check: bool,\n}\n#[derive(Copy, Clone, PartialEq, Eq, Debug)] pub struct Rgb(pub u8, pub u8, pub u8);\n\n/// The 30 default text styles of KSyntaxHighlighting (dsNormal .. dsOthers), same order.\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub enum DefaultStyle { Normal, Keyword, Function, Variable, ControlFlow, Operator, BuiltIn, Extension, Preprocessor, Attribute, Char, SpecialChar, String, VerbatimString, SpecialString, Import, DataType, DecVal, BaseN, Float, Constant, Comment, Documentation, Annotation, CommentVar, RegionMarker, Information, Warning, Alert, Error, Others }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/repository.rs",
+        "definition": "pub struct Repository {\n    definitions: Vec<Definition>,\n    contexts: Vec<Context>,          // dense; ContextId indexes here\n    formats: Vec<Format>,\n    keyword_lists: Vec<KeywordList>,\n    fold_names: Vec<String>,\n    by_name: std::collections::HashMap<String, DefId>,\n}\nimpl Repository {\n    pub fn empty() -> Self;\n    /// Parses one definition. Cross-definition references (`Name##Other`) are recorded and resolved by `link`.\n    pub fn add_xml(&mut self, xml: &str) -> Result<DefId, LoadError>;\n    /// Resolves IncludeRules, context references and keyword includes. Errors name the definition and context.\n    pub fn link(&mut self) -> Result<(), LoadError>;\n    pub fn definition(&self, id: DefId) -> &Definition;\n    pub fn context(&self, id: ContextId) -> &Context;\n    pub fn format(&self, id: FormatId) -> &Format;\n    pub fn keyword_list(&self, id: KeywordListId) -> &KeywordList;\n    pub fn by_name(&self, name: &str) -> Option<DefId>;\n    /// Highest-priority definition whose extensions glob matches the file name.\n    pub fn for_file_name(&self, name: &str) -> Option<DefId>;\n    pub fn for_mime_type(&self, mime: &str) -> Option<DefId>;\n}\n\n#[derive(Debug)]\npub enum LoadError {\n    Xml { definition: Option<String>, line: u64, message: String },\n    UnknownContext { definition: String, context: String, reference: String },\n    UnknownKeywordList { definition: String, list: String },\n    UnknownFormat { definition: String, format: String },\n    DuplicateDefinition { name: String },\n}"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "crates/kate-syntax/definitions/SOURCES.md",
+        "definition": "| file | upstream path | upstream commit | license attribute |\n|---|---|---|---|\n| rust.xml | data/syntax/rust.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |\n| cpp.xml | data/syntax/cpp.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |\n| c.xml | data/syntax/c.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |\n| json.xml | data/syntax/json.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |\n| markdown.xml | data/syntax/markdown.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |\n| cmake.xml | data/syntax/cmake.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New crate API. Dependency to be added with justification: quick-xml (streaming XML parser; std has none). Vendored XML files are data, licensed MIT upstream, copied verbatim with headers. Only files whose `license` attribute is MIT may be vendored by this packet; others wait for the owner's license decision."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-syntax --locked",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo check -p kate-syntax --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "repository::tests::six_vendored_definitions_load_and_link",
+        "kind": "INTEGRATION",
+        "asserts": "add_xml for each vendored file succeeds, link() succeeds, and every ContextSwitch::Push target is a valid index into contexts."
+      },
+      {
+        "name": "repository::tests::include_rules_are_inlined_in_order",
+        "kind": "UNIT",
+        "asserts": "A minimal two-definition fixture with IncludeRules produces a context whose rules equal the included rules spliced at the IncludeRules position."
+      },
+      {
+        "name": "repository::tests::unknown_context_reference_is_an_error_naming_it",
+        "kind": "UNIT",
+        "asserts": "A fixture referencing context 'Nope' fails link() with UnknownContext { context: 'Nope', .. }."
+      },
+      {
+        "name": "repository::tests::file_name_matching_prefers_priority",
+        "kind": "UNIT",
+        "asserts": "for_file_name('CMakeLists.txt') is cmake; for_file_name('main.rs') is rust; for_file_name('x.unknownext') is None."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

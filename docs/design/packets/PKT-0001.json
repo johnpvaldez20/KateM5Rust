@@ -1,0 +1,121 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0001",
+  "title": "Bootstrap: governance package, schemas, gatecheck, workspace skeleton, CI, design plan",
+  "summary": "The genesis packet. Establishes the rules (docs/governance), the machine-checked handoff schemas, the gatecheck validator, the pinned toolchain, the Cargo workspace with empty subsystem crates, the read-only upstream submodules, the CI workflow, and the design plan with the first backlog packets. Contains no editor behavior. Reviewed by the owner because there is no gatekeeper above the gatekeeper.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T22:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0001-bootstrap-governance-design",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "Needs the owner's GitHub credentials to open the PR, the macOS toolchain to prove the workspace builds on the target, and the owner's eyes on the licensing and toolkit decisions.",
+    "requires": ["MACOS_HOST", "OWNER_EYES"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      ".github/",
+      ".gitmodules",
+      "CODEOWNERS",
+      "Cargo.toml",
+      "README.md",
+      "apps/katem5rust/",
+      "crates/kate-core/",
+      "crates/kate-fileio/",
+      "crates/kate-search/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "docs/design/",
+      "docs/governance/",
+      "rust-toolchain.toml",
+      "tools/gatecheck/",
+      "upstream/"
+    ],
+    "forbidden_paths": ["src/"],
+    "crates_touched": ["workspace", "katem5rust", "kate-text", "kate-syntax", "kate-search", "kate-fileio", "kate-core", "gatecheck"],
+    "is_atomic": true,
+    "depends_on_packets": []
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "JSON_SCHEMA",
+        "path": "docs/governance/schemas/common.schema.json",
+        "definition": "$defs: packet_id, sha40, repository(const), github_url, runtime{LOCAL,CLOUD,GITHUB_ACTIONS}, host_kind, agent_role, model_provider, agent{agent_id,role,runtime,host,model,tool}, provenance{schema_version,produced_at,author,worker}, github{repository,issue_number,branch,base_sha,pr_number,head_sha,merge_base_is_main_head}, handoff_artifact{kind,url}, lane{runtime,reason,requires}, scope_path, protected_path, command, definition{language,path,definition}, anti_pattern"
+      },
+      {
+        "language": "TOML",
+        "path": "rust-toolchain.toml",
+        "definition": "[toolchain]\nchannel = \"1.99.1\"\ncomponents = [\"rustfmt\", \"clippy\", \"rust-src\"]\ntargets = [\"aarch64-apple-darwin\"]\nprofile = \"minimal\""
+      },
+      {
+        "language": "TOML",
+        "path": "Cargo.toml",
+        "definition": "[workspace]\nresolver = \"3\"\nmembers = [\"apps/*\", \"crates/*\", \"tools/*\"]\nexclude = [\"upstream\"]\n[workspace.lints.rust]\nunsafe_code = \"forbid\""
+      },
+      {
+        "language": "RUST",
+        "path": "tools/gatecheck/src/lib.rs",
+        "definition": "pub struct Report { pub passed: Vec<String>, pub failures: Vec<String> }\npub enum Error { Io(PathBuf, std::io::Error), Json(PathBuf, serde_json::Error), SchemaBuild(String) }\npub fn run(repo_root: &Path) -> Result<Report, Error>;\npub fn paths_overlap(a: &str, b: &str) -> bool;"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "New repository layout; no prior public API exists. Gate schemas move from v1 (service-oriented: db namespaces, jest) to v2 (Rust desktop app, hybrid local/cloud agents, GitHub-only handoffs)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --all --check",
+      "cargo clippy --workspace --all-targets --locked -- -D warnings",
+      "cargo build --workspace --locked",
+      "cargo test --workspace --locked",
+      "cargo doc --workspace --no-deps --locked",
+      "cargo run -p gatecheck --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "all_examples_and_packets_validate",
+        "kind": "INTEGRATION",
+        "asserts": "Every schema is valid JSON Schema 2020-12; every valid example and every packet validates; every invalid example is rejected; packet scopes do not overlap without a declared dependency."
+      },
+      {
+        "name": "paths_overlap",
+        "kind": "UNIT",
+        "asserts": "Directory prefixes overlap files inside them; sibling directories with a shared name prefix do not."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

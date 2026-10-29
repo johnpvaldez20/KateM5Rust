@@ -1,0 +1,96 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0009",
+  "title": "kate-syntax: Theme loader and Format-to-Style resolution",
+  "summary": "Load KSyntaxHighlighting JSON themes (Breeze Light and Breeze Dark vendored, MIT) and resolve a Format against a Theme into a concrete Style: colors and font flags. Resolution order is the upstream one: per-definition custom styles in the theme, then the Format's own overrides, then the theme's default text style. Editor colors (background, current line, selection, line numbers) come along because the GUI needs them from the same file.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:15:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "ollama-qwen3-coder-local",
+      "role": "CODER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "OLLAMA", "name": "qwen3-coder:30b", "settings": { "quantization": "Q4_K_M", "context_window_tokens": 65536, "temperature": 0.1 } },
+      "tool": { "name": "OLLAMA" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 9,
+    "branch": "pkt/PKT-0009-syntax-themes",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/9"
+  },
+  "lane": {
+    "runtime": "EITHER",
+    "reason": "Small, mechanical, fully specified by two JSON files and a 30-entry enum. A good packet for a local open-weight model: the whole task fits in a 64k context and the test oracle is the upstream file itself.",
+    "requires": ["NONE"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/Cargo.toml",
+      "crates/kate-syntax/themes/",
+      "crates/kate-syntax/tests/theme_test.rs"
+    ],
+    "forbidden_paths": ["upstream/", "crates/kate-syntax/src/engine.rs", "crates/kate-syntax/src/definition.rs"],
+    "crates_touched": ["kate-syntax"],
+    "is_atomic": true,
+    "depends_on_packets": ["PKT-0001", "PKT-0007", "PKT-0008"]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/theme.rs",
+        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Rgba(pub u8, pub u8, pub u8, pub u8);\n\n/// Final appearance of one span. Everything resolved; the renderer does no lookups.\n#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]\npub struct Style {\n    pub fg: Option<Rgba>, pub bg: Option<Rgba>, pub selected_fg: Option<Rgba>, pub selected_bg: Option<Rgba>,\n    pub bold: bool, pub italic: bool, pub underline: bool, pub strikeout: bool,\n}\n\n/// The `editor-colors` block of a theme file, same keys as upstream Theme::EditorColorRole.\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub enum EditorColor { BackgroundColor, TextSelection, CurrentLine, SearchHighlight, ReplaceHighlight, BracketMatching, TabMarker, SpellChecking, IndentationLine, IconBorder, CodeFolding, LineNumbers, CurrentLineNumber, WordWrapMarker, ModifiedLines, SavedLines, Separator, MarkBookmark, MarkBreakpointActive, MarkBreakpointReached, MarkBreakpointDisabled, MarkExecution, MarkWarning, MarkError, TemplateBackground, TemplatePlaceholder, TemplateFocusedPlaceholder, TemplateReadOnlyPlaceholder }\n\npub struct Theme {\n    pub name: String, pub revision: u32, pub license: String,\n    text_styles: [Style; 31],                                          // indexed by DefaultStyle as usize\n    editor_colors: std::collections::HashMap<EditorColor, Rgba>,\n    custom_styles: std::collections::HashMap<(String, String), Style>, // (definition name, format name)\n}\nimpl Theme {\n    pub fn from_json(json: &str) -> Result<Theme, ThemeError>;\n    pub fn text_style(&self, s: DefaultStyle) -> Style;\n    pub fn editor_color(&self, c: EditorColor) -> Option<Rgba>;\n    /// custom_styles[(def, format)] overrides Format fields override text_style(format.style).\n    pub fn resolve(&self, definition: &str, format: &Format) -> Style;\n}\n\n#[derive(Debug)]\npub enum ThemeError { Json(serde_json::Error), UnknownStyle(String), BadColor(String) }"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New module. Dependencies with justification: serde + serde_json (theme files are JSON; writing a JSON parser by hand would be the speculative abstraction)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-syntax --locked",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings"
+    ],
+    "regression_tests": [
+      {
+        "name": "theme::tests::breeze_light_and_dark_load",
+        "kind": "GOLDEN",
+        "asserts": "Both vendored themes parse; text_style(Keyword).fg equals the hex value in the JSON; editor_color(BackgroundColor) is present."
+      },
+      {
+        "name": "theme::tests::resolution_order_is_custom_then_format_then_default",
+        "kind": "UNIT",
+        "asserts": "With a custom style for (rust, Keyword), resolve uses it; without it a Format with italic=Some(true) yields italic over the default; a Format with no overrides yields the default exactly."
+      },
+      {
+        "name": "theme::tests::bad_color_is_an_error_not_black",
+        "kind": "UNIT",
+        "asserts": "A theme with '#GG0000' fails with ThemeError::BadColor naming the value."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

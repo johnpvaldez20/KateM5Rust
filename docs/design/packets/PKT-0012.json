@@ -1,0 +1,125 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0012",
+  "title": "kate-core: Document, View, Workspace arena, incremental re-highlight, command table",
+  "summary": "The editor model as one owning tree. Workspace owns SlotMaps of Document and View plus a SplitTree layout; a Document owns its TextBuffer, History, file state and per-line syntax cache; a View owns Selections and scroll state and points at a DocumentId. Edits go through Workspace::execute(view, Command), which applies the transaction, records history, transforms every view's selections on that document, and marks the syntax cache dirty from the first changed line. The GUI renders this and calls execute; it never touches a buffer directly.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-01",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
+      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 12,
+    "branch": "pkt/PKT-0012-core-document-view-workspace",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/12"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Integrates four crates through their public APIs with no GUI. The integration tests are the first end-to-end tests of the editor model and must run on Linux CI as well as macOS.",
+    "requires": ["LARGE_CONTEXT_MODEL"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/syntax_cache.rs",
+      "crates/kate-core/Cargo.toml",
+      "crates/kate-core/tests/"
+    ],
+    "forbidden_paths": ["upstream/", "crates/kate-core/src/selection.rs", "crates/kate-core/src/movement.rs", "crates/kate-core/src/fanout.rs"],
+    "crates_touched": ["kate-core"],
+    "is_atomic": true,
+    "depends_on_packets": ["PKT-0001", "PKT-0004", "PKT-0005", "PKT-0008", "PKT-0011"]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/document.rs",
+        "definition": "slotmap::new_key_type! { pub struct DocumentId; }\n\npub struct Document {\n    pub buffer: TextBuffer,\n    pub history: History,\n    pub file: Option<FileState>,      // None for an unsaved 'Untitled'\n    pub syntax: SyntaxCache,\n    pub marks: Vec<Mark>,\n    pub name: String,                 // display name; file name or 'Untitled (n)'\n    pub config: DocumentConfig,\n}\n\npub struct FileState {\n    pub path: std::path::PathBuf,\n    pub encoding: kate_fileio::Encoding, pub bom: bool, pub line_ending: kate_fileio::LineEnding,\n    pub digest_on_disk: [u8; 32], pub mtime_on_disk: Option<std::time::SystemTime>,\n    pub disk_change: Option<DiskChange>,\n}\n#[derive(Copy, Clone, PartialEq, Eq, Debug)] pub enum DiskChange { Modified, Deleted, Created }\n\n#[derive(Clone, PartialEq, Eq, Debug)] pub struct Mark { pub anchor: Anchor, pub kind: MarkKind }\n#[derive(Copy, Clone, PartialEq, Eq, Debug)] pub enum MarkKind { Bookmark, BreakpointActive, BreakpointDisabled, Execution, Warning, Error }\n\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct DocumentConfig { pub tab_width: u8, pub indent_width: u8, pub indent_with_spaces: bool, pub remove_trailing_spaces: TrailingSpaces, pub ensure_trailing_newline: bool }\n#[derive(Copy, Clone, PartialEq, Eq, Debug)] pub enum TrailingSpaces { Never, ModifiedLines, All }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/syntax_cache.rs",
+        "definition": "/// Per-line end states, parallel to the buffer's lines. len() == buffer.line_count() after `ensure`.\npub struct SyntaxCache {\n    pub definition: Option<DefId>,\n    line_end_states: Vec<StateId>,\n    dirty_from: Option<u32>,          // first line whose cached state may be wrong\n}\nimpl SyntaxCache {\n    pub fn new(definition: Option<DefId>) -> Self;\n    /// Called by Workspace after every transaction: splices the vector to the new line count and marks dirty.\n    pub fn on_transaction(&mut self, before: &TextBuffer, tx: &Transaction);\n    /// Re-highlights from dirty_from until end states converge or `through_line` is reached. Returns the\n    /// range of lines whose spans changed so the renderer can invalidate exactly those.\n    pub fn ensure(&mut self, buf: &TextBuffer, hl: &mut Highlighter<'_>, through_line: u32) -> std::ops::Range<u32>;\n    pub fn start_state(&self, line: u32) -> StateId; // state at the beginning of `line`\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/view.rs",
+        "definition": "slotmap::new_key_type! { pub struct ViewId; }\n\npub struct View {\n    pub document: DocumentId,\n    pub selections: Selections,\n    pub scroll: Scroll,\n    pub folds: Vec<CharRange>,        // folded regions, by anchor-resolved ranges in Phase 2; empty until then\n    pub dynamic_wrap: bool,\n}\n#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]\npub struct Scroll { pub first_line: u32, pub first_col: u32 }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "pub struct Workspace {\n    pub documents: slotmap::SlotMap<DocumentId, Document>,\n    pub views: slotmap::SlotMap<ViewId, View>,\n    pub layout: SplitTree,\n    pub active_view: Option<ViewId>,\n    pub syntax: Repository,\n    pub theme: Theme,\n    pub config: EditorConfig,\n}\n\npub enum SplitTree {\n    Leaf { tabs: Vec<ViewId>, active: usize },\n    Split { axis: Axis, ratio: f32, first: Box<SplitTree>, second: Box<SplitTree> },\n}\n#[derive(Copy, Clone, PartialEq, Eq, Debug)] pub enum Axis { Horizontal, Vertical }\n\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct EditorConfig { pub default_document: DocumentConfig, pub fallback_encoding: kate_fileio::Encoding }\n\nimpl Workspace {\n    pub fn new(syntax: Repository, theme: Theme, config: EditorConfig) -> Self;\n    pub fn new_document(&mut self) -> DocumentId;\n    pub fn open(&mut self, path: &std::path::Path) -> Result<DocumentId, OpenError>; // reuses an open document for the same canonical path\n    pub fn new_view(&mut self, doc: DocumentId) -> ViewId; // multiple views per document are normal\n    pub fn close_view(&mut self, view: ViewId) -> CloseResult; // last view of a modified document is refused\n    pub fn execute(&mut self, view: ViewId, cmd: Command) -> Result<(), CommandError>;\n}\n\n#[derive(Debug)] pub enum OpenError { Load(kate_fileio::LoadError), ProbablyBinary(std::path::PathBuf) }\n#[derive(Debug, PartialEq, Eq)] pub enum CloseResult { Closed, RefusedModified(DocumentId) }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/command.rs",
+        "definition": "/// Everything a key binding, a menu item, a script or a plugin can ask for. The only mutation entry point.\n#[derive(Clone, PartialEq, Eq, Debug)]\npub enum Command {\n    InsertText(String), Newline, DeleteBackward, DeleteForward,\n    Move(Movement, Extend), SelectAll, AddCursorBelow, AddCursorAbove, RemoveSecondaryCursors,\n    Undo, Redo, BeginUndoGroup, EndUndoGroup,\n    Save, SaveAs(std::path::PathBuf), Reload,\n    SetSyntax(Option<DefId>), ToggleMark(MarkKind, u32),\n    Scroll(i32), ScrollTo(u32),\n}\n\n#[derive(Debug)]\npub enum CommandError {\n    NoFile,                                   // Save on an Untitled document\n    Save(kate_fileio::SaveError), Load(kate_fileio::LoadError),\n    Apply(kate_text::ApplyError), Transaction(kate_text::TransactionError),\n    UnknownView(ViewId),\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New modules; Cargo.toml gains path dependencies on kate-text, kate-fileio, kate-syntax and the external slotmap (generational arena keys; Vec indices would dangle after close). kate-search is not a dependency yet; the find bar packet adds it."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::edit_in_one_view_moves_cursors_in_the_other",
+        "kind": "INTEGRATION",
+        "asserts": "Two views on one document; inserting 3 chars before view B's caret via view A advances B's caret by 3."
+      },
+      {
+        "name": "workspace::tests::open_edit_save_reload_round_trip_in_tempdir",
+        "kind": "INTEGRATION",
+        "asserts": "Open a CRLF windows-1252 file from tempfile::tempdir(), insert text, Save, read bytes back: CRLF and encoding preserved, history.is_modified() false after save."
+      },
+      {
+        "name": "syntax_cache::tests::rehighlight_stops_when_state_converges",
+        "kind": "UNIT",
+        "asserts": "Editing line 500 of a 10,000-line Rust file re-highlights fewer than 20 lines when the edit does not open a block comment, and all remaining lines when it does."
+      },
+      {
+        "name": "workspace::tests::close_last_view_of_modified_document_is_refused",
+        "kind": "UNIT",
+        "asserts": "close_view returns RefusedModified for the only view of a modified document and Closed after Save."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

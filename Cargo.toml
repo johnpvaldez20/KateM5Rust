@@ -5,7 +5,7 @@
 # is usually two packets.
 [workspace]
 resolver = "3"
-members = ["apps/*", "crates/*"]
+members = ["apps/*", "crates/*", "tools/*"]
 # Read-only upstream reference sources. Never built. Never a member.
 exclude = ["upstream"]
 
@@ -17,17 +17,16 @@ repository = "https://github.com/johnpvaldez20/KateM5Rust"
 publish = false
 
 [workspace.dependencies]
-# Internal crates. Add a line here when a crate is created by its packet.
+# Internal crates only. A line is added here by the packet that creates the
+# crate, and by nobody else. External dependencies are declared in the crate
+# that uses them, with a justification in that packet (Gate 2:
+# `dependencies_added[].justification`). Keeping them out of this file means
+# parallel packets do not fight over one manifest.
 kate-text = { path = "crates/kate-text" }
 kate-syntax = { path = "crates/kate-syntax" }
 kate-search = { path = "crates/kate-search" }
 kate-fileio = { path = "crates/kate-fileio" }
 kate-core = { path = "crates/kate-core" }
-
-# External crates. Every entry needs a justification in the packet that adds it
-# (Gate 2: `dependencies_added[].justification`).
-jsonschema = { version = "0.60", default-features = false }
-serde_json = "1"
 
 [workspace.lints.rust]
 # No unsafe anywhere in the editor. The GUI toolkit does its own FFI; we do not.

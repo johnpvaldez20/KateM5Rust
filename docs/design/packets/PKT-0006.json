@@ -1,0 +1,105 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0006",
+  "title": "kate-fileio: encode and atomic save (temp file, fsync, rename, mode bits)",
+  "summary": "Rope in, bytes on disk, atomically. Encode with the chosen encoding, BOM and line ending; write to a temporary file in the same directory; fsync; copy the original mode bits; rename over the target. A character that the target encoding cannot represent is an error naming line and column, never a silent '?'. No fallback to non-atomic writes: if the directory is not writable, say so.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:00:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "cursor-local-coder-01",
+      "role": "CODER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
+      "tool": { "name": "CURSOR_IDE" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 6,
+    "branch": "pkt/PKT-0006-fileio-atomic-save",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/6"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "Rename semantics, mode bits, fsync behavior and extended attributes differ between APFS and ext4. The tests run in a tempdir on both, but the behavior that matters is the one on the owner's disk, and CI runs on macOS to confirm it.",
+    "requires": ["MACOS_HOST", "APFS_FILESYSTEM"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-fileio/tests/save_test.rs"
+    ],
+    "forbidden_paths": ["upstream/", "crates/kate-fileio/src/decode.rs", "crates/kate-fileio/src/load.rs"],
+    "crates_touched": ["kate-fileio"],
+    "is_atomic": true,
+    "depends_on_packets": ["PKT-0001", "PKT-0005"]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/encode.rs",
+        "definition": "#[derive(Clone, Debug)]\npub struct EncodeOptions {\n    pub encoding: Encoding,\n    pub bom: bool,\n    pub line_ending: LineEnding,\n    pub ensure_trailing_newline: bool,\n}\n\n/// Pure. Converts \\n to the requested ending and encodes. Fails on the first unmappable char.\npub fn encode(text: &ropey::Rope, opts: &EncodeOptions) -> Result<Vec<u8>, EncodeError>;\n\n#[derive(Debug, PartialEq, Eq)]\npub enum EncodeError { Unmappable { line: u32, col: u32, ch: char } }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/save.rs",
+        "definition": "#[derive(Debug)]\npub struct Saved {\n    pub bytes_written: u64,\n    pub digest: [u8; 32],\n    pub mtime: Option<std::time::SystemTime>,\n}\n\n/// Write to `<dir>/.<name>.katem5-<random>`, fsync, chmod to the target's mode if it exists, rename over target.\npub fn save(path: &std::path::Path, text: &ropey::Rope, opts: &EncodeOptions) -> Result<Saved, SaveError>;\n\n#[derive(Debug)]\npub enum SaveError {\n    Encode(EncodeError),\n    Io { step: SaveStep, source: std::io::Error },\n}\n\n#[derive(Copy, Clone, Debug, PartialEq, Eq)]\npub enum SaveStep { CreateTemp, Write, Sync, CopyMode, Rename }"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New module pair. Dependencies: none beyond PKT-0005's (tempfile is already a dev-dependency; its NamedTempFile::persist is the rename primitive)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-fileio --locked",
+      "cargo clippy -p kate-fileio --all-targets --locked -- -D warnings"
+    ],
+    "regression_tests": [
+      {
+        "name": "encode::tests::decode_then_encode_round_trips_bytes",
+        "kind": "PROPERTY",
+        "asserts": "For generated valid UTF-8 and WINDOWS_1252 inputs with a consistent line ending, encode(decode(bytes)) == bytes."
+      },
+      {
+        "name": "encode::tests::unmappable_char_is_an_error_with_position",
+        "kind": "UNIT",
+        "asserts": "Encoding '€' to ISO_8859_15 succeeds; encoding '€' to ISO_8859_1 returns Unmappable { line: 0, col: 0, ch: '€' }."
+      },
+      {
+        "name": "save::tests::rename_over_existing_preserves_mode_bits",
+        "kind": "INTEGRATION",
+        "asserts": "A target created with mode 0o640 in a tempdir keeps mode 0o640 after save; the temporary file no longer exists; the content equals encode()."
+      },
+      {
+        "name": "save::tests::failed_write_leaves_target_untouched",
+        "kind": "INTEGRATION",
+        "asserts": "When the target directory is read-only, save returns Err(Io { step: CreateTemp, .. }) and the original file bytes are unchanged."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

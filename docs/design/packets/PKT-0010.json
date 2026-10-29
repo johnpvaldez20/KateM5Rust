@@ -1,0 +1,96 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0010",
+  "title": "kate-search: plain, whole-word and regex search over a rope; replace as a Transaction",
+  "summary": "Find and replace as pure functions over TextBuffer. Plain and whole-word search walk rope chunks directly; regex search runs the regex crate over the rope via regex-cursor without copying the text. Replace-all produces one Transaction (so undo is one step) with $1/\\1 capture expansion. Kate's three modes map to three Pattern variants and nothing else; the find bar UI is a later packet.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:20:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-02",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
+      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 10,
+    "branch": "pkt/PKT-0010-search-plain-regex",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/10"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Pure library work against kate-text's public API with property tests; runs in parallel with the kate-syntax lane.",
+    "requires": ["NONE"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": ["crates/kate-search/"],
+    "forbidden_paths": ["upstream/", "crates/kate-text/", "crates/kate-core/"],
+    "crates_touched": ["kate-search"],
+    "is_atomic": true,
+    "depends_on_packets": ["PKT-0001", "PKT-0002"]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-search/src/lib.rs",
+        "definition": "#[derive(Clone, PartialEq, Eq, Debug)]\npub enum Pattern {\n    Plain(String),\n    EscapeSequences(String), // Kate mode: \\n \\t \\xNN \\uNNNN in the pattern are expanded before a plain search\n    Regex(String),\n}\n\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct SearchQuery {\n    pub pattern: Pattern,\n    pub case_sensitive: bool,\n    pub whole_words: bool,       // word boundary on both sides; ignored for Regex (use \\b)\n    pub range: Option<CharRange>, // None = whole buffer\n}\n\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct Match { pub range: CharRange, pub captures: Vec<Option<CharRange>> } // captures[0] == whole match for Regex; empty otherwise\n\npub fn find_all(buf: &TextBuffer, q: &SearchQuery) -> Result<Vec<Match>, SearchError>;\n/// Wraps around the range when `wrap` is true; never returns the empty match at `from` twice.\npub fn find_next(buf: &TextBuffer, q: &SearchQuery, from: Offset, backwards: bool, wrap: bool) -> Result<Option<Match>, SearchError>;\n/// One Transaction for all matches. `replacement` supports $0..$9, ${name}, \\0..\\9 and \\n \\t escapes.\npub fn replace_all(buf: &TextBuffer, q: &SearchQuery, replacement: &str) -> Result<(Transaction, usize), SearchError>;\npub fn expand_replacement(replacement: &str, m: &Match, buf: &TextBuffer) -> String;\n\n#[derive(Debug, PartialEq, Eq)]\npub enum SearchError { InvalidRegex(String), InvalidEscape { at: usize } }"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New crate API. Dependencies with justification: regex (linear-time engine; user patterns must not be able to hang the editor, so no fancy-regex here), regex-cursor (runs regex over rope chunks without materializing the buffer)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-search --locked",
+      "cargo clippy -p kate-search --all-targets --locked -- -D warnings",
+      "cargo check -p kate-search --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "search::tests::plain_search_agrees_with_str_match_indices",
+        "kind": "PROPERTY",
+        "asserts": "For random text and needle, find_all ranges equal std's match_indices converted to char offsets, for both case modes."
+      },
+      {
+        "name": "search::tests::regex_over_chunk_boundary_matches",
+        "kind": "UNIT",
+        "asserts": "A match that straddles a rope chunk boundary in a 1 MiB buffer is found with the correct range."
+      },
+      {
+        "name": "search::tests::replace_all_is_one_transaction_and_undoes_in_one_step",
+        "kind": "INTEGRATION",
+        "asserts": "replace_all on 1000 matches yields a Transaction with 1000 edits; applying it and then its inverse restores the buffer; count == 1000."
+      },
+      {
+        "name": "search::tests::find_next_wraps_and_terminates",
+        "kind": "UNIT",
+        "asserts": "find_next with wrap from the last match returns the first; from a buffer with no match returns None; an empty-match regex does not loop."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

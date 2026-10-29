@@ -1,0 +1,186 @@
+{
+  "gate": "G3_QA_MERGE",
+  "packet_id": "PKT-0003",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T15:10:33Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-02",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 3,
+    "branch": "pkt/PKT-0003-anchors-revision-transform",
+    "base_sha": "a3f2c9d1e8b74650f1c2d3e4a5b6c7d8e9f0a1b2",
+    "pr_number": 21,
+    "head_sha": "5e6d7c8b9a0f1e2d3c4b5a697887766554433221",
+    "merge_base_is_main_head": true
+  },
+  "handoff_artifact": {
+    "kind": "PR_REVIEW",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/pull/21#pullrequestreview-3300000021"
+  },
+  "gate2_verdict_url": "https://github.com/johnpvaldez20/KateM5Rust/pull/21#pullrequestreview-3300000020",
+  "verdict": "MERGE_APPROVED",
+  "ci_evidence": {
+    "provider": "GITHUB_ACTIONS",
+    "workflow": "ci.yml",
+    "run_id": 19870000021,
+    "run_url": "https://github.com/johnpvaldez20/KateM5Rust/actions/runs/19870000021",
+    "head_sha": "5e6d7c8b9a0f1e2d3c4b5a697887766554433221",
+    "runner": "macos-15",
+    "conclusion": "SUCCESS",
+    "checks": {
+      "fmt": {
+        "command": "cargo fmt --all --check",
+        "exit_code": 0
+      },
+      "clippy": {
+        "command": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+        "exit_code": 0
+      },
+      "build": {
+        "command": "cargo build --workspace --locked",
+        "exit_code": 0
+      },
+      "doc": {
+        "command": "cargo doc --workspace --no-deps --locked",
+        "exit_code": 0
+      },
+      "gatecheck": {
+        "command": "cargo run -p gatecheck --locked",
+        "exit_code": 0
+      },
+      "test": {
+        "command": "cargo test --workspace --locked",
+        "exit_code": 0,
+        "total_tests": 61,
+        "failed_tests": 0,
+        "ignored_tests": 0
+      }
+    }
+  },
+  "local_runs": [
+    {
+      "agent": {
+        "agent_id": "cursor-cloud-coder-02",
+        "role": "CODER",
+        "runtime": "CLOUD",
+        "host": {
+          "kind": "CURSOR_CLOUD",
+          "name": "cursor-cloud-vm",
+          "os": "Ubuntu 24.04",
+          "arch": "x86_64"
+        },
+        "model": {
+          "provider": "ANTHROPIC",
+          "name": "claude-sonnet-5-5-high"
+        }
+      },
+      "command": "cargo test -p kate-text --locked",
+      "exit_code": 0,
+      "rustc_version": "1.99.1",
+      "advisory": true,
+      "note": "Agrees with CI. Recorded, not relied on."
+    }
+  ],
+  "isolation_telemetry": {
+    "worker_lane_id": "cloud-lane-02",
+    "runtime": "GITHUB_ACTIONS",
+    "temp_dir_strategy": "NONE_NEEDED",
+    "env_isolation": {
+      "home_overridden": true,
+      "cargo_target_dir_isolated": true,
+      "network_disabled": false
+    },
+    "shared_state_pollution_detected": false
+  },
+  "test_integrity_audit": {
+    "existing_assertions_weakened": false,
+    "skips_or_ignores_added": false,
+    "core_state_mocked_out": false,
+    "deterministic_fixtures_used": true,
+    "regression_test": {
+      "required": true,
+      "name": "anchor::tests::anchor_after_edit_resolves_to_shifted_offset",
+      "red_run": {
+        "head_sha": "a3f2c9d1e8b74650f1c2d3e4a5b6c7d8e9f0a1b2",
+        "command": "cargo test -p kate-text --locked -- anchor::tests::anchor_after_edit_resolves_to_shifted_offset",
+        "exit_code": 101,
+        "run_url": "https://github.com/johnpvaldez20/KateM5Rust/actions/runs/19870000019"
+      },
+      "green_run": {
+        "head_sha": "5e6d7c8b9a0f1e2d3c4b5a697887766554433221",
+        "command": "cargo test -p kate-text --locked -- anchor::tests::anchor_after_edit_resolves_to_shifted_offset",
+        "exit_code": 0,
+        "run_url": "https://github.com/johnpvaldez20/KateM5Rust/actions/runs/19870000021"
+      },
+      "reproduces_failure_without_patch": true
+    }
+  },
+  "coverage": {
+    "tool": "CARGO_LLVM_COV",
+    "line_percentage": 93.2,
+    "scope": [
+      "kate-text"
+    ]
+  },
+  "blocking_defects": [],
+  "merge": {
+    "method": "SQUASH",
+    "merged_by": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high"
+      }
+    }
+  }
+}

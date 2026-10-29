@@ -1,0 +1,64 @@
+{
+  "gate": "G2_CODING",
+  "packet_id": "PKT-0010",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-12T08:40:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "cursor-local-coder-01",
+      "role": "CODER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high" },
+      "tool": { "name": "CURSOR_IDE" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 10,
+    "branch": "pkt/PKT-0010-search-plain-regex",
+    "base_sha": "a3f2c9d1e8b74650f1c2d3e4a5b6c7d8e9f0a1b2",
+    "pr_number": 44,
+    "head_sha": "0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d",
+    "merge_base_is_main_head": false
+  },
+  "handoff_artifact": {
+    "kind": "PR_REVIEW",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/pull/44#pullrequestreview-3300000044"
+  },
+  "gate1_verdict_url": "https://github.com/johnpvaldez20/KateM5Rust/issues/10#issuecomment-3100000010",
+  "verdict": "REJECT_STALE_BASE",
+  "toolchain": { "rustc_version": "1.99.1", "matches_rust_toolchain_toml": true },
+  "diff_hygiene": {
+    "files_modified": ["crates/kate-search/src/lib.rs", "crates/kate-search/Cargo.toml", "Cargo.lock"],
+    "out_of_scope_files": [],
+    "contains_unrelated_formatting": false,
+    "touches_upstream_submodule": false,
+    "touches_governance_or_ci": false,
+    "dependencies_added": [
+      {
+        "crate": "regex-cursor",
+        "version": "0.1",
+        "justification": "Runs the regex engine over rope chunks without materializing the buffer into one String; the regex crate alone needs a contiguous &str."
+      }
+    ],
+    "unsafe_blocks_added": 0,
+    "commits_in_pr": 2,
+    "net_line_delta": 340
+  },
+  "taste_metrics": {
+    "max_cyclomatic_complexity": 7,
+    "special_case_branches_eliminated": true,
+    "silent_error_swallowing_detected": false
+  },
+  "violations": ["STALE_BASE"],
+  "overseer_critique": "The code is fine; the branch is not. main moved twice while this local lane worked (PKT-0003 and PKT-0004 landed, changing Transaction and Anchor). Your diff compiles against a Transaction that no longer exists. Rebase onto main, fix the two call sites, push, and CI runs on the new head. No review of the new head until CI reports."
+}

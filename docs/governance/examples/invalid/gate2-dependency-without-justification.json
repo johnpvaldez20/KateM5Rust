@@ -1,0 +1,98 @@
+{
+  "gate": "G2_CODING",
+  "packet_id": "PKT-0003",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T14:21:05Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-02",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 3,
+    "branch": "pkt/PKT-0003-anchors-revision-transform",
+    "base_sha": "a3f2c9d1e8b74650f1c2d3e4a5b6c7d8e9f0a1b2",
+    "pr_number": 21,
+    "head_sha": "5e6d7c8b9a0f1e2d3c4b5a697887766554433221",
+    "merge_base_is_main_head": true
+  },
+  "handoff_artifact": {
+    "kind": "PR_REVIEW",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/pull/21#pullrequestreview-3300000020"
+  },
+  "gate1_verdict_url": "https://github.com/johnpvaldez20/KateM5Rust/issues/3#issuecomment-3100000003",
+  "verdict": "PASS",
+  "toolchain": {
+    "rustc_version": "1.99.1",
+    "matches_rust_toolchain_toml": true
+  },
+  "diff_hygiene": {
+    "files_modified": [
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-text/src/anchor.rs",
+      "crates/kate-text/tests/anchor_test.rs"
+    ],
+    "out_of_scope_files": [],
+    "contains_unrelated_formatting": false,
+    "touches_upstream_submodule": false,
+    "touches_governance_or_ci": false,
+    "dependencies_added": [
+      {
+        "crate": "anyhow",
+        "version": "1",
+        "justification": "convenient"
+      }
+    ],
+    "unsafe_blocks_added": 0,
+    "commits_in_pr": 4,
+    "net_line_delta": 212
+  },
+  "taste_metrics": {
+    "max_cyclomatic_complexity": 5,
+    "special_case_branches_eliminated": true,
+    "silent_error_swallowing_detected": false,
+    "panics_in_library_code": 1
+  },
+  "violations": [],
+  "overseer_critique": "Anchor is a plain Copy value (offset, revision, bias); resolution replays the log. No observer registration, no Rc<RefCell>. The single expect() names the invariant it guards (log retained back to the locked revision). Fine. Gate 3 next."
+}

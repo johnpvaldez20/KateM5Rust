@@ -1,0 +1,128 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0002",
+  "title": "kate-text: TextBuffer, Offset, CharRange, Edit, Transaction",
+  "summary": "The storage layer and the one edit primitive. A ropey::Rope behind TextBuffer, flat char offsets, and Transaction as a sorted list of non-overlapping Replace edits applied atomically with validation. Insert and delete are not separate operations; they are Edits with an empty side. No anchors, no undo, no files: those are PKT-0003 to PKT-0005.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T22:40:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-01",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 2,
+    "branch": "pkt/PKT-0002-text-buffer-edit-transaction",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/2"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Pure library crate, platform independent, heavy on property tests. Exactly what a cloud VM is for; it does not need macOS and it should not occupy the owner's machine.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-core/",
+      "Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New crate API. Replaces nothing. Line endings are not this crate's problem: text arrives already normalized to \\n (PKT-0005)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-text --locked",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo check -p kate-text --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "buffer::tests::apply_then_apply_inverse_is_identity",
+        "kind": "PROPERTY",
+        "asserts": "For any text and any valid Transaction, apply(tx) then apply(tx.invert()) yields the original text and revision advanced by exactly 2. Fixed proptest seed in CI."
+      },
+      {
+        "name": "buffer::tests::old_text_mismatch_is_rejected",
+        "kind": "UNIT",
+        "asserts": "An Edit whose `old` does not match the buffer returns ApplyError::OldTextMismatch and leaves text and revision untouched."
+      },
+      {
+        "name": "edit::tests::overlapping_edits_are_rejected_at_construction",
+        "kind": "UNIT",
+        "asserts": "Transaction::new with two edits whose ranges overlap returns TransactionError::Overlap; adjacent (touching) edits are accepted."
+      },
+      {
+        "name": "buffer::tests::line_col_round_trips_on_every_boundary",
+        "kind": "PROPERTY",
+        "asserts": "offset(line_col(o)) == o for every offset in a generated multi-line text including the final offset after the last char."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

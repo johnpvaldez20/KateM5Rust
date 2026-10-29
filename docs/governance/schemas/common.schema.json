@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/johnpvaldez20/KateM5Rust/docs/governance/schemas/common.schema.json",
+  "title": "KateM5RustGovernanceCommon",
+  "description": "Shared definitions for the three gate payloads. Encodes the hybrid local/cloud agent model and GitHub as the single point of truth. Every gate schema references these definitions; none redefines them.",
+  "$defs": {
+    "packet_id": {
+      "type": "string",
+      "pattern": "^PKT-[0-9]{4,}$",
+      "description": "Work packet identifier. Assigned by the gatekeeper at Gate 1, never reused."
+    },
+    "sha40": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Full 40-character lowercase git commit SHA. Abbreviated SHAs are ambiguous and are rejected."
+    },
+    "repository": {
+      "type": "string",
+      "const": "johnpvaldez20/KateM5Rust",
+      "description": "The one repository. There is no other source of truth."
+    },
+    "github_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://github\\.com/johnpvaldez20/KateM5Rust/",
+      "description": "A URL inside the one repository. Anything else is a side channel."
+    },
+    "runtime": {
+      "type": "string",
+      "enum": ["LOCAL", "CLOUD", "GITHUB_ACTIONS"],
+      "description": "Where an agent or a run executes. LOCAL = the owner's MacBook Pro (Cursor IDE agent, Ollama-served open-weight models). CLOUD = Cursor cloud agents on Linux VMs. GITHUB_ACTIONS = CI, the only runtime whose results count as evidence at Gate 3."
+    },
+    "host_kind": {
+      "type": "string",
+      "enum": ["OWNER_MACBOOK", "CURSOR_CLOUD", "GITHUB_ACTIONS"]
+    },
+    "agent_role": {
+      "type": "string",
+      "enum": ["PLANNER", "CODER", "QA", "GATEKEEPER", "OWNER"]
+    },
+    "model_provider": {
+      "type": "string",
+      "enum": ["ANTHROPIC", "OPENAI", "GOOGLE", "XAI", "CURSOR", "OLLAMA", "HUMAN", "OTHER"]
+    },
+    "agent": {
+      "type": "object",
+      "description": "Provenance of one actor. Required on every payload for both the worker whose output is judged and the author who signs the payload.",
+      "required": ["agent_id", "role", "runtime", "host", "model"],
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$",
+          "description": "Stable identifier, e.g. 'cursor-cloud-coder-03', 'ollama-qwen3-local', 'overseer-linus-v1'."
+        },
+        "role": { "$ref": "#/$defs/agent_role" },
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "host": {
+          "type": "object",
+          "required": ["kind", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "$ref": "#/$defs/host_kind" },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Hostname or runner label, e.g. 'Johns-MacBook-Pro', 'cursor-cloud-vm', 'macos-15'."
+            },
+            "os": { "type": "string", "description": "e.g. 'macOS 27.0.1 (Darwin 27.0.0)', 'Ubuntu 24.04'." },
+            "arch": { "type": "string", "enum": ["aarch64", "x86_64"] }
+          }
+        },
+        "model": {
+          "type": "object",
+          "required": ["provider", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "provider": { "$ref": "#/$defs/model_provider" },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Exact model name or tag as the runtime reports it, e.g. 'claude-opus-5-thinking-high', 'qwen3-coder:30b'."
+            },
+            "settings": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+                "reasoning_effort": { "type": "string", "enum": ["none", "low", "medium", "high", "xhigh"] },
+                "context_window_tokens": { "type": "integer", "minimum": 1024 },
+                "quantization": { "type": "string", "description": "For local open-weight models, e.g. 'Q4_K_M'." }
+              }
+            }
+          }
+        },
+        "tool": {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "enum": ["CURSOR_IDE", "CURSOR_CLOUD_AGENT", "CURSOR_CLI", "OLLAMA", "GITHUB_WEB", "GH_CLI", "OTHER"]
+            },
+            "version": { "type": "string" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "runtime": { "const": "LOCAL" } } },
+          "then": { "properties": { "host": { "properties": { "kind": { "const": "OWNER_MACBOOK" } } } } }
+        },
+        {
+          "if": { "properties": { "runtime": { "const": "CLOUD" } } },
+          "then": { "properties": { "host": { "properties": { "kind": { "const": "CURSOR_CLOUD" } } } } }
+        },
+        {
+          "if": { "properties": { "runtime": { "const": "GITHUB_ACTIONS" } } },
+          "then": { "properties": { "host": { "properties": { "kind": { "const": "GITHUB_ACTIONS" } } } } }
+        },
+        {
+          "description": "Open-weight models served by Ollama run on the owner's machine. A payload claiming an Ollama model in the cloud is lying about one of the two.",
+          "if": { "properties": { "model": { "properties": { "provider": { "const": "OLLAMA" } }, "required": ["provider"] } } },
+          "then": { "properties": { "runtime": { "const": "LOCAL" } } }
+        },
+        {
+          "description": "The gatekeeper role is reserved for the overseer persona and the owner.",
+          "if": { "properties": { "role": { "const": "GATEKEEPER" } } },
+          "then": { "properties": { "agent_id": { "pattern": "^(overseer-linus-v[0-9]+|owner-[a-z0-9-]+)$" } } }
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Who produced this payload, whose work it judges, and the state of main it was judged against.",
+      "required": ["schema_version", "produced_at", "author", "worker"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "type": "string", "const": "2.0.0" },
+        "produced_at": { "type": "string", "format": "date-time" },
+        "author": {
+          "$ref": "#/$defs/agent",
+          "description": "The agent that emitted and signs this payload. For gate verdicts this is the gatekeeper."
+        },
+        "worker": {
+          "$ref": "#/$defs/agent",
+          "description": "The agent whose plan, code or test run is being judged."
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "description": "The GitHub artifacts that carry this packet. A packet without a GitHub trail does not exist.",
+      "required": ["repository", "issue_number", "branch", "base_sha"],
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "$ref": "#/$defs/repository" },
+        "issue_number": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The tracking issue. Created before Gate 1; carries the plan and every verdict as comments."
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^pkt/PKT-[0-9]{4,}-[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "The one branch for this packet, named after it. Reserved at Gate 1, pushed before Gate 2."
+        },
+        "base_sha": {
+          "$ref": "#/$defs/sha40",
+          "description": "The commit of main this work is based on. Used to detect stale branches."
+        },
+        "pr_number": { "type": "integer", "minimum": 1 },
+        "head_sha": {
+          "$ref": "#/$defs/sha40",
+          "description": "The exact commit under review. Every claim in the payload is about this commit and no other."
+        },
+        "merge_base_is_main_head": {
+          "type": "boolean",
+          "description": "True when base_sha is the current tip of main. False means the branch is stale and must be rebased before any verdict other than REJECT_STALE_BASE."
+        }
+      }
+    },
+    "handoff_artifact": {
+      "type": "object",
+      "description": "Where this payload is posted. Handoffs happen only through GitHub artifacts; the payload must point at its own home.",
+      "required": ["kind", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["ISSUE", "ISSUE_COMMENT", "PULL_REQUEST", "PR_REVIEW", "PR_COMMENT", "CHECK_RUN", "COMMIT"]
+        },
+        "url": { "$ref": "#/$defs/github_url" }
+      }
+    },
+    "lane": {
+      "type": "object",
+      "description": "Which runtime should execute the packet and why. Cloud agents cannot see a macOS display, a Metal GPU or APFS; local agents share the owner's machine and open-weight models have smaller context windows.",
+      "required": ["runtime", "reason", "requires"],
+      "additionalProperties": false,
+      "properties": {
+        "runtime": { "type": "string", "enum": ["LOCAL", "CLOUD", "EITHER"] },
+        "reason": { "type": "string", "minLength": 20 },
+        "requires": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["MACOS_HOST", "GUI_DISPLAY", "METAL_GPU", "APFS_FILESYSTEM", "OWNER_EYES", "LARGE_CONTEXT_MODEL", "NONE"]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "description": "Anything that needs macOS hardware or a human looking at a screen cannot run in the cloud.",
+          "if": {
+            "properties": {
+              "requires": { "contains": { "enum": ["MACOS_HOST", "GUI_DISPLAY", "METAL_GPU", "APFS_FILESYSTEM", "OWNER_EYES"] } }
+            }
+          },
+          "then": { "properties": { "runtime": { "const": "LOCAL" } } }
+        }
+      ]
+    },
+    "scope_path": {
+      "type": "string",
+      "pattern": "^(?!\\.\\./)[A-Za-z0-9._][A-Za-z0-9._/-]*$",
+      "description": "A repository-relative file, or a directory when it ends with '/'. No globs. Paths matching protected_path need a gatekeeper worker (see gate 1)."
+    },
+    "protected_path": {
+      "type": "string",
+      "pattern": "^(docs/governance/|\\.github/|upstream/|\\.gitmodules$|rust-toolchain\\.toml$|CODEOWNERS$)",
+      "description": "Paths that define the rules of the game: governance, CI, the upstream pins, the toolchain. Only a GATEKEEPER or OWNER worker may hold a packet that touches them."
+    },
+    "command": {
+      "type": "string",
+      "pattern": "^(cargo|rustup|git) ",
+      "description": "A verification command. Only cargo, rustup and git; the toolchain is pinned so these mean the same thing everywhere."
+    },
+    "definition": {
+      "type": "object",
+      "description": "A concrete data contract: the actual type, schema or configuration text, not a description of it.",
+      "required": ["language", "path", "definition"],
+      "additionalProperties": false,
+      "properties": {
+        "language": { "type": "string", "enum": ["RUST", "JSON_SCHEMA", "TOML", "YAML", "MARKDOWN_TABLE"] },
+        "path": { "$ref": "#/$defs/scope_path" },
+        "definition": { "type": "string", "minLength": 20 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "language": { "const": "RUST" } } },
+          "then": {
+            "properties": {
+              "path": { "pattern": "\\.rs$" },
+              "definition": { "pattern": "(^|\\n)\\s*(#\\[|pub |impl\\b|trait |type |const |static |enum |struct |fn )" }
+            }
+          }
+        }
+      ]
+    },
+    "anti_pattern": {
+      "type": "string",
+      "enum": [
+        "SPECULATIVE_GENERALITY",
+        "NEEDLESS_TRAIT_ABSTRACTION",
+        "CROSS_SUBSYSTEM_BLEED",
+        "MISSING_DATA_CONTRACT",
+        "PROSE_INSTEAD_OF_TYPES",
+        "MONOLITHIC_BATCH",
+        "UNJUSTIFIED_DEPENDENCY",
+        "SIDE_CHANNEL_HANDOFF",
+        "UPSTREAM_SCOPE"
+      ]
+    }
+  }
+}

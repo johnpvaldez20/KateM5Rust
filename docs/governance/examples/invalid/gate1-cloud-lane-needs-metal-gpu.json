@@ -1,0 +1,144 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0002",
+  "title": "kate-text: TextBuffer, Offset, CharRange, Edit, Transaction",
+  "summary": "The storage layer and the one edit primitive. A ropey::Rope behind TextBuffer, flat char offsets, and Transaction as a sorted list of non-overlapping Replace edits applied atomically with validation. Insert and delete are not separate operations; they are Edits with an empty side. No anchors, no undo, no files: those are PKT-0003 to PKT-0005.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T22:40:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-01",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 2,
+    "branch": "pkt/PKT-0002-text-buffer-edit-transaction",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/2"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Pure library crate, platform independent, heavy on property tests. Exactly what a cloud VM is for; it does not need macOS and it should not occupy the owner's machine.",
+    "requires": [
+      "METAL_GPU"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-core/",
+      "Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/offset.rs",
+        "definition": "/// Position in the buffer counted in Unicode scalar values (ropey's native unit).\n#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]\npub struct Offset(pub usize);\n\n/// Half-open range of offsets; `start <= end` is an invariant enforced by `new`.\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub struct CharRange { start: Offset, end: Offset }\nimpl CharRange {\n    pub fn new(a: Offset, b: Offset) -> Self; // orders the two\n    pub fn start(&self) -> Offset; pub fn end(&self) -> Offset;\n    pub fn len(&self) -> usize; pub fn is_empty(&self) -> bool;\n    pub fn contains(&self, o: Offset) -> bool;\n}\n\n/// Derived view of an Offset. `col` is in chars from line start.\n#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]\npub struct LineCol { pub line: u32, pub col: u32 }\n\n/// Monotonic edit counter. 0 for a new or freshly loaded buffer. Never decreases, not even on undo.\n#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]\npub struct Revision(pub u64);"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/edit.rs",
+        "definition": "/// One replacement against the pre-transaction text. Insert: `old` empty. Delete: `new` empty.\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct Edit { pub start: Offset, pub old: String, pub new: String }\nimpl Edit {\n    pub fn insert(at: Offset, text: impl Into<String>) -> Self;\n    pub fn delete(at: Offset, old: impl Into<String>) -> Self;\n    pub fn old_end(&self) -> Offset; // start + old char count\n    pub fn new_end(&self) -> Offset; // start + new char count\n    pub fn delta(&self) -> isize;\n    pub fn invert(&self) -> Edit; // swaps old and new\n}\n\n/// Edits sorted by `start`, pairwise non-overlapping, all relative to the same pre-state.\n#[derive(Clone, PartialEq, Eq, Debug, Default)]\npub struct Transaction { edits: Vec<Edit> }\nimpl Transaction {\n    pub fn new(edits: Vec<Edit>) -> Result<Self, TransactionError>; // sorts, rejects overlap\n    pub fn single(edit: Edit) -> Self;\n    pub fn edits(&self) -> &[Edit];\n    pub fn invert(&self) -> Transaction; // valid against the post-state\n    pub fn is_empty(&self) -> bool;\n}\n\n#[derive(Debug, PartialEq, Eq)]\npub enum TransactionError { Overlap { first: usize, second: usize } }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/buffer.rs",
+        "definition": "pub struct TextBuffer { text: ropey::Rope, revision: Revision }\nimpl TextBuffer {\n    pub fn new() -> Self;\n    pub fn from_str(s: &str) -> Self;\n    pub fn text(&self) -> &ropey::Rope;\n    pub fn snapshot(&self) -> ropey::Rope; // O(1) persistent clone for off-thread readers\n    pub fn revision(&self) -> Revision;\n    pub fn len(&self) -> Offset; // chars\n    pub fn line_count(&self) -> u32; // >= 1; a buffer always has a last line\n    pub fn line_col(&self, at: Offset) -> LineCol;\n    pub fn offset(&self, at: LineCol) -> Offset; // clamps col to line length\n    pub fn slice(&self, r: CharRange) -> ropey::RopeSlice<'_>;\n    /// Validates every edit against the current text, applies all, bumps revision by exactly 1.\n    pub fn apply(&mut self, tx: &Transaction) -> Result<Revision, ApplyError>;\n}\n\n#[derive(Debug, PartialEq, Eq)]\npub enum ApplyError {\n    OutOfBounds { edit: usize, end: Offset, len: Offset },\n    OldTextMismatch { edit: usize, expected: String, found: String },\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New crate API. Replaces nothing. Line endings are not this crate's problem: text arrives already normalized to \\n (PKT-0005)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-text --locked",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo check -p kate-text --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "buffer::tests::apply_then_apply_inverse_is_identity",
+        "kind": "PROPERTY",
+        "asserts": "For any text and any valid Transaction, apply(tx) then apply(tx.invert()) yields the original text and revision advanced by exactly 2. Fixed proptest seed in CI."
+      },
+      {
+        "name": "buffer::tests::old_text_mismatch_is_rejected",
+        "kind": "UNIT",
+        "asserts": "An Edit whose `old` does not match the buffer returns ApplyError::OldTextMismatch and leaves text and revision untouched."
+      },
+      {
+        "name": "edit::tests::overlapping_edits_are_rejected_at_construction",
+        "kind": "UNIT",
+        "asserts": "Transaction::new with two edits whose ranges overlap returns TransactionError::Overlap; adjacent (touching) edits are accepted."
+      },
+      {
+        "name": "buffer::tests::line_col_round_trips_on_every_boundary",
+        "kind": "PROPERTY",
+        "asserts": "offset(line_col(o)) == o for every offset in a generated multi-line text including the final offset after the last char."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

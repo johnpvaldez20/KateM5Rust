@@ -1,0 +1,106 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0005",
+  "title": "kate-fileio: decode and load (BOM, UTF-8, fallback encoding, EOL normalization)",
+  "summary": "Bytes in, Rope out. Detection order: BOM, then strict UTF-8, then the configured fallback encoding via encoding_rs. CR LF and lone CR are normalized to LF and the original line ending is remembered for save. A pure `decode(&[u8])` function carries all the logic so tests need no filesystem; `load(path)` is a thin wrapper that adds size, mtime and a content digest.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T22:55:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
+      "tool": { "name": "CURSOR_IDE" }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-02",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
+      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
+      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 5,
+    "branch": "pkt/PKT-0005-fileio-decode-load",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/5"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Decoding is byte-level and platform independent. Fixtures are committed byte arrays. Reading a file in a tempdir behaves the same on Linux.",
+    "requires": ["NONE"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": ["crates/kate-fileio/"],
+    "forbidden_paths": ["upstream/", "crates/kate-text/"],
+    "crates_touched": ["kate-fileio"],
+    "is_atomic": true,
+    "depends_on_packets": ["PKT-0001", "PKT-0002"]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/decode.rs",
+        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum LineEnding { Lf, CrLf, Cr }\nimpl LineEnding { pub fn as_str(self) -> &'static str; }\n\n/// Alias so callers never spell the encoding_rs path.\npub type Encoding = &'static encoding_rs::Encoding;\n\n#[derive(Clone, Debug)]\npub struct DecodeOptions {\n    pub fallback: Encoding,          // used when bytes are not valid UTF-8 and carry no BOM\n    pub max_bytes: u64,              // refuse larger files loudly instead of swapping to death\n}\nimpl Default for DecodeOptions { /* fallback = WINDOWS_1252, max_bytes = 2 GiB */ }\n\n#[derive(Clone, Debug, PartialEq)]\npub struct Decoded {\n    pub text: ropey::Rope,           // line endings normalized to \\n\n    pub encoding: Encoding,\n    pub bom: bool,\n    pub line_ending: LineEnding,     // majority ending seen; Lf when none\n    pub had_malformed: bool,         // replacement chars were inserted\n    pub probably_binary: bool,       // NUL byte in the first 8 KiB\n}\n\npub fn decode(bytes: &[u8], opts: &DecodeOptions) -> Result<Decoded, DecodeError>;\n\n#[derive(Debug)]\npub enum DecodeError { TooLarge { size: u64, limit: u64 } }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/load.rs",
+        "definition": "#[derive(Debug)]\npub struct Loaded {\n    pub decoded: Decoded,\n    pub size_bytes: u64,\n    pub mtime: Option<std::time::SystemTime>,\n    pub digest: [u8; 32],            // SHA-256 of the bytes on disk, for modified-on-disk checks\n}\n\npub fn load(path: &std::path::Path, opts: &DecodeOptions) -> Result<Loaded, LoadError>;\n\n#[derive(Debug)]\npub enum LoadError { Io(std::io::Error), Decode(DecodeError) }"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New crate API. Dependencies to be added by this packet with justification: encoding_rs (legacy encodings; std has UTF-8 only), sha2 (digest), ropey (output type), tempfile (dev)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-fileio --locked",
+      "cargo clippy -p kate-fileio --all-targets --locked -- -D warnings",
+      "cargo check -p kate-fileio --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "decode::tests::utf8_bom_is_stripped_and_remembered",
+        "kind": "UNIT",
+        "asserts": "Bytes EF BB BF 'hi' decode to text 'hi', bom == true, encoding UTF_8."
+      },
+      {
+        "name": "decode::tests::utf16le_bom_decodes",
+        "kind": "UNIT",
+        "asserts": "A UTF-16LE BOM followed by UTF-16LE 'héllo' decodes to 'héllo' with encoding UTF_16LE."
+      },
+      {
+        "name": "decode::tests::invalid_utf8_falls_back_to_configured_encoding",
+        "kind": "UNIT",
+        "asserts": "Byte 0xE9 alone decodes as 'é' under WINDOWS_1252 fallback, had_malformed false, encoding WINDOWS_1252."
+      },
+      {
+        "name": "decode::tests::crlf_normalized_and_majority_ending_recorded",
+        "kind": "PROPERTY",
+        "asserts": "For generated texts with mixed endings, the Rope contains no \\r, the line count equals the number of logical lines, and line_ending is the majority ending."
+      },
+      {
+        "name": "load::tests::load_reads_tempdir_file_and_digests_it",
+        "kind": "INTEGRATION",
+        "asserts": "A file written to tempfile::tempdir() loads with the right text, size and a SHA-256 equal to an independently computed digest."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
