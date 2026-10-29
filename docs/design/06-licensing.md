@@ -1,9 +1,40 @@
 # Licensing: what reading Kate's code means for a Rust rewrite
 
-**Status: analysis and recommendation. No `LICENSE` file is added by this
-PR. The owner decides.** This is not legal advice; it is an engineer reading
-license texts and counting SPDX headers, which the owner should hand to
-someone who is paid to be wrong about law.
+**Status: the owner accepted the recommended split. PKT-0043 records it.
+This file is not legal advice.**
+
+## 0. Owner decision (2026-10-29)
+
+The copyright holder is John Valdez, 2026.
+
+| Part | License | Where the text lives |
+|---|---|---|
+| Application (`apps/katem5rust`) and workspace default | GPL-3.0-or-later | `LICENSE` and `LICENSES/GPL-3.0-or-later.txt` |
+| Tool `gatecheck` | GPL-3.0-or-later | same GPL text |
+| Core crates `kate-text`, `kate-fileio`, `kate-search`, `kate-core` | LGPL-2.1-or-later | `LICENSES/LGPL-2.1-or-later.txt` |
+| `kate-syntax` | MIT | `LICENSES/MIT.txt` |
+
+Every Rust file carries `SPDX-FileCopyrightText: 2026 John Valdez` and the
+`SPDX-License-Identifier` for its crate. `cargo test -p gatecheck --test
+spdx_headers` fails when a header is missing. CI runs that test.
+
+The GPL grant has one additional term under GPL-3.0 section 7(b). If you
+distribute a modified version of a GPL-3.0-or-later part, keep this line in
+the About box or in the equivalent Appropriate Legal Notices:
+
+    Based on KateM5Rust by John Valdez, a Rust rewrite of KDE Kate
+
+Section 7(b) allows a term that preserves a reasonable author attribution.
+The term does only that. It is not a further restriction under section 10.
+It does not apply to the LGPL crates or to `kate-syntax` when those crates
+are conveyed on their own. It does not add a term to the KDE works. The full
+wording is at the top of `LICENSE` and in `NOTICE`.
+
+The earlier note that `gatecheck` could be MIT or CC0 is withdrawn. The
+workspace default is GPL-3.0-or-later, and `gatecheck` follows that default.
+
+The analysis below is the record of why this split was recommended. It is
+not legal advice.
 
 ## 1. What is upstream, exactly
 
@@ -173,8 +204,10 @@ six MIT definitions for exactly this reason.
 - `kate-syntax`: **MIT**, with upstream's copyright notice preserved,
   because its upstream is MIT and it has no LGPL ancestry. It becomes
   reusable by the wider Rust community, which is a real contribution.
-- `gatecheck`, governance documents, design documents: **MIT** or
-  **CC0-1.0**; they derive from nothing.
+- `gatecheck` follows the workspace default, **GPL-3.0-or-later**. Section 0
+  records that choice. The earlier MIT-or-CC0 option for this tool is
+  withdrawn. Governance documents and design documents stay with the
+  repository license grant in `LICENSE`.
 - Vendored definitions and themes: their own licenses, headers intact,
   `SOURCES.md` per directory, non-permissive definitions loaded as files
   from the bundle.
@@ -191,18 +224,17 @@ not this one.
 
 ## 8. What the owner must decide
 
-1. Accept Option A, or pick another row of the table.
+1. **Decided.** The owner accepted Option A with the MIT exception for
+   `kate-syntax`. PKT-0043 writes that decision into the tree. See section 0.
 2. Whether the GPL/LGPL-licensed syntax definitions are vendored (as files)
-   now, or only the permissive ones until the decision in (1) is made. This
-   blocks PKT-0028.
-3. Whether a closed-source or App Store distribution is ever a goal. If yes,
-   say so now; it changes the answer to (1) toward Option D and the
-   architecture toward dynamic libraries for the core.
+   now, or only the permissive ones. This still blocks PKT-0028.
+3. Whether a closed-source or App Store distribution is ever a goal. The
+   accepted license does not leave that path open. A later change toward
+   Option D would be a new decision.
 4. Whether to make the repository public. GPL does not require it, but
    branch protection and free macOS CI minutes do
    (`GOVERNANCE_LINUS.md` §XI), and a GPL project with a private repo is an
    odd combination.
 
-Until these are decided: no `LICENSE` file, no SPDX headers, only MIT
-upstream data is vendored, and agents are reminded at Gate 2 that
-`upstream/` is for reading behavior, not for transcribing.
+`upstream/` stays read-only. Agents still read it for behavior. They do not
+transcribe it into Rust source.

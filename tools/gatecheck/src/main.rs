@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Command-line entry point. Usage: `cargo run -p gatecheck [-- <repo-root>]`.
 //! Defaults to the workspace root. Exit code 1 on any failure.
 

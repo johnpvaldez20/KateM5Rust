@@ -1,0 +1,14 @@
+# Authors
+
+John Valdez is the author of the KateM5Rust Rust work. Copyright 2026.
+
+KateM5Rust is derived from study of KDE Kate, KTextEditor, and
+KSyntaxHighlighting. The KDE contributors wrote those works.
+
+The pinned upstream trees do not contain an AUTHORS file. The KDE
+contributors are named in the SPDX-FileCopyrightText lines of those trees
+and in the upstream commit history:
+
+- https://invent.kde.org/utilities/kate
+- https://invent.kde.org/frameworks/ktexteditor
+- https://invent.kde.org/frameworks/syntax-highlighting

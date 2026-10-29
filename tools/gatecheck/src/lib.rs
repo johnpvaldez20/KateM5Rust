@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `gatecheck`: validates governance payloads against the gate schemas.
 //!
 //! What it checks, in order:
@@ -17,9 +20,15 @@
 //!      declares a dependency on the other (locked subsystem boundaries);
 //!    - in a Gate 3 payload, `ci_evidence.head_sha` equals `github.head_sha`
 //!      (CI evidence is only evidence for the exact commit).
+//! 5. Every Rust file under `apps/`, `crates/`, and `tools/` carries the SPDX
+//!    header for its crate (`spdx`).
 //!
 //! The library returns a [`Report`]; the binary prints it and sets the exit
 //! code; the integration test asserts it is clean.
+
+mod spdx;
+
+pub use spdx::{check_rust_spdx_headers, expected_spdx_license};
 
 use std::collections::BTreeMap;
 use std::fmt;

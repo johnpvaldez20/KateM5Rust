@@ -87,6 +87,9 @@ jobs:
       - name: gatecheck
         run: cargo run -p gatecheck --locked
 
+      - name: spdx headers
+        run: cargo test -p gatecheck --locked --test spdx_headers
+
       - name: check the product target from Linux
         if: runner.os == 'Linux'
         run: cargo check --workspace --locked --target aarch64-apple-darwin

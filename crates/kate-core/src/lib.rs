@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
 //! `kate-core`: the editor model without a GUI.
 //!
 //! Documents, views, selections (one cursor is a selection set of size one),

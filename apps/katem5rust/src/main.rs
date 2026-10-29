@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! KateM5Rust application entry point.
 //!
 //! There is no editor here yet. The GUI shell arrives with its own packets

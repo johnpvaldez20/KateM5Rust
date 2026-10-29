@@ -1,0 +1,58 @@
+KateM5Rust
+Copyright (C) 2026 John Valdez
+
+John Valdez is the author of the Rust work in this repository.
+
+KateM5Rust is a Rust rewrite derived from study of these KDE works:
+
+- KDE Kate
+  https://invent.kde.org/utilities/kate
+  Pinned tag: v26.08.2
+  License: LGPL-2.0-or-later, LGPL-2.0-only, MIT, and GPL-2.0-or-later.
+  See the SPDX headers in upstream/kate.
+
+- KTextEditor
+  https://invent.kde.org/frameworks/ktexteditor
+  Pinned tag: v6.31.0
+  License: LGPL-2.0-or-later and LGPL-2.0-only.
+  See the SPDX headers in upstream/ktexteditor.
+
+- KSyntaxHighlighting
+  https://invent.kde.org/frameworks/syntax-highlighting
+  Pinned tag: v6.31.0
+  License: the library and the themes are MIT. The syntax definitions use
+  several licenses. See the license attribute in each definition file.
+
+The KDE contributors wrote those works. Their names are in the
+SPDX-FileCopyrightText lines of the upstream trees and in the upstream
+commit history. The pinned trees do not contain an AUTHORS file. See AUTHORS
+in this repository.
+
+The Rust source in this repository is not a copy of the KDE source. The
+study of that source is recorded in docs/design/06-licensing.md.
+
+License of this repository
+--------------------------
+
+The application and the workspace default are GPL-3.0-or-later. The text is
+in LICENSE and in LICENSES/GPL-3.0-or-later.txt.
+
+The core crates kate-text, kate-fileio, kate-search, and kate-core are
+LGPL-2.1-or-later. The text is in LICENSES/LGPL-2.1-or-later.txt.
+
+The kate-syntax crate is MIT. The text is in LICENSES/MIT.txt.
+
+Additional term under GPL-3.0 section 7(b)
+------------------------------------------
+
+This term is part of the GPL-3.0-or-later grant for this program. Section
+7(b) allows it. It preserves a reasonable author attribution. It is not a
+further restriction under section 10.
+
+If you distribute a modified version of a covered work that is licensed
+under GPL-3.0-or-later, you must keep this attribution in the program About
+box, or in the equivalent Appropriate Legal Notices:
+
+    Based on KateM5Rust by John Valdez, a Rust rewrite of KDE Kate
+
+The full term is at the top of LICENSE.

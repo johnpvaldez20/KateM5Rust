@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! `cargo test --workspace` fails when any governance example or design packet
 //! stops validating. This is the check CI relies on.
 

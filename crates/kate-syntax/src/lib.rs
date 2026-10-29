@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 John Valdez
+// SPDX-License-Identifier: MIT
+
 //! `kate-syntax`: syntax highlighting.
 //!
 //! A Rust implementation of the KSyntaxHighlighting definition format
