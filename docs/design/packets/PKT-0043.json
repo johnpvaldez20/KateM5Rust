@@ -1,0 +1,153 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0043",
+  "title": "Licensing and attribution: GPL-3.0, LGPL-2.1, MIT, SPDX headers",
+  "summary": "Record the owner decision. The application and the workspace default are GPL-3.0-or-later. The core crates are LGPL-2.1-or-later. kate-syntax is MIT. Add the license texts, SPDX headers, NOTICE, AUTHORS, and a GPL-3.0 section 7(b) attribution term. Add a test that fails when a Rust file has no header. PKT-0002 through PKT-0013 depend on this packet because they edit the same files. No editor behavior.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7"
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7"
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 3,
+    "branch": "pkt/PKT-0043-licensing-attribution",
+    "base_sha": "f69ca1bb92ec71ef84be4956aafbe8df293747e3"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/3"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "The owner already chose the license split. This packet writes that choice into the tree. It needs the owner name and a review of the section 7 term.",
+    "requires": ["OWNER_EYES"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      ".github/workflows/ci.yml",
+      "AUTHORS",
+      "Cargo.toml",
+      "LICENSE",
+      "LICENSES/",
+      "NOTICE",
+      "README.md",
+      "apps/katem5rust/Cargo.toml",
+      "apps/katem5rust/src/main.rs",
+      "crates/kate-core/Cargo.toml",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-fileio/Cargo.toml",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-search/Cargo.toml",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-syntax/Cargo.toml",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-text/Cargo.toml",
+      "crates/kate-text/src/lib.rs",
+      "docs/design/00-overview.md",
+      "docs/design/05-backlog.md",
+      "docs/design/06-licensing.md",
+      "docs/design/packets/",
+      "tools/gatecheck/Cargo.toml",
+      "tools/gatecheck/src/",
+      "tools/gatecheck/tests/"
+    ],
+    "forbidden_paths": ["upstream/"],
+    "crates_touched": [
+      "workspace",
+      "katem5rust",
+      "kate-text",
+      "kate-syntax",
+      "kate-search",
+      "kate-fileio",
+      "kate-core",
+      "gatecheck"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": ["PKT-0001"]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "TOML",
+        "path": "Cargo.toml",
+        "definition": "[workspace.package]\nlicense = \"GPL-3.0-or-later\"\n\n# apps/katem5rust/Cargo.toml and tools/gatecheck/Cargo.toml\nlicense = \"GPL-3.0-or-later\"\n\n# crates/kate-text, kate-fileio, kate-search, kate-core\nlicense = \"LGPL-2.1-or-later\"\n\n# crates/kate-syntax/Cargo.toml\nlicense = \"MIT\""
+      },
+      {
+        "language": "RUST",
+        "path": "tools/gatecheck/src/spdx.rs",
+        "definition": "const SPDX_BY_PREFIX: &[(&str, &str)] = &[\n    (\"crates/kate-syntax/\", \"MIT\"),\n    (\"crates/kate-text/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-fileio/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-search/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-core/\", \"LGPL-2.1-or-later\"),\n    (\"apps/\", \"GPL-3.0-or-later\"),\n    (\"tools/\", \"GPL-3.0-or-later\"),\n];\n\n/// License identifier required for a repo-relative path.\n/// `None` means this packet does not map that path. The caller fails the check.\npub fn expected_spdx_license(rel_path: &str) -> Option<&'static str> {\n    SPDX_BY_PREFIX\n        .iter()\n        .find(|(prefix, _)| rel_path.starts_with(prefix))\n        .map(|(_, license)| *license)\n}\n\n/// Empty when every tracked Rust file starts with the copyright line and the mapped license line.\npub fn check_rust_spdx_headers(repo_root: &std::path::Path) -> Vec<String>;"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "docs/design/06-licensing.md",
+        "definition": "| Path | SPDX-License-Identifier | Cargo.toml license |\n|---|---|---|\n| apps/ and tools/ | GPL-3.0-or-later | GPL-3.0-or-later |\n| crates/kate-text, kate-fileio, kate-search, kate-core | LGPL-2.1-or-later | LGPL-2.1-or-later |\n| crates/kate-syntax | MIT | MIT |\n\nHeader, first lines of every .rs file:\nSPDX-FileCopyrightText: 2026 John Valdez\nSPDX-License-Identifier: <the identifier in the table>\n\nGPL-3.0 section 7(b) additional term, in LICENSE and NOTICE. It is a permitted additional term. It is not a further restriction under section 10. Anyone who distributes a modified version of a GPL-3.0-or-later part must keep this attribution in the About box or in equivalent Appropriate Legal Notices: Based on KateM5Rust by John Valdez, a Rust rewrite of KDE Kate"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "No editor API changes. gatecheck gains expected_spdx_license and check_rust_spdx_headers. Every Cargo.toml gains a license field. The repository gains LICENSE, LICENSES/, NOTICE, and AUTHORS."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p gatecheck --locked --test spdx_headers",
+      "cargo test --workspace --locked",
+      "cargo clippy --workspace --all-targets --locked -- -D warnings",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "spdx_headers::every_rust_file_has_the_header_for_its_crate",
+        "kind": "INTEGRATION",
+        "asserts": "Every .rs file under apps, crates, and tools has the copyright line and the license line for that crate. A file with no header fails the test."
+      },
+      {
+        "name": "spdx::tests::prefix_map_matches_the_owner_split",
+        "kind": "UNIT",
+        "asserts": "kate-syntax maps to MIT. kate-text maps to LGPL-2.1-or-later. apps and tools map to GPL-3.0-or-later. An unknown path maps to None."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

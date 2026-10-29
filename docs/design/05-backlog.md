@@ -103,6 +103,15 @@ Titles only; JSON payloads are written when each issue opens.
 | PKT-008x | Spell check via `NSSpellChecker` | LOCAL | |
 | PKT-009x | LSP: semantic tokens, inlay hints, code actions, rename, formatting | CLOUD | |
 
+## Issued after the plan
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0043 | Licensing and attribution. GPL-3.0-or-later, LGPL-2.1-or-later, MIT, SPDX headers. | LOCAL | PKT-0001 |
+
+PKT-0002 through PKT-0013 depend on PKT-0043. They edit the same source
+files. The license headers land first.
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
