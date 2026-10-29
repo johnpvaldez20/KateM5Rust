@@ -1,0 +1,139 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0004",
+  "title": "kate-text: History (undo/redo groups, coalescing, saved-state tracking)",
+  "summary": "Undo as a stack of HistoryEntry, each holding a forward Transaction and its inverse plus the selection ranges before and after. Coalescing merges adjacent typing or adjacent deletion into one entry; everything else is its own entry. Modified-state is tracked by undo-stack depth at save time, not by a boolean that drifts.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T22:50:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-01",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 4,
+    "branch": "pkt/PKT-0004-history-undo-redo",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/4"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Pure library logic with property tests; same lane as the two packets before it because it touches the same crate and must land after them.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-text/src/history.rs",
+      "crates/kate-text/tests/history_test.rs"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/anchor.rs",
+      "crates/kate-text/src/log.rs"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0003"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/history.rs",
+        "definition": "/// Why an edit happened. Only Typing+Typing and Deletion+Deletion coalesce, and only when adjacent.\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum EditKind { Typing, Deletion, Paste, Replace, Indent, Programmatic }\n\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct HistoryEntry {\n    pub forward: Transaction,\n    pub inverse: Transaction,\n    pub kind: EditKind,\n    pub revision_before: Revision,\n    pub revision_after: Revision,\n    pub ranges_before: Vec<CharRange>, // selections, primary first\n    pub ranges_after: Vec<CharRange>,\n}\n\npub struct History {\n    undo: Vec<HistoryEntry>,\n    redo: Vec<HistoryEntry>,\n    group_open: bool,\n    saved_depth: Option<usize>, // undo.len() at the last save; None if that state became unreachable\n}\nimpl History {\n    pub fn new() -> Self;\n    /// Records an already-applied transaction. Coalesces into the last entry when group_open\n    /// or when kind allows and the new edit starts where the last one ended. Clears redo.\n    pub fn record(&mut self, entry: HistoryEntry);\n    pub fn begin_group(&mut self); pub fn end_group(&mut self);\n    /// Applies the inverse to `buf`, moves the entry to redo, returns ranges_before.\n    pub fn undo(&mut self, buf: &mut TextBuffer) -> Option<Vec<CharRange>>;\n    pub fn redo(&mut self, buf: &mut TextBuffer) -> Option<Vec<CharRange>>;\n    pub fn can_undo(&self) -> bool; pub fn can_redo(&self) -> bool;\n    pub fn mark_saved(&mut self);\n    pub fn is_modified(&self) -> bool; // saved_depth != Some(undo.len())\n    pub fn clear(&mut self);\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New module. History does not own the buffer; it borrows it for undo/redo so that Document (PKT-0012) can own both as plain fields."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-text --locked",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo check -p kate-text --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "history::tests::undo_redo_round_trip_restores_text_and_ranges",
+        "kind": "PROPERTY",
+        "asserts": "For random edit sequences, undoing all entries restores the original text, redoing all restores the final text, and the returned ranges equal those recorded."
+      },
+      {
+        "name": "history::tests::coalesces_adjacent_single_char_inserts",
+        "kind": "UNIT",
+        "asserts": "Typing 'a','b','c' at consecutive offsets yields one undo entry; one undo removes all three."
+      },
+      {
+        "name": "history::tests::saved_state_tracks_undo_depth",
+        "kind": "UNIT",
+        "asserts": "Edit, mark_saved, edit, undo -> is_modified() is false; undo again -> true; edit after undo past the saved depth -> saved state unreachable, stays modified."
+      },
+      {
+        "name": "history::tests::new_edit_clears_redo",
+        "kind": "UNIT",
+        "asserts": "After undo, recording a new entry empties the redo stack and can_redo() is false."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

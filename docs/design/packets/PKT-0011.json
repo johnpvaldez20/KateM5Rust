@@ -1,0 +1,146 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0011",
+  "title": "kate-core: Selections (multi-cursor set), grapheme-aware movement, edit fan-out",
+  "summary": "One cursor is a selection set of size one; there is no single-cursor code path. Selections is a sorted, non-overlapping Vec<Selection> with a primary index. Movement is grapheme-cluster aware and keeps a goal column across vertical moves. Fan-out builds one Transaction from a per-selection edit function, so typing with 40 cursors is one undo entry. Vertical movement here is by logical line; visual-line movement under dynamic wrap belongs to the GUI, which knows the layout.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:25:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-01",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 11,
+    "branch": "pkt/PKT-0011-core-selections-movement",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/11"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Pure logic over kate-text with property tests for the sorted/non-overlapping invariant. No GUI involved.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-text/",
+      "crates/kate-syntax/"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0003"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/selection.rs",
+        "definition": "/// anchor == head is a caret. head is the moving end. goal_col survives vertical movement.\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Selection { pub anchor: Offset, pub head: Offset, pub goal_col: Option<u32> }\nimpl Selection {\n    pub fn caret(at: Offset) -> Self;\n    pub fn range(&self) -> CharRange; pub fn is_caret(&self) -> bool;\n    pub fn min(&self) -> Offset; pub fn max(&self) -> Offset;\n}\n\n/// Invariant after every public method: sorted by min(), pairwise non-overlapping, primary < len().\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct Selections { ranges: Vec<Selection>, primary: usize }\nimpl Selections {\n    pub fn single(s: Selection) -> Self;\n    pub fn new(ranges: Vec<Selection>, primary: usize) -> Self; // normalizes; merges overlaps, primary follows its range\n    pub fn primary(&self) -> Selection; pub fn iter(&self) -> impl Iterator<Item = &Selection>; pub fn len(&self) -> usize;\n    pub fn push(&mut self, s: Selection); // becomes primary\n    pub fn remove_secondary(&mut self); // collapse to primary only\n    pub fn map(&mut self, f: impl FnMut(Selection) -> Selection); // then normalize\n    /// Positions after `tx` (pre-state offsets): anchor Left-biased, head Right-biased; then normalize.\n    pub fn transformed(&self, tx: &Transaction) -> Selections;\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/movement.rs",
+        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum Movement { Left, Right, WordLeft, WordRight, Up, Down, LineStart, LineEnd, SmartHome, DocStart, DocEnd, Lines(i32) }\n\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum Extend { No, Yes }\n\n/// Grapheme-cluster steps (unicode-segmentation); tab width for goal columns; Kate word-boundary rules.\npub struct MoveContext { pub tab_width: u8 }\n\npub fn move_selection(buf: &TextBuffer, s: Selection, m: Movement, extend: Extend, ctx: &MoveContext) -> Selection;\npub fn move_all(buf: &TextBuffer, sel: &mut Selections, m: Movement, extend: Extend, ctx: &MoveContext);"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/fanout.rs",
+        "definition": "/// Builds one Transaction by asking `f` for an Edit per selection (pre-state offsets). Returns the\n/// transaction and the selections as they will be after it (via Selections::transformed), or an error\n/// if `f` produced overlapping edits.\npub fn fan_out(buf: &TextBuffer, sel: &Selections, f: impl FnMut(&TextBuffer, Selection) -> Option<Edit>) -> Result<(Transaction, Selections), TransactionError>;\n\n/// The common cases, built on fan_out:\npub fn insert_text(buf: &TextBuffer, sel: &Selections, text: &str) -> Result<(Transaction, Selections), TransactionError>;\npub fn delete_backward(buf: &TextBuffer, sel: &Selections) -> Result<(Transaction, Selections), TransactionError>; // grapheme or selection\npub fn delete_forward(buf: &TextBuffer, sel: &Selections) -> Result<(Transaction, Selections), TransactionError>;"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New crate API. Dependency with justification: unicode-segmentation (grapheme cluster boundaries; char stepping splits emoji and combining marks)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "selection::tests::normalize_sorts_merges_and_keeps_primary",
+        "kind": "PROPERTY",
+        "asserts": "For random selection vectors, the result is sorted by min(), no two ranges overlap, and the primary points at the range that absorbed the original primary."
+      },
+      {
+        "name": "movement::tests::right_steps_over_grapheme_clusters",
+        "kind": "UNIT",
+        "asserts": "From offset 0 in 'e\\u{301}x' one Right lands after the combining mark (offset 2), not between e and the accent."
+      },
+      {
+        "name": "movement::tests::vertical_move_keeps_goal_column_across_short_lines",
+        "kind": "UNIT",
+        "asserts": "Column 10 on line 0, Down over an empty line, Down again lands on column 10 of line 2 (with tabs expanded at tab_width)."
+      },
+      {
+        "name": "fanout::tests::typing_with_many_cursors_is_one_transaction",
+        "kind": "UNIT",
+        "asserts": "insert_text with 40 carets yields one Transaction of 40 edits and 40 carets each advanced by the text length; single caret is the same code path with 1 edit."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

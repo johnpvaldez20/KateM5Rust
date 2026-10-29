@@ -1,0 +1,17 @@
+[package]
+name = "katem5rust"
+description = "KateM5Rust: a Rust rewrite of the KDE Kate text editor for macOS."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "katem5rust"
+path = "src/main.rs"
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -1,0 +1,145 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0013",
+  "title": "kate-ui: GPUI spike, read-only rendering of a Document with syntax colors, scroll benchmark",
+  "summary": "The toolkit decision gate. Create crates/kate-ui on GPUI, open one window, render a kate-core Document read-only with themed spans, line numbers and smooth scrolling. Measure: open a 100,000-line file and scroll it; frame time must stay under 8 ms at 120 Hz on the owner's M-series machine, IME marked text must display, and Cmd-Q must quit cleanly. If GPUI fails any of these, this packet is rejected at Gate 3 and the fallback (objc2 + AppKit + Core Text) gets its own spike packet. kate-core is untouched either way.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:35:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-local-coder-01",
+      "role": "CODER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 13,
+    "branch": "pkt/PKT-0013-ui-gpui-spike",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/13"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "Needs a Metal GPU, a display, macOS frameworks and a human watching the scroll. GPUI's build script needs Xcode tools, so cloud agents cannot even type-check this crate. Frame times are measured on the owner's machine because that is the machine the product targets.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "METAL_GPU",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/",
+      "apps/katem5rust/",
+      "Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-core/",
+      "crates/kate-text/",
+      "crates/kate-syntax/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-ui",
+      "katem5rust",
+      "workspace"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0009",
+      "PKT-0012"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/lib.rs",
+        "definition": "/// The one GPUI entity that owns the editor model. Everything on screen is a function of this.\npub struct App { pub workspace: kate_core::Workspace }\n\n/// GPUI element that paints one View of one Document. Holds only layout caches, never model state.\npub struct EditorElement { view: kate_core::ViewId, line_height: gpui::Pixels, glyph_cache: ShapedLineCache }\n\n/// Shaped text per visible logical line, keyed by (line index, buffer revision, theme revision).\npub struct ShapedLineCache { lines: std::collections::HashMap<(u32, kate_text::Revision), gpui::ShapedLine> }\n\n/// Frame-time telemetry written to stderr as JSON lines when KATEM5_PROFILE=1. This is the spike's deliverable.\n#[derive(serde::Serialize)]\npub struct FrameSample { pub frame: u64, pub paint_micros: u64, pub first_line: u32, pub lines_painted: u32 }\n\npub fn run(path: Option<std::path::PathBuf>) -> !; // opens the window, blocks until quit"
+      },
+      {
+        "language": "TOML",
+        "path": "Cargo.toml",
+        "definition": "[workspace.dependencies]\nkate-ui = { path = \"crates/kate-ui\" }\n# apps/katem5rust/Cargo.toml: kate-ui = { workspace = true }"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo build -p katem5rust --locked",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "layout::tests::visible_line_range_matches_viewport_and_scroll",
+        "kind": "UNIT",
+        "asserts": "Given viewport height, line height and Scroll { first_line }, the painted range is exactly the lines that intersect the viewport; no GPU needed for this test."
+      },
+      {
+        "name": "layout::tests::shaped_line_cache_invalidates_on_revision_change",
+        "kind": "UNIT",
+        "asserts": "A cache entry for (line, revision) is a miss after the buffer revision changes and a hit otherwise."
+      },
+      {
+        "name": "spike::scroll_100k_lines_under_8ms",
+        "kind": "BENCH",
+        "asserts": "Manual, recorded in the PR as the KATEM5_PROFILE JSON lines from the owner's machine: p95 paint_micros < 8000 while scrolling a 100,000-line generated Rust file. The gatekeeper reads the numbers; the owner watches the screen. CI builds the crate but cannot run this."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/johnpvaldez20/KateM5Rust/docs/governance/schemas/gate1-planning-handoff.schema.json",
+  "title": "Gate1PlanningHandoff",
+  "description": "Gate 1 verdict on a work packet plan. Posted by the gatekeeper as a comment on the packet's tracking issue. A PASS unlocks exactly one branch for exactly one coding agent. Data contracts first: no concrete definitions, no PASS.",
+  "type": "object",
+  "required": [
+    "gate",
+    "packet_id",
+    "title",
+    "provenance",
+    "github",
+    "handoff_artifact",
+    "lane",
+    "verdict",
+    "subsystem_scope",
+    "data_contracts",
+    "verification_plan",
+    "abstraction_audit",
+    "rejection_reasons"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "gate": { "type": "string", "const": "G1_PLANNING" },
+    "packet_id": { "$ref": "common.schema.json#/$defs/packet_id" },
+    "title": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 100,
+      "description": "Imperative, specific. 'kate-text: TextBuffer, Offset and Transaction types', not 'buffer work'."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 40,
+      "description": "What the packet delivers and what it deliberately does not. Prose is allowed here and nowhere else."
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" },
+    "github": { "$ref": "common.schema.json#/$defs/github" },
+    "handoff_artifact": {
+      "$ref": "common.schema.json#/$defs/handoff_artifact",
+      "properties": { "kind": { "enum": ["ISSUE", "ISSUE_COMMENT"] } }
+    },
+    "lane": { "$ref": "common.schema.json#/$defs/lane" },
+    "verdict": { "type": "string", "enum": ["PASS", "REJECT"] },
+    "subsystem_scope": {
+      "type": "object",
+      "required": ["allowed_files", "forbidden_paths", "crates_touched", "is_atomic", "depends_on_packets"],
+      "additionalProperties": false,
+      "properties": {
+        "allowed_files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "common.schema.json#/$defs/scope_path" },
+          "description": "Strict whitelist. Files or directories (trailing '/'). The coding agent may create, modify or delete nothing else. Cargo.lock is implied when a dependency is added."
+        },
+        "forbidden_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Paths the coder must not touch even though they sit next to allowed ones. For worker packets 'upstream/' is always listed here."
+        },
+        "crates_touched": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(kate-[a-z]+|katem5rust|gatecheck|workspace)$" },
+          "description": "Workspace crates whose files appear in allowed_files. 'workspace' for root manifests and CI. One crate is the norm; two needs a reason; three is a MONOLITHIC_BATCH."
+        },
+        "is_atomic": {
+          "type": "boolean",
+          "description": "True only if the packet can be merged as a single squash commit, bisected to, and reverted alone without breaking build or tests."
+        },
+        "depends_on_packets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "common.schema.json#/$defs/packet_id" },
+          "description": "Packets that must be merged first. Two packets with overlapping allowed_files must be ordered by this field or one of them is rejected."
+        }
+      }
+    },
+    "data_contracts": {
+      "type": "object",
+      "required": ["structures_defined_upfront", "definitions", "public_api_change", "schema_diff_summary"],
+      "additionalProperties": false,
+      "properties": {
+        "structures_defined_upfront": {
+          "type": "boolean",
+          "description": "True only if every type, schema or config format the packet introduces appears verbatim in definitions[]."
+        },
+        "definitions": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/definition" },
+          "description": "The actual Rust types / JSON Schema / TOML the coding agent must implement. Signatures are the contract; bodies are the coder's job."
+        },
+        "public_api_change": {
+          "type": "string",
+          "enum": ["NONE", "ADDITIVE", "BREAKING"],
+          "description": "Effect on public items of already-merged crates, on on-disk formats, and on user-visible behavior."
+        },
+        "migration": {
+          "type": "object",
+          "required": ["plan", "compat_window"],
+          "additionalProperties": false,
+          "properties": {
+            "plan": { "type": "string", "minLength": 50 },
+            "compat_window": { "type": "string", "minLength": 3, "description": "How long the old form stays readable, e.g. '2 releases', 'forever for .katesession'." }
+          }
+        },
+        "schema_diff_summary": { "type": "string", "minLength": 10 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "public_api_change": { "const": "BREAKING" } } },
+          "then": { "required": ["migration"] }
+        }
+      ]
+    },
+    "verification_plan": {
+      "type": "object",
+      "description": "What Gate 3 will run and what must be true. Written before the code exists so that the coder cannot shape the tests to the implementation.",
+      "required": ["commands", "regression_tests", "deterministic"],
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "common.schema.json#/$defs/command" }
+        },
+        "regression_tests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "kind", "asserts"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(::[a-z][a-z0-9_]*)*$" },
+              "kind": { "type": "string", "enum": ["UNIT", "PROPERTY", "GOLDEN", "INTEGRATION", "FUZZ", "MIRI", "BENCH"] },
+              "asserts": { "type": "string", "minLength": 15 }
+            }
+          }
+        },
+        "deterministic": {
+          "type": "boolean",
+          "description": "True only if tests use fixed seeds, committed fixtures, per-test temporary directories and no network."
+        }
+      }
+    },
+    "abstraction_audit": {
+      "type": "object",
+      "required": ["introduces_speculative_patterns", "flagged_anti_patterns"],
+      "additionalProperties": false,
+      "properties": {
+        "introduces_speculative_patterns": {
+          "type": "boolean",
+          "description": "True if the plan proposes traits with one implementor, generic parameters with one instantiation, plugin hooks nobody calls, or a framework nobody asked for."
+        },
+        "flagged_anti_patterns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "common.schema.json#/$defs/anti_pattern" }
+        }
+      }
+    },
+    "rejection_reasons": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 20 },
+      "description": "Blunt, actionable. Each reason names the data structure to fix. Empty on PASS."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "PASS" } } },
+      "then": {
+        "properties": {
+          "subsystem_scope": {
+            "properties": {
+              "is_atomic": { "const": true },
+              "crates_touched": { "minItems": 1 }
+            }
+          },
+          "data_contracts": {
+            "properties": {
+              "structures_defined_upfront": { "const": true },
+              "definitions": { "minItems": 1 }
+            }
+          },
+          "verification_plan": {
+            "properties": { "deterministic": { "const": true } }
+          },
+          "abstraction_audit": {
+            "properties": {
+              "introduces_speculative_patterns": { "const": false },
+              "flagged_anti_patterns": { "maxItems": 0 }
+            }
+          },
+          "rejection_reasons": { "maxItems": 0 }
+        }
+      },
+      "else": {
+        "properties": {
+          "rejection_reasons": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "A packet that touches a protected path (governance, CI, upstream pins, toolchain) may only be held by the gatekeeper or the owner.",
+      "if": {
+        "properties": {
+          "subsystem_scope": {
+            "properties": {
+              "allowed_files": { "contains": { "$ref": "common.schema.json#/$defs/protected_path" } }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "provenance": { "properties": { "worker": { "properties": { "role": { "enum": ["GATEKEEPER", "OWNER"] } } } } }
+        }
+      }
+    }
+  ]
+}

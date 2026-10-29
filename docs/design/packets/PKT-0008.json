@@ -1,0 +1,151 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0008",
+  "title": "kate-syntax: context-stack highlighting engine with upstream golden tests",
+  "summary": "The matching side. highlight_line takes a line and an interned start state, runs the rules of the top context left to right exactly like KSyntaxHighlighting's AbstractHighlighter::highlightLine (lookahead, firstNonSpace, column, dynamic captures, lineEndContext, lineEmptyContext, fallthrough, folding regions) and returns spans plus the end state. Golden tests reuse upstream autotests/input and autotests/reference for the vendored definitions, converted to our span format by a committed script output, so the Rust engine is held to the C++ engine's exact output.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T23:10:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-03",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 8,
+    "branch": "pkt/PKT-0008-syntax-engine-golden-tests",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/8"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The hardest pure-logic packet in Phase 1 and the one with the best test oracle (upstream reference output). A large-context frontier model in the cloud, not a quantized local model.",
+    "requires": [
+      "LARGE_CONTEXT_MODEL"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/state.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-syntax/Cargo.toml",
+      "crates/kate-syntax/tests/",
+      "crates/kate-syntax/testdata/"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-syntax/src/definition.rs",
+      "crates/kate-syntax/definitions/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/state.rs",
+        "definition": "/// One stack frame: the context plus captures for dynamic rules pushed with it.\n#[derive(Clone, PartialEq, Eq, Hash, Debug)]\npub struct Frame { pub context: ContextId, pub captures: Option<std::sync::Arc<[String]>> }\n\n/// The per-line-end highlighting state: the context stack. Interned because most lines share a few states.\n#[derive(Clone, PartialEq, Eq, Hash, Debug)]\npub struct State { frames: smallvec::SmallVec<[Frame; 8]> }\n\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub struct StateId(pub u32);\n\npub struct StateInterner { states: Vec<State>, ids: std::collections::HashMap<State, StateId> }\nimpl StateInterner {\n    pub fn new(initial: ContextId) -> Self; // StateId(0) is the initial state\n    pub fn intern(&mut self, s: State) -> StateId;\n    pub fn get(&self, id: StateId) -> &State;\n    pub fn initial(&self) -> StateId;\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/engine.rs",
+        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Span { pub start: u32, pub len: u32, pub format: FormatId } // char columns\n\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum FoldEvent { Begin { col: u32, region: FoldId }, End { col: u32, region: FoldId } }\n\n#[derive(Clone, Default, PartialEq, Eq, Debug)]\npub struct LineHighlight { pub spans: Vec<Span>, pub folds: Vec<FoldEvent>, pub end_state: StateId }\n\npub struct Highlighter<'a> { repo: &'a Repository, regexes: RegexCache, interner: StateInterner }\nimpl<'a> Highlighter<'a> {\n    pub fn new(repo: &'a Repository, def: DefId) -> Self;\n    pub fn initial_state(&self) -> StateId;\n    /// Deterministic: same (line, start) always yields the same output. Reuses `out` allocations.\n    pub fn highlight_line(&mut self, line: &str, start: StateId, out: &mut LineHighlight);\n    pub fn interner(&self) -> &StateInterner;\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/regex.rs",
+        "definition": "/// PCRE-flavoured patterns from the XML, compiled once. `fancy-regex` handles lookaround and\n/// backreferences; patterns it cannot compile are reported at load, not at match time.\npub struct RegexCache { by_rule: std::collections::HashMap<(ContextId, u16), fancy_regex::Regex>, dynamic: lru::LruCache<String, fancy_regex::Regex> }\n\n/// Translates QRegularExpression syntax that differs from fancy-regex (POSIX classes, \\h, \\R, (?i) placement) and\n/// expands `%1`..`%9` from captures for dynamic rules.\npub fn translate_pattern(pcre: &str, insensitive: bool, minimal: bool, captures: Option<&[String]>) -> Result<String, RegexError>;\n\n#[derive(Debug)]\npub enum RegexError { Unsupported { pattern: String, reason: String } }"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "New modules. Dependencies with justification: fancy-regex (definitions use lookbehind and backreferences; the regex crate refuses them), smallvec (context stacks are short; avoid a heap allocation per line), lru (bounded cache for dynamic patterns)."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-syntax --locked",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo check -p kate-syntax --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "golden::upstream_reference_output_matches",
+        "kind": "GOLDEN",
+        "asserts": "For each vendored definition with an upstream autotests/input file (MIT only), the span sequence per line equals the committed expected file derived from autotests/reference. Byte-for-byte, no tolerance."
+      },
+      {
+        "name": "engine::tests::highlight_is_deterministic_and_state_converges",
+        "kind": "PROPERTY",
+        "asserts": "Highlighting the same line twice from the same state yields identical output; after a one-line change, re-highlighting from the changed line reaches a line whose end_state equals the cached one within the file length."
+      },
+      {
+        "name": "engine::tests::lookahead_rule_consumes_nothing",
+        "kind": "UNIT",
+        "asserts": "A lookAhead RegExpr that switches context produces no span and the next rule in the new context matches at the same column."
+      },
+      {
+        "name": "regex::tests::unsupported_pattern_is_reported_at_load",
+        "kind": "UNIT",
+        "asserts": "A pattern using a PCRE verb such as (*SKIP) yields RegexError::Unsupported when the Highlighter is constructed, not a panic during highlight_line."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

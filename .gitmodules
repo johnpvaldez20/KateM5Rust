@@ -1,0 +1,18 @@
+[submodule "upstream/kate"]
+	path = upstream/kate
+	url = https://invent.kde.org/utilities/kate.git
+	shallow = true
+	update = none
+	ignore = all
+[submodule "upstream/ktexteditor"]
+	path = upstream/ktexteditor
+	url = https://invent.kde.org/frameworks/ktexteditor.git
+	shallow = true
+	update = none
+	ignore = all
+[submodule "upstream/syntax-highlighting"]
+	path = upstream/syntax-highlighting
+	url = https://invent.kde.org/frameworks/syntax-highlighting.git
+	shallow = true
+	update = none
+	ignore = all

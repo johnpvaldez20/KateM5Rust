@@ -1,0 +1,18 @@
+[package]
+name = "gatecheck"
+description = "Validates governance gate payloads and design packets against the JSON Schemas in docs/governance/schemas."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# JSON Schema 2020-12 validation, offline. Justification: the schemas are the
+# contract; checking examples against them must run under `cargo test` on the
+# pinned toolchain without a second language runtime.
+jsonschema = { version = "0.60", default-features = false }
+serde_json = "1"
+
+[lints]
+workspace = true

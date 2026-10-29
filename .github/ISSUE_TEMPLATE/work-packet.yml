@@ -1,0 +1,76 @@
+name: Work packet (Gate 1 input)
+description: Propose one atomic work packet. The gatekeeper answers with a Gate 1 payload as a comment.
+title: "PKT-NNNN: <imperative, specific title>"
+labels: ["gate-1:pending"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One packet touches one crate, has its types written down, and can be merged and reverted alone.
+        Read `docs/governance/GOVERNANCE_LINUS.md` §V and look at `docs/design/packets/` for what a PASS looks like.
+  - type: input
+    id: packet_id
+    attributes:
+      label: Packet id
+      placeholder: PKT-0014
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What the packet delivers and what it deliberately does not. Prose is allowed here and nowhere else.
+    validations:
+      required: true
+  - type: textarea
+    id: definitions
+    attributes:
+      label: Data contracts
+      description: The actual Rust types / JSON Schema / TOML, verbatim. Signatures are the contract; bodies are the coder's job.
+      render: rust
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Allowed files
+      description: Files, or directories ending in `/`. No globs. Nothing under `upstream/`.
+      placeholder: |
+        crates/kate-core/src/lib.rs
+        crates/kate-core/src/fold.rs
+        crates/kate-core/tests/fold_test.rs
+    validations:
+      required: true
+  - type: input
+    id: depends
+    attributes:
+      label: Depends on packets
+      placeholder: PKT-0012, PKT-0020
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Commands Gate 3 will run, and each regression test with what it asserts.
+      placeholder: |
+        cargo test -p kate-core --locked
+        fold::tests::nested_regions_fold_innermost_first — UNIT — ...
+    validations:
+      required: true
+  - type: dropdown
+    id: lane
+    attributes:
+      label: Proposed lane
+      options:
+        - CLOUD (pure Rust crate, no macOS dependency)
+        - LOCAL (needs macOS, Metal, display, APFS, or the owner's eyes)
+        - EITHER (small, fully specified, file-based oracle)
+    validations:
+      required: true
+  - type: textarea
+    id: provenance
+    attributes:
+      label: Planner provenance
+      description: agent_id, role, runtime, host, model (name, settings), tool.
+      render: json
+    validations:
+      required: true

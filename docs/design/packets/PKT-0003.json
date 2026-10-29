@@ -1,0 +1,149 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0003",
+  "title": "kate-text: EditLog, Anchor, revision-to-revision offset transform",
+  "summary": "Positions that survive edits without an observer pattern. An Anchor is a Copy value (offset, revision, bias). The buffer keeps a log of applied transactions back to the oldest locked revision and resolves an anchor by replaying the log. This single mechanism replaces KTextEditor's MovingCursor, MovingRange and TextHistory::transformCursor.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-10-29T22:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "cursor-cloud-coder-01",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 3,
+    "branch": "pkt/PKT-0003-anchors-revision-transform",
+    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/3"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Pure algorithmic work on kate-text with property tests; no platform dependency.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/anchor.rs",
+      "crates/kate-text/src/log.rs",
+      "crates/kate-text/tests/anchor_test.rs"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-text/src/edit.rs",
+      "crates/kate-text/src/offset.rs"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/anchor.rs",
+        "definition": "/// What an anchor does when text is inserted exactly at it.\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub enum Bias { Left, Right }\n\n/// A position remembered at a revision. Plain data; no registration, no Rc, no callbacks.\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub struct Anchor { pub offset: Offset, pub revision: Revision, pub bias: Bias }\n\n#[derive(Debug, PartialEq, Eq)]\npub struct StaleAnchor { pub requested: Revision, pub oldest_available: Revision }\n\n/// Transform rule for one Edit (pre-state offsets):\n///   o <  start          -> o\n///   o >  old_end        -> o + delta\n///   start <= o <= old_end:\n///       old empty (pure insert at o): Left -> o, Right -> o + new_len\n///       otherwise (inside replaced span): Left -> start, Right -> new_end\npub fn transform_offset(o: Offset, bias: Bias, edit: &Edit) -> Offset;"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/log.rs",
+        "definition": "/// Applied transactions, oldest first. Entry i produced revision `first_revision + i + 1`.\npub struct EditLog { entries: std::collections::VecDeque<Transaction>, first_revision: Revision, locks: std::collections::BTreeMap<Revision, u32> }\nimpl EditLog {\n    pub fn new(at: Revision) -> Self;\n    pub fn push(&mut self, tx: Transaction, produced: Revision); // then prunes entries older than the oldest lock\n    pub fn lock(&mut self, r: Revision); pub fn unlock(&mut self, r: Revision);\n    pub fn oldest_available(&self) -> Revision;\n    pub fn entries_since(&self, r: Revision) -> Result<impl Iterator<Item = &Transaction>, StaleAnchor>;\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/buffer.rs",
+        "definition": "impl TextBuffer {\n    // field added: log: EditLog\n    pub fn anchor(&self, offset: Offset, bias: Bias) -> Anchor; // at current revision\n    pub fn resolve(&self, a: Anchor) -> Result<Offset, StaleAnchor>;\n    pub fn refresh(&self, a: Anchor) -> Result<Anchor, StaleAnchor>; // resolve and re-stamp at current revision\n    pub fn transform(&self, o: Offset, bias: Bias, from: Revision, to: Revision) -> Result<Offset, StaleAnchor>; // from <= to\n    pub fn lock_revision(&mut self, r: Revision);\n    pub fn unlock_revision(&mut self, r: Revision);\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "TextBuffer gains a private EditLog field and six public methods. Nothing existing changes shape. Unlocked history older than the oldest lock is dropped; resolving an anchor older than that is an error, not a guess."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-text --locked",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo check -p kate-text --target aarch64-apple-darwin --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "anchor::tests::anchor_after_edit_resolves_to_shifted_offset",
+        "kind": "UNIT",
+        "asserts": "An anchor at offset 10 resolves to 13 after inserting three chars at offset 4, and to 10 after inserting at offset 20."
+      },
+      {
+        "name": "anchor::tests::bias_decides_insert_at_anchor",
+        "kind": "UNIT",
+        "asserts": "Insert exactly at the anchor: Bias::Left keeps the offset, Bias::Right moves past the inserted text."
+      },
+      {
+        "name": "anchor::tests::resolve_equals_eager_tracking",
+        "kind": "PROPERTY",
+        "asserts": "For random edit sequences, resolving an anchor through the log equals applying transform_offset eagerly after each edit. Fixed seed."
+      },
+      {
+        "name": "log::tests::unlocked_history_is_pruned_and_stale_is_an_error",
+        "kind": "UNIT",
+        "asserts": "Without a lock, resolving an anchor from revision 0 after 2 edits is Err(StaleAnchor); with lock_revision(0) it is Ok."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

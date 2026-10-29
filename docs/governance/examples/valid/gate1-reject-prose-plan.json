@@ -1,0 +1,122 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0031",
+  "title": "kate-core: pluggable buffer backend abstraction",
+  "summary": "Planner proposed a `BufferBackend` trait with `RopeBackend` and `GapBackend` implementors plus a `BufferFactory`, so that the storage strategy can be swapped at runtime. No type definitions were given beyond the trait name.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-20T09:02:11Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "ollama-qwen3-coder-local",
+      "role": "PLANNER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "OLLAMA",
+        "name": "qwen3-coder:30b",
+        "settings": {
+          "quantization": "Q4_K_M",
+          "context_window_tokens": 65536,
+          "temperature": 0.2
+        }
+      },
+      "tool": {
+        "name": "OLLAMA"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 31,
+    "branch": "pkt/PKT-0031-buffer-backend-trait",
+    "base_sha": "a3f2c9d1e8b74650f1c2d3e4a5b6c7d8e9f0a1b2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE_COMMENT",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/31#issuecomment-3100000031"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "Pure library crate work with no macOS dependency, if it were worth doing at all.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "REJECT",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/buffer_backend.rs",
+      "crates/kate-text/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-core",
+      "kate-text"
+    ],
+    "is_atomic": false,
+    "depends_on_packets": [
+      "PKT-0002"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": false,
+    "definitions": [],
+    "public_api_change": "BREAKING",
+    "migration": {
+      "plan": "Planner wrote: 'existing callers will be migrated to the trait object in a follow-up'. That is not a plan, it is a promise. No field-level diff of TextBuffer was given.",
+      "compat_window": "none stated"
+    },
+    "schema_diff_summary": "TextBuffer would gain a Box<dyn BufferBackend> field; no concrete trait methods listed."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked"
+    ],
+    "regression_tests": [],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": true,
+    "flagged_anti_patterns": [
+      "SPECULATIVE_GENERALITY",
+      "NEEDLESS_TRAIT_ABSTRACTION",
+      "PROSE_INSTEAD_OF_TYPES",
+      "CROSS_SUBSYSTEM_BLEED"
+    ]
+  },
+  "rejection_reasons": [
+    "There is one buffer representation, decided in docs/design/01-data-structures.md: ropey::Rope. A trait with one real implementor is a vtable tax paid for a future that does not exist.",
+    "Storage lives in kate-text. A buffer abstraction declared in kate-core is backwards; kate-core consumes kate-text, it does not define it. This is CROSS_SUBSYSTEM_BLEED.",
+    "No types. 'A trait that abstracts storage' is prose. Gate 1 needs the actual `pub struct` / `pub fn` signatures or it does not open.",
+    "A packet that changes a public field of TextBuffer and promises the migration later is not atomic. Either the migration is in the packet or the packet does not exist.",
+    "Close the issue. If a second storage strategy ever has a measured need, that packet will come with a benchmark, not an adjective."
+  ]
+}

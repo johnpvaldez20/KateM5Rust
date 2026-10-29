@@ -1,6 +1,36 @@
-[package]
-name = "katem5rust"
+# KateM5Rust workspace.
+#
+# Layout is the architecture. One crate per subsystem, dependencies flow one
+# way (see docs/design/02-crates.md). A packet that needs to touch two crates
+# is usually two packets.
+[workspace]
+resolver = "3"
+members = ["apps/*", "crates/*", "tools/*"]
+# Read-only upstream reference sources. Never built. Never a member.
+exclude = ["upstream"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.99"
+repository = "https://github.com/johnpvaldez20/KateM5Rust"
+publish = false
 
-[dependencies]
+[workspace.dependencies]
+# Internal crates only. A line is added here by the packet that creates the
+# crate, and by nobody else. External dependencies are declared in the crate
+# that uses them, with a justification in that packet (Gate 2:
+# `dependencies_added[].justification`). Keeping them out of this file means
+# parallel packets do not fight over one manifest.
+kate-text = { path = "crates/kate-text" }
+kate-syntax = { path = "crates/kate-syntax" }
+kate-search = { path = "crates/kate-search" }
+kate-fileio = { path = "crates/kate-fileio" }
+kate-core = { path = "crates/kate-core" }
+
+[workspace.lints.rust]
+# No unsafe anywhere in the editor. The GUI toolkit does its own FFI; we do not.
+unsafe_code = "forbid"
+
+[profile.release]
+debug = 1

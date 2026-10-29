@@ -1,0 +1,13 @@
+[package]
+name = "kate-core"
+description = "Editor model: documents, views, selections (multi-cursor), marks, folding, indentation, commands, configuration. No GUI."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

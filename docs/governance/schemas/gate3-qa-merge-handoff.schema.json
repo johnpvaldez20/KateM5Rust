@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/johnpvaldez20/KateM5Rust/docs/governance/schemas/gate3-qa-merge-handoff.schema.json",
+  "title": "Gate3QaMergeHandoff",
+  "description": "Gate 3 verdict: merge or reject. Posted by the gatekeeper as a pull request review. The only evidence admitted is a GitHub Actions run on the exact head commit. Local runs are recorded for context and have no weight. A MERGE_APPROVED is followed by a squash merge performed by the gatekeeper and nobody else.",
+  "type": "object",
+  "required": [
+    "gate",
+    "packet_id",
+    "provenance",
+    "github",
+    "handoff_artifact",
+    "gate2_verdict_url",
+    "verdict",
+    "ci_evidence",
+    "local_runs",
+    "isolation_telemetry",
+    "test_integrity_audit",
+    "coverage",
+    "blocking_defects"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "gate": { "type": "string", "const": "G3_QA_MERGE" },
+    "packet_id": { "$ref": "common.schema.json#/$defs/packet_id" },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" },
+    "github": {
+      "$ref": "common.schema.json#/$defs/github",
+      "required": ["repository", "issue_number", "branch", "base_sha", "pr_number", "head_sha", "merge_base_is_main_head"]
+    },
+    "handoff_artifact": {
+      "$ref": "common.schema.json#/$defs/handoff_artifact",
+      "properties": { "kind": { "const": "PR_REVIEW" } }
+    },
+    "gate2_verdict_url": { "$ref": "common.schema.json#/$defs/github_url" },
+    "verdict": {
+      "type": "string",
+      "enum": ["MERGE_APPROVED", "REJECT_TO_CODING", "REJECT_TEST_SABOTAGE", "REJECT_STALE_BASE", "REJECT_CI_MISSING"],
+      "description": "REJECT_CI_MISSING: no completed GitHub Actions run exists for head_sha. A green local run does not change this."
+    },
+    "ci_evidence": {
+      "type": "object",
+      "description": "The GitHub Actions run for head_sha. gatecheck additionally asserts ci_evidence.head_sha == github.head_sha.",
+      "required": ["provider", "workflow", "head_sha", "conclusion"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "description": "A run that completed has step results. A missing run has nothing to report and must not invent zeros.",
+          "if": { "properties": { "conclusion": { "enum": ["SUCCESS", "FAILURE"] } } },
+          "then": { "required": ["run_id", "run_url", "checks"] },
+          "else": { "not": { "required": ["checks"] } }
+        }
+      ],
+      "properties": {
+        "provider": { "type": "string", "const": "GITHUB_ACTIONS" },
+        "workflow": { "type": "string", "minLength": 1, "description": "Workflow file name, e.g. 'ci.yml'." },
+        "run_id": { "type": "integer", "minimum": 1 },
+        "run_url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/johnpvaldez20/KateM5Rust/actions/runs/[0-9]+"
+        },
+        "head_sha": { "$ref": "common.schema.json#/$defs/sha40" },
+        "runner": { "type": "string", "description": "Runner label, e.g. 'macos-15'." },
+        "conclusion": {
+          "type": "string",
+          "enum": ["SUCCESS", "FAILURE", "CANCELLED", "TIMED_OUT", "MISSING"]
+        },
+        "checks": {
+          "type": "object",
+          "description": "Exit codes of the individual steps. Missing optional steps are omitted, not zeroed.",
+          "required": ["fmt", "clippy", "build", "test", "gatecheck"],
+          "additionalProperties": false,
+          "properties": {
+            "fmt": { "$ref": "#/$defs/step" },
+            "clippy": { "$ref": "#/$defs/step" },
+            "build": { "$ref": "#/$defs/step" },
+            "doc": { "$ref": "#/$defs/step" },
+            "gatecheck": { "$ref": "#/$defs/step" },
+            "test": {
+              "type": "object",
+              "required": ["command", "exit_code", "total_tests", "failed_tests", "ignored_tests"],
+              "additionalProperties": false,
+              "properties": {
+                "command": { "$ref": "common.schema.json#/$defs/command" },
+                "exit_code": { "type": "integer" },
+                "total_tests": { "type": "integer", "minimum": 0 },
+                "failed_tests": { "type": "integer", "minimum": 0 },
+                "ignored_tests": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "miri": {
+              "type": "object",
+              "required": ["command", "exit_code", "crates"],
+              "additionalProperties": false,
+              "properties": {
+                "command": { "$ref": "common.schema.json#/$defs/command" },
+                "exit_code": { "type": "integer" },
+                "crates": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+              }
+            },
+            "fuzz": {
+              "type": "object",
+              "required": ["command", "exit_code", "targets", "duration_seconds", "crashes"],
+              "additionalProperties": false,
+              "properties": {
+                "command": { "$ref": "common.schema.json#/$defs/command" },
+                "exit_code": { "type": "integer" },
+                "targets": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+                "duration_seconds": { "type": "integer", "minimum": 1 },
+                "crashes": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "local_runs": {
+      "type": "array",
+      "description": "Advisory only. What the worker ran on its own machine. Recorded so that a disagreement between local and CI results becomes visible, never used as grounds for approval.",
+      "items": {
+        "type": "object",
+        "required": ["agent", "command", "exit_code", "advisory"],
+        "additionalProperties": false,
+        "properties": {
+          "agent": { "$ref": "common.schema.json#/$defs/agent" },
+          "command": { "$ref": "common.schema.json#/$defs/command" },
+          "exit_code": { "type": "integer" },
+          "rustc_version": { "type": "string" },
+          "advisory": { "type": "boolean", "const": true },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "isolation_telemetry": {
+      "type": "object",
+      "required": ["worker_lane_id", "runtime", "temp_dir_strategy", "env_isolation", "shared_state_pollution_detected"],
+      "additionalProperties": false,
+      "properties": {
+        "worker_lane_id": {
+          "type": "string",
+          "pattern": "^(local|cloud)-lane-[0-9]{2}$",
+          "description": "The lane the worker ran in. Lanes are the unit of parallelism; two packets in the same lane are serial."
+        },
+        "runtime": { "$ref": "common.schema.json#/$defs/runtime" },
+        "temp_dir_strategy": {
+          "type": "string",
+          "enum": ["TEMPDIR_PER_TEST", "SHARED_FIXED_PATH", "NONE_NEEDED"],
+          "description": "Tests that touch the filesystem create their own temporary directory (e.g. `tempfile::tempdir()`) and never a fixed path under /tmp or $HOME."
+        },
+        "env_isolation": {
+          "type": "object",
+          "required": ["home_overridden", "cargo_target_dir_isolated", "network_disabled"],
+          "additionalProperties": false,
+          "properties": {
+            "home_overridden": { "type": "boolean", "description": "Tests do not read the owner's real ~/Library/Application Support." },
+            "cargo_target_dir_isolated": { "type": "boolean" },
+            "network_disabled": { "type": "boolean", "description": "No test opens a socket. LSP tests use an in-process fake server over pipes." }
+          }
+        },
+        "shared_state_pollution_detected": {
+          "type": "boolean",
+          "description": "True if a test left files, env vars or global state that another test could observe."
+        }
+      }
+    },
+    "test_integrity_audit": {
+      "type": "object",
+      "required": [
+        "existing_assertions_weakened",
+        "skips_or_ignores_added",
+        "core_state_mocked_out",
+        "deterministic_fixtures_used",
+        "regression_test"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "existing_assertions_weakened": {
+          "type": "boolean",
+          "description": "True if any existing assert!, assert_eq!, proptest property or golden file was deleted, loosened, or wrapped so that it cannot fail."
+        },
+        "skips_or_ignores_added": {
+          "type": "boolean",
+          "description": "True if #[ignore], a cfg guard, an early `return` in a test, or a reduced PROPTEST_CASES was introduced."
+        },
+        "core_state_mocked_out": {
+          "type": "boolean",
+          "description": "True if the buffer, history, document or filesystem under test was replaced by a stub instead of the real type in a temporary directory."
+        },
+        "deterministic_fixtures_used": {
+          "type": "boolean",
+          "description": "True if property tests use a fixed seed in CI, golden files are committed, and no test depends on wall-clock time or network."
+        },
+        "regression_test": {
+          "type": "object",
+          "description": "The deterministic test that fails without the patch and passes with it. Both runs are CI runs on the named commits.",
+          "required": ["required", "reproduces_failure_without_patch"],
+          "additionalProperties": false,
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "False only for packets that add no behavior (pure docs, toolchain bumps). Gate 1 decides this, not the coder."
+            },
+            "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(::[a-z][a-z0-9_]*)*$" },
+            "red_run": { "$ref": "#/$defs/evidence_run" },
+            "green_run": { "$ref": "#/$defs/evidence_run" },
+            "reproduces_failure_without_patch": {
+              "type": "boolean",
+              "description": "True only if red_run.exit_code != 0 on a commit without the fix and green_run.exit_code == 0 on head_sha."
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "required": { "const": true } } },
+              "then": { "required": ["name"] }
+            },
+            {
+              "description": "A claim of red/green needs both runs on record, with the right exit codes. A rejection may legitimately have neither.",
+              "if": { "properties": { "reproduces_failure_without_patch": { "const": true } } },
+              "then": {
+                "required": ["red_run", "green_run"],
+                "properties": {
+                  "red_run": { "properties": { "exit_code": { "not": { "const": 0 } } } },
+                  "green_run": { "properties": { "exit_code": { "const": 0 } } }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["tool", "line_percentage", "scope"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": { "type": "string", "enum": ["CARGO_LLVM_COV", "NONE"] },
+        "line_percentage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "scope": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^(kate-[a-z]+|katem5rust|gatecheck)$" },
+          "description": "Crates the percentage was measured over. Normally exactly the crates in Gate 1 crates_touched."
+        },
+        "waiver": {
+          "type": "object",
+          "required": ["granted", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "granted": { "type": "boolean" },
+            "reason": { "type": "string", "minLength": 30, "description": "Why the 85% floor does not apply, e.g. GUI crate measured by screenshot test instead." }
+          }
+        }
+      }
+    },
+    "blocking_defects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "TEST_SABOTAGE",
+              "ASSERTION_REMOVAL",
+              "SKIP_ADDED",
+              "MOCKED_CORE_STATE",
+              "NONDETERMINISTIC_TEST",
+              "SHARED_STATE_POLLUTION",
+              "CI_RED",
+              "CI_MISSING",
+              "CI_SHA_MISMATCH",
+              "STALE_BASE",
+              "COVERAGE_BELOW_FLOOR",
+              "REGRESSION_TEST_MISSING",
+              "REGRESSION_TEST_NOT_RED",
+              "LOCAL_RUN_ONLY",
+              "REVERT_ORDERED"
+            ]
+          },
+          "message": { "type": "string", "minLength": 20 },
+          "location": { "type": "string", "description": "path:line or test name." }
+        }
+      }
+    },
+    "merge": {
+      "type": "object",
+      "description": "Present only on MERGE_APPROVED. Records how the packet lands.",
+      "required": ["method", "merged_by"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "type": "string", "const": "SQUASH" },
+        "merged_by": {
+          "$ref": "common.schema.json#/$defs/agent",
+          "properties": { "role": { "enum": ["GATEKEEPER", "OWNER"] } }
+        },
+        "merge_commit_sha": { "$ref": "common.schema.json#/$defs/sha40" }
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["command", "exit_code"],
+      "additionalProperties": false,
+      "properties": {
+        "command": { "$ref": "common.schema.json#/$defs/command" },
+        "exit_code": { "type": "integer" }
+      }
+    },
+    "evidence_run": {
+      "type": "object",
+      "required": ["head_sha", "command", "exit_code", "run_url"],
+      "additionalProperties": false,
+      "properties": {
+        "head_sha": { "$ref": "common.schema.json#/$defs/sha40" },
+        "command": { "$ref": "common.schema.json#/$defs/command" },
+        "exit_code": { "type": "integer" },
+        "run_url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/johnpvaldez20/KateM5Rust/actions/runs/[0-9]+"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "MERGE_APPROVED" } } },
+      "then": {
+        "required": ["merge"],
+        "properties": {
+          "github": { "properties": { "merge_base_is_main_head": { "const": true } } },
+          "ci_evidence": {
+            "required": ["run_id", "run_url"],
+            "properties": {
+              "conclusion": { "const": "SUCCESS" },
+              "checks": {
+                "properties": {
+                  "fmt": { "properties": { "exit_code": { "const": 0 } } },
+                  "clippy": { "properties": { "exit_code": { "const": 0 } } },
+                  "build": { "properties": { "exit_code": { "const": 0 } } },
+                  "doc": { "properties": { "exit_code": { "const": 0 } } },
+                  "gatecheck": { "properties": { "exit_code": { "const": 0 } } },
+                  "test": {
+                    "properties": {
+                      "exit_code": { "const": 0 },
+                      "failed_tests": { "const": 0 },
+                      "total_tests": { "minimum": 1 }
+                    }
+                  },
+                  "miri": { "properties": { "exit_code": { "const": 0 } } },
+                  "fuzz": { "properties": { "exit_code": { "const": 0 }, "crashes": { "const": 0 } } }
+                }
+              }
+            }
+          },
+          "isolation_telemetry": {
+            "properties": {
+              "temp_dir_strategy": { "enum": ["TEMPDIR_PER_TEST", "NONE_NEEDED"] },
+              "env_isolation": {
+                "properties": {
+                  "home_overridden": { "const": true },
+                  "network_disabled": { "const": true }
+                }
+              },
+              "shared_state_pollution_detected": { "const": false }
+            }
+          },
+          "test_integrity_audit": {
+            "properties": {
+              "existing_assertions_weakened": { "const": false },
+              "skips_or_ignores_added": { "const": false },
+              "core_state_mocked_out": { "const": false },
+              "deterministic_fixtures_used": { "const": true },
+              "regression_test": {
+                "if": { "properties": { "required": { "const": true } } },
+                "then": { "properties": { "reproduces_failure_without_patch": { "const": true } } }
+              }
+            }
+          },
+          "coverage": {
+            "anyOf": [
+              { "properties": { "line_percentage": { "minimum": 85 } } },
+              { "required": ["waiver"], "properties": { "waiver": { "properties": { "granted": { "const": true } } } } }
+            ]
+          },
+          "blocking_defects": { "maxItems": 0 }
+        }
+      },
+      "else": {
+        "properties": {
+          "blocking_defects": { "minItems": 1 }
+        },
+        "not": { "required": ["merge"] }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "REJECT_TEST_SABOTAGE" } } },
+      "then": {
+        "properties": {
+          "test_integrity_audit": {
+            "anyOf": [
+              { "properties": { "existing_assertions_weakened": { "const": true } } },
+              { "properties": { "skips_or_ignores_added": { "const": true } } },
+              { "properties": { "core_state_mocked_out": { "const": true } } }
+            ]
+          },
+          "blocking_defects": {
+            "contains": { "properties": { "code": { "enum": ["TEST_SABOTAGE", "ASSERTION_REMOVAL", "SKIP_ADDED", "MOCKED_CORE_STATE"] } } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "REJECT_STALE_BASE" } } },
+      "then": {
+        "properties": {
+          "github": { "properties": { "merge_base_is_main_head": { "const": false } } },
+          "blocking_defects": { "contains": { "properties": { "code": { "const": "STALE_BASE" } } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "REJECT_CI_MISSING" } } },
+      "then": {
+        "properties": {
+          "ci_evidence": { "properties": { "conclusion": { "const": "MISSING" } } },
+          "blocking_defects": { "contains": { "properties": { "code": { "enum": ["CI_MISSING", "CI_SHA_MISMATCH", "LOCAL_RUN_ONLY"] } } } }
+        }
+      }
+    }
+  ]
+}

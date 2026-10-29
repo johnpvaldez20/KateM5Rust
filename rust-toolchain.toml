@@ -1,0 +1,12 @@
+# One toolchain. Local agents, cloud agents and GitHub Actions all read this
+# file. If your `rustc --version` does not print 1.99.1 you are not building
+# what CI builds, and nothing you report is evidence (see Gate 3).
+#
+# Bumping the channel is its own packet: one commit, this file only, CI green.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy", "rust-src"]
+# The product target. Cloud agents run on Linux; they get this target so that
+# `cargo check --target aarch64-apple-darwin` works there for pure-Rust crates.
+targets = ["aarch64-apple-darwin"]
+profile = "minimal"

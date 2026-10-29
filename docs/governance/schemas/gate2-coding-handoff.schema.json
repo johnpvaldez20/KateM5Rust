@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/johnpvaldez20/KateM5Rust/docs/governance/schemas/gate2-coding-handoff.schema.json",
+  "title": "Gate2CodingHandoff",
+  "description": "Gate 2 verdict on the diff of a packet branch. Posted by the gatekeeper as a pull request review. Judges scope adherence, diff hygiene and taste on the exact head commit. Does not judge test results; that is Gate 3.",
+  "type": "object",
+  "required": [
+    "gate",
+    "packet_id",
+    "provenance",
+    "github",
+    "handoff_artifact",
+    "gate1_verdict_url",
+    "verdict",
+    "toolchain",
+    "diff_hygiene",
+    "taste_metrics",
+    "violations",
+    "overseer_critique"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "gate": { "type": "string", "const": "G2_CODING" },
+    "packet_id": { "$ref": "common.schema.json#/$defs/packet_id" },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" },
+    "github": {
+      "$ref": "common.schema.json#/$defs/github",
+      "required": ["repository", "issue_number", "branch", "base_sha", "pr_number", "head_sha", "merge_base_is_main_head"]
+    },
+    "handoff_artifact": {
+      "$ref": "common.schema.json#/$defs/handoff_artifact",
+      "properties": { "kind": { "enum": ["PR_REVIEW", "PR_COMMENT"] } }
+    },
+    "gate1_verdict_url": {
+      "$ref": "common.schema.json#/$defs/github_url",
+      "description": "The issue comment holding the Gate 1 PASS this diff claims to implement. No Gate 1 PASS, no Gate 2 review."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "REJECT_AND_REVERT", "REJECT_STALE_BASE"],
+      "description": "REJECT_AND_REVERT: the branch is reset to base_sha; the worker starts over from the Gate 1 contract. REJECT_STALE_BASE: no fault in the code; rebase onto main and resubmit."
+    },
+    "toolchain": {
+      "type": "object",
+      "required": ["rustc_version", "matches_rust_toolchain_toml"],
+      "additionalProperties": false,
+      "properties": {
+        "rustc_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "matches_rust_toolchain_toml": {
+          "type": "boolean",
+          "description": "True only if the version above equals the channel in rust-toolchain.toml at head_sha."
+        }
+      }
+    },
+    "diff_hygiene": {
+      "type": "object",
+      "required": [
+        "files_modified",
+        "out_of_scope_files",
+        "contains_unrelated_formatting",
+        "touches_upstream_submodule",
+        "touches_governance_or_ci",
+        "dependencies_added",
+        "unsafe_blocks_added",
+        "commits_in_pr"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "files_modified": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Every path in `git diff --name-only base_sha..head_sha`."
+        },
+        "out_of_scope_files": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Entries of files_modified not covered by Gate 1 allowed_files. Cargo.lock is in scope when dependencies_added is non-empty."
+        },
+        "contains_unrelated_formatting": {
+          "type": "boolean",
+          "description": "True if rustfmt or manual reflowing touched lines the packet did not otherwise change."
+        },
+        "touches_upstream_submodule": {
+          "type": "boolean",
+          "description": "True if any gitlink under upstream/ or .gitmodules changed. Always a violation outside a dedicated pin-bump packet."
+        },
+        "touches_governance_or_ci": {
+          "type": "boolean",
+          "description": "True if docs/governance/ or .github/ changed. Only the gatekeeper may do that."
+        },
+        "dependencies_added": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["crate", "version", "justification"],
+            "additionalProperties": false,
+            "properties": {
+              "crate": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "version": { "type": "string", "minLength": 1 },
+              "justification": {
+                "type": "string",
+                "minLength": 30,
+                "description": "Why std or an existing dependency is not enough. 'Convenient' is not a justification."
+              }
+            }
+          }
+        },
+        "unsafe_blocks_added": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of new `unsafe` blocks or functions. The workspace forbids unsafe; any non-zero value fails the build and this gate."
+        },
+        "commits_in_pr": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Informational. The PR is squash-merged; one packet becomes one commit on main."
+        },
+        "net_line_delta": { "type": "integer" }
+      }
+    },
+    "taste_metrics": {
+      "type": "object",
+      "required": [
+        "max_cyclomatic_complexity",
+        "special_case_branches_eliminated",
+        "silent_error_swallowing_detected"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "max_cyclomatic_complexity": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Highest cyclomatic complexity of any function in the diff. Above 10 means the data structure is wrong, not that the function needs comments."
+        },
+        "special_case_branches_eliminated": {
+          "type": "boolean",
+          "description": "True if boundary conditions (empty buffer, first line, single cursor) fall out of the data layout instead of being patched with if/else."
+        },
+        "silent_error_swallowing_detected": {
+          "type": "boolean",
+          "description": "True if `let _ = fallible()`, `.ok()` discarding errors, `unwrap_or_default()` on a Result, or an empty match arm hides a broken caller contract instead of failing loudly."
+        },
+        "panics_in_library_code": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Informational. `unwrap`/`expect` on invariants is acceptable when the message names the invariant; counting them keeps the number honest."
+        }
+      }
+    },
+    "violations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "SCOPE_VIOLATION",
+          "USERSPACE_REGRESSION",
+          "BAD_TASTE_BRANCHING",
+          "HALLUCINATED_ABSTRACTION",
+          "SILENT_FAILURE_MASKING",
+          "NOISY_DIFF",
+          "UNJUSTIFIED_DEPENDENCY",
+          "UPSTREAM_SUBMODULE_TOUCHED",
+          "GOVERNANCE_TOUCHED",
+          "UNSAFE_CODE",
+          "TOOLCHAIN_MISMATCH",
+          "STALE_BASE",
+          "SIDE_CHANNEL_HANDOFF",
+          "MISSING_GATE1_PASS"
+        ]
+      }
+    },
+    "overseer_critique": {
+      "type": "string",
+      "description": "Direct technical instructions: which struct, which field, which ownership change. Empty string on PASS is acceptable; vague praise is not."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "PASS" } } },
+      "then": {
+        "properties": {
+          "github": { "properties": { "merge_base_is_main_head": { "const": true } } },
+          "toolchain": { "properties": { "matches_rust_toolchain_toml": { "const": true } } },
+          "diff_hygiene": {
+            "properties": {
+              "out_of_scope_files": { "maxItems": 0 },
+              "contains_unrelated_formatting": { "const": false },
+              "touches_upstream_submodule": { "const": false },
+              "unsafe_blocks_added": { "const": 0 }
+            }
+          },
+          "taste_metrics": {
+            "properties": {
+              "max_cyclomatic_complexity": { "maximum": 10 },
+              "special_case_branches_eliminated": { "const": true },
+              "silent_error_swallowing_detected": { "const": false }
+            }
+          },
+          "violations": { "maxItems": 0 }
+        }
+      },
+      "else": {
+        "properties": {
+          "violations": { "minItems": 1 },
+          "overseer_critique": { "minLength": 40 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "REJECT_STALE_BASE" } } },
+      "then": {
+        "properties": {
+          "github": { "properties": { "merge_base_is_main_head": { "const": false } } },
+          "violations": { "contains": { "const": "STALE_BASE" } }
+        }
+      }
+    },
+    {
+      "description": "Governance and CI changes are the gatekeeper's alone.",
+      "if": { "properties": { "diff_hygiene": { "properties": { "touches_governance_or_ci": { "const": true } } } } },
+      "then": {
+        "properties": {
+          "provenance": { "properties": { "worker": { "properties": { "role": { "enum": ["GATEKEEPER", "OWNER"] } } } } }
+        }
+      }
+    }
+  ]
+}
