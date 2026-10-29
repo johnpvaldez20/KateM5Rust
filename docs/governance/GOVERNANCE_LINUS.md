@@ -483,8 +483,8 @@ Law 9 requires GitHub to enforce it. Required settings on `main`:
 - Require a pull request before merging; 1 approving review; dismiss stale
   approvals on push; require review from Code Owners (`CODEOWNERS` names the
   owner).
-- Require status checks to pass: `ci / rust (ubuntu-24.04)`,
-  `ci / rust (macos-15)`. Require branches to be up to date.
+- Require status checks to pass: `rust (ubuntu-24.04)`,
+  `rust (macos-15)` (the job names as GitHub reports them). Require branches to be up to date.
 - Require linear history. Allow squash merge only.
 - Restrict who can push: nobody but the owner. Include administrators.
 - No force pushes. No deletions.
@@ -494,7 +494,7 @@ gh api -X PUT repos/johnpvaldez20/KateM5Rust/branches/main/protection \
   --input - <<'EOF'
 {
   "required_status_checks": { "strict": true,
-    "contexts": ["ci / rust (ubuntu-24.04)", "ci / rust (macos-15)"] },
+    "contexts": ["rust (ubuntu-24.04)", "rust (macos-15)"] },
   "enforce_admins": true,
   "required_pull_request_reviews": { "dismiss_stale_reviews": true,
     "require_code_owner_reviews": true, "required_approving_review_count": 1 },
