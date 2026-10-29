@@ -8,17 +8,45 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "ollama-qwen3-coder-local",
       "role": "CODER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "OLLAMA", "name": "qwen3-coder:30b", "settings": { "quantization": "Q4_K_M", "context_window_tokens": 65536, "temperature": 0.1 } },
-      "tool": { "name": "OLLAMA" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "OLLAMA",
+        "name": "qwen3-coder:30b",
+        "settings": {
+          "quantization": "Q4_K_M",
+          "context_window_tokens": 65536,
+          "temperature": 0.1
+        }
+      },
+      "tool": {
+        "name": "OLLAMA"
+      }
     }
   },
   "github": {
@@ -48,8 +76,15 @@
         "agent_id": "ollama-qwen3-coder-local",
         "role": "CODER",
         "runtime": "LOCAL",
-        "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "arch": "aarch64" },
-        "model": { "provider": "OLLAMA", "name": "qwen3-coder:30b" }
+        "host": {
+          "kind": "OWNER_MACBOOK",
+          "name": "Johns-MacBook-Pro",
+          "arch": "aarch64"
+        },
+        "model": {
+          "provider": "OLLAMA",
+          "name": "qwen3-coder:30b"
+        }
       },
       "command": "cargo test -p kate-fileio",
       "exit_code": 0,
@@ -62,7 +97,11 @@
     "worker_lane_id": "local-lane-01",
     "runtime": "LOCAL",
     "temp_dir_strategy": "TEMPDIR_PER_TEST",
-    "env_isolation": { "home_overridden": true, "cargo_target_dir_isolated": false, "network_disabled": true },
+    "env_isolation": {
+      "home_overridden": true,
+      "cargo_target_dir_isolated": false,
+      "network_disabled": true
+    },
     "shared_state_pollution_detected": false
   },
   "test_integrity_audit": {
@@ -79,7 +118,9 @@
   "coverage": {
     "tool": "NONE",
     "line_percentage": 0,
-    "scope": ["kate-fileio"]
+    "scope": [
+      "kate-fileio"
+    ]
   },
   "blocking_defects": [
     {

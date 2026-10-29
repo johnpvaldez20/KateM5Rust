@@ -10,17 +10,45 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "ollama-qwen3-coder-local",
       "role": "CODER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "OLLAMA", "name": "qwen3-coder:30b", "settings": { "quantization": "Q4_K_M", "context_window_tokens": 65536, "temperature": 0.1 } },
-      "tool": { "name": "OLLAMA" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "OLLAMA",
+        "name": "qwen3-coder:30b",
+        "settings": {
+          "quantization": "Q4_K_M",
+          "context_window_tokens": 65536,
+          "temperature": 0.1
+        }
+      },
+      "tool": {
+        "name": "OLLAMA"
+      }
     }
   },
   "github": {
@@ -36,7 +64,9 @@
   "lane": {
     "runtime": "EITHER",
     "reason": "Small, mechanical, fully specified by two JSON files and a 30-entry enum. A good packet for a local open-weight model: the whole task fits in a 64k context and the test oracle is the upstream file itself.",
-    "requires": ["NONE"]
+    "requires": [
+      "NONE"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
@@ -47,10 +77,20 @@
       "crates/kate-syntax/themes/",
       "crates/kate-syntax/tests/theme_test.rs"
     ],
-    "forbidden_paths": ["upstream/", "crates/kate-syntax/src/engine.rs", "crates/kate-syntax/src/definition.rs"],
-    "crates_touched": ["kate-syntax"],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/definition.rs"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0007", "PKT-0008"]
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0008"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,

@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-local-coder-01",
       "role": "CODER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     }
   },
   "github": {
@@ -36,15 +62,38 @@
   "lane": {
     "runtime": "LOCAL",
     "reason": "Needs a Metal GPU, a display, macOS frameworks and a human watching the scroll. GPUI's build script needs Xcode tools, so cloud agents cannot even type-check this crate. Frame times are measured on the owner's machine because that is the machine the product targets.",
-    "requires": ["MACOS_HOST", "GUI_DISPLAY", "METAL_GPU", "OWNER_EYES"]
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "METAL_GPU",
+      "OWNER_EYES"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
-    "allowed_files": ["crates/kate-ui/", "apps/katem5rust/", "Cargo.toml"],
-    "forbidden_paths": ["upstream/", "crates/kate-core/", "crates/kate-text/", "crates/kate-syntax/", "crates/kate-fileio/"],
-    "crates_touched": ["kate-ui", "katem5rust", "workspace"],
+    "allowed_files": [
+      "crates/kate-ui/",
+      "apps/katem5rust/",
+      "Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-core/",
+      "crates/kate-text/",
+      "crates/kate-syntax/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-ui",
+      "katem5rust",
+      "workspace"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0009", "PKT-0012"]
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0009",
+      "PKT-0012"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,

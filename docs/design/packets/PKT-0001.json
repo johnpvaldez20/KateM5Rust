@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     }
   },
   "github": {
@@ -36,7 +62,10 @@
   "lane": {
     "runtime": "LOCAL",
     "reason": "Needs the owner's GitHub credentials to open the PR, the macOS toolchain to prove the workspace builds on the target, and the owner's eyes on the licensing and toolkit decisions.",
-    "requires": ["MACOS_HOST", "OWNER_EYES"]
+    "requires": [
+      "MACOS_HOST",
+      "OWNER_EYES"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
@@ -58,8 +87,19 @@
       "tools/gatecheck/",
       "upstream/"
     ],
-    "forbidden_paths": ["src/"],
-    "crates_touched": ["workspace", "katem5rust", "kate-text", "kate-syntax", "kate-search", "kate-fileio", "kate-core", "gatecheck"],
+    "forbidden_paths": [
+      "target/"
+    ],
+    "crates_touched": [
+      "workspace",
+      "katem5rust",
+      "kate-text",
+      "kate-syntax",
+      "kate-search",
+      "kate-fileio",
+      "kate-core",
+      "gatecheck"
+    ],
     "is_atomic": true,
     "depends_on_packets": []
   },

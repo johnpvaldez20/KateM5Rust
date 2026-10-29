@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-cloud-coder-03",
       "role": "CODER",
       "runtime": "CLOUD",
-      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
-      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
     }
   },
   "github": {
@@ -36,15 +62,27 @@
   "lane": {
     "runtime": "CLOUD",
     "reason": "XML parsing into plain data with a large, well-specified schema. Independent of every other crate, so it runs in parallel with the kate-text lane. Needs the upstream submodule checked out to copy the six XML files and read language.xsd.",
-    "requires": ["NONE"]
+    "requires": [
+      "NONE"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
-    "allowed_files": ["crates/kate-syntax/"],
-    "forbidden_paths": ["upstream/", "crates/kate-text/", "crates/kate-core/"],
-    "crates_touched": ["kate-syntax"],
+    "allowed_files": [
+      "crates/kate-syntax/"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-text/",
+      "crates/kate-core/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001"]
+    "depends_on_packets": [
+      "PKT-0001"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,

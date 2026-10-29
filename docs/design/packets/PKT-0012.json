@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-cloud-coder-01",
       "role": "CODER",
       "runtime": "CLOUD",
-      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
-      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
     }
   },
   "github": {
@@ -36,7 +62,9 @@
   "lane": {
     "runtime": "CLOUD",
     "reason": "Integrates four crates through their public APIs with no GUI. The integration tests are the first end-to-end tests of the editor model and must run on Linux CI as well as macOS.",
-    "requires": ["LARGE_CONTEXT_MODEL"]
+    "requires": [
+      "LARGE_CONTEXT_MODEL"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
@@ -50,10 +78,23 @@
       "crates/kate-core/Cargo.toml",
       "crates/kate-core/tests/"
     ],
-    "forbidden_paths": ["upstream/", "crates/kate-core/src/selection.rs", "crates/kate-core/src/movement.rs", "crates/kate-core/src/fanout.rs"],
-    "crates_touched": ["kate-core"],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-core/src/selection.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-core/src/fanout.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0004", "PKT-0005", "PKT-0008", "PKT-0011"]
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0004",
+      "PKT-0005",
+      "PKT-0008",
+      "PKT-0011"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,

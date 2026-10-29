@@ -8,17 +8,40 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-local-coder-01",
       "role": "CODER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high" },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high"
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     }
   },
   "github": {
@@ -36,9 +59,16 @@
   },
   "gate1_verdict_url": "https://github.com/johnpvaldez20/KateM5Rust/issues/10#issuecomment-3100000010",
   "verdict": "REJECT_STALE_BASE",
-  "toolchain": { "rustc_version": "1.99.1", "matches_rust_toolchain_toml": true },
+  "toolchain": {
+    "rustc_version": "1.99.1",
+    "matches_rust_toolchain_toml": true
+  },
   "diff_hygiene": {
-    "files_modified": ["crates/kate-search/src/lib.rs", "crates/kate-search/Cargo.toml", "Cargo.lock"],
+    "files_modified": [
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-search/Cargo.toml",
+      "Cargo.lock"
+    ],
     "out_of_scope_files": [],
     "contains_unrelated_formatting": false,
     "touches_upstream_submodule": false,
@@ -59,6 +89,8 @@
     "special_case_branches_eliminated": true,
     "silent_error_swallowing_detected": false
   },
-  "violations": ["STALE_BASE"],
+  "violations": [
+    "STALE_BASE"
+  ],
   "overseer_critique": "The code is fine; the branch is not. main moved twice while this local lane worked (PKT-0003 and PKT-0004 landed, changing Transaction and Anchor). Your diff compiles against a Transaction that no longer exists. Rebase onto main, fix the two call sites, push, and CI runs on the new head. No review of the new head until CI reports."
 }

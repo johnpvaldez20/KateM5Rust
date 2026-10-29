@@ -10,17 +10,45 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "ollama-qwen3-coder-local",
       "role": "PLANNER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "OLLAMA", "name": "qwen3-coder:30b", "settings": { "quantization": "Q4_K_M", "context_window_tokens": 65536, "temperature": 0.2 } },
-      "tool": { "name": "OLLAMA" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "OLLAMA",
+        "name": "qwen3-coder:30b",
+        "settings": {
+          "quantization": "Q4_K_M",
+          "context_window_tokens": 65536,
+          "temperature": 0.2
+        }
+      },
+      "tool": {
+        "name": "OLLAMA"
+      }
     }
   },
   "github": {
@@ -36,15 +64,27 @@
   "lane": {
     "runtime": "CLOUD",
     "reason": "Pure library crate work with no macOS dependency, if it were worth doing at all.",
-    "requires": ["NONE"]
+    "requires": [
+      "NONE"
+    ]
   },
   "verdict": "REJECT",
   "subsystem_scope": {
-    "allowed_files": ["crates/kate-core/src/buffer_backend.rs", "crates/kate-text/src/lib.rs"],
-    "forbidden_paths": ["upstream/"],
-    "crates_touched": ["kate-core", "kate-text"],
+    "allowed_files": [
+      "crates/kate-core/src/buffer_backend.rs",
+      "crates/kate-text/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-core",
+      "kate-text"
+    ],
     "is_atomic": false,
-    "depends_on_packets": ["PKT-0002"]
+    "depends_on_packets": [
+      "PKT-0002"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": false,
@@ -57,13 +97,20 @@
     "schema_diff_summary": "TextBuffer would gain a Box<dyn BufferBackend> field; no concrete trait methods listed."
   },
   "verification_plan": {
-    "commands": ["cargo test -p kate-core --locked"],
+    "commands": [
+      "cargo test -p kate-core --locked"
+    ],
     "regression_tests": [],
     "deterministic": true
   },
   "abstraction_audit": {
     "introduces_speculative_patterns": true,
-    "flagged_anti_patterns": ["SPECULATIVE_GENERALITY", "NEEDLESS_TRAIT_ABSTRACTION", "PROSE_INSTEAD_OF_TYPES", "CROSS_SUBSYSTEM_BLEED"]
+    "flagged_anti_patterns": [
+      "SPECULATIVE_GENERALITY",
+      "NEEDLESS_TRAIT_ABSTRACTION",
+      "PROSE_INSTEAD_OF_TYPES",
+      "CROSS_SUBSYSTEM_BLEED"
+    ]
   },
   "rejection_reasons": [
     "There is one buffer representation, decided in docs/design/01-data-structures.md: ropey::Rope. A trait with one real implementor is a vtable tax paid for a future that does not exist.",

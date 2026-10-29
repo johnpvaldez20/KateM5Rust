@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-cloud-coder-01",
       "role": "CODER",
       "runtime": "CLOUD",
-      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
-      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
     }
   },
   "github": {
@@ -36,7 +62,9 @@
   "lane": {
     "runtime": "CLOUD",
     "reason": "Pure library logic with property tests; same lane as the two packets before it because it touches the same crate and must land after them.",
-    "requires": ["NONE"]
+    "requires": [
+      "NONE"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
@@ -45,10 +73,21 @@
       "crates/kate-text/src/history.rs",
       "crates/kate-text/tests/history_test.rs"
     ],
-    "forbidden_paths": ["upstream/", "crates/kate-text/src/buffer.rs", "crates/kate-text/src/anchor.rs", "crates/kate-text/src/log.rs"],
-    "crates_touched": ["kate-text"],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/anchor.rs",
+      "crates/kate-text/src/log.rs"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0002", "PKT-0003"]
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0003"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,

@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-local-coder-01",
       "role": "CODER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     }
   },
   "github": {
@@ -36,7 +62,10 @@
   "lane": {
     "runtime": "LOCAL",
     "reason": "Rename semantics, mode bits, fsync behavior and extended attributes differ between APFS and ext4. The tests run in a tempdir on both, but the behavior that matters is the one on the owner's disk, and CI runs on macOS to confirm it.",
-    "requires": ["MACOS_HOST", "APFS_FILESYSTEM"]
+    "requires": [
+      "MACOS_HOST",
+      "APFS_FILESYSTEM"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
@@ -46,10 +75,19 @@
       "crates/kate-fileio/src/save.rs",
       "crates/kate-fileio/tests/save_test.rs"
     ],
-    "forbidden_paths": ["upstream/", "crates/kate-fileio/src/decode.rs", "crates/kate-fileio/src/load.rs"],
-    "crates_touched": ["kate-fileio"],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-fileio/src/load.rs"
+    ],
+    "crates_touched": [
+      "kate-fileio"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0005"]
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0005"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,

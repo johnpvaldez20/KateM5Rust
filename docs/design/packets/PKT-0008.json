@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-cloud-coder-03",
       "role": "CODER",
       "runtime": "CLOUD",
-      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-opus-5-thinking-high", "settings": { "reasoning_effort": "high" } },
-      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-opus-5-thinking-high",
+        "settings": {
+          "reasoning_effort": "high"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
     }
   },
   "github": {
@@ -36,7 +62,9 @@
   "lane": {
     "runtime": "CLOUD",
     "reason": "The hardest pure-logic packet in Phase 1 and the one with the best test oracle (upstream reference output). A large-context frontier model in the cloud, not a quantized local model.",
-    "requires": ["LARGE_CONTEXT_MODEL"]
+    "requires": [
+      "LARGE_CONTEXT_MODEL"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
@@ -49,10 +77,19 @@
       "crates/kate-syntax/tests/",
       "crates/kate-syntax/testdata/"
     ],
-    "forbidden_paths": ["upstream/", "crates/kate-syntax/src/definition.rs", "crates/kate-syntax/definitions/"],
-    "crates_touched": ["kate-syntax"],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-syntax/src/definition.rs",
+      "crates/kate-syntax/definitions/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0007"]
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,

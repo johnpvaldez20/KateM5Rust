@@ -10,17 +10,43 @@
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
       "runtime": "LOCAL",
-      "host": { "kind": "OWNER_MACBOOK", "name": "Johns-MacBook-Pro", "os": "macOS 27.0.1 (Darwin 27.0.0)", "arch": "aarch64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-fable-5-1-thinking-xhigh", "settings": { "reasoning_effort": "xhigh" } },
-      "tool": { "name": "CURSOR_IDE" }
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5-1-thinking-xhigh",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
     },
     "worker": {
       "agent_id": "cursor-cloud-coder-02",
       "role": "CODER",
       "runtime": "CLOUD",
-      "host": { "kind": "CURSOR_CLOUD", "name": "cursor-cloud-vm", "os": "Ubuntu 24.04", "arch": "x86_64" },
-      "model": { "provider": "ANTHROPIC", "name": "claude-sonnet-5-5-high", "settings": { "temperature": 0 } },
-      "tool": { "name": "CURSOR_CLOUD_AGENT" }
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-sonnet-5-5-high",
+        "settings": {
+          "temperature": 0
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
     }
   },
   "github": {
@@ -35,16 +61,27 @@
   },
   "lane": {
     "runtime": "CLOUD",
-    "reason": "Decoding is byte-level and platform independent. Fixtures are committed byte arrays. Reading a file in a tempdir behaves the same on Linux.",
-    "requires": ["NONE"]
+    "reason": "Decoding is byte-level and platform independent; the crate depends on ropey only, not on kate-text, so it runs in its own lane from day one. Fixtures are committed byte arrays.",
+    "requires": [
+      "NONE"
+    ]
   },
   "verdict": "PASS",
   "subsystem_scope": {
-    "allowed_files": ["crates/kate-fileio/"],
-    "forbidden_paths": ["upstream/", "crates/kate-text/"],
-    "crates_touched": ["kate-fileio"],
+    "allowed_files": [
+      "crates/kate-fileio/"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      "crates/kate-text/"
+    ],
+    "crates_touched": [
+      "kate-fileio"
+    ],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0002"]
+    "depends_on_packets": [
+      "PKT-0001"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,
