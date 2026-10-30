@@ -59,7 +59,8 @@ pub struct Decoded {
     pub line_ending: LineEnding,
     /// True when a replacement character was inserted.
     pub had_malformed: bool,
-    /// True when a NUL byte sits in the first 8 KiB.
+    /// True when a NUL is in the first 8 KiB.
+    /// UTF-16 with a BOM checks the decoded text for U+0000.
     pub probably_binary: bool,
 }
 
@@ -96,8 +97,34 @@ pub fn decode(bytes: &[u8], opts: &DecodeOptions) -> Result<Decoded, DecodeError
         bom,
         line_ending,
         had_malformed,
-        probably_binary: bytes.iter().take(BINARY_PREFIX).any(|byte| *byte == 0),
+        probably_binary: probably_binary(bytes, bom, encoding, &text),
     })
+}
+
+fn probably_binary(bytes: &[u8], bom: bool, encoding: Encoding, text: &str) -> bool {
+    if bom && is_utf16(encoding) {
+        return decoded_prefix_has_nul(text);
+    }
+    bytes.iter().take(BINARY_PREFIX).any(|byte| *byte == 0)
+}
+
+fn is_utf16(encoding: Encoding) -> bool {
+    encoding == encoding_rs::UTF_16LE || encoding == encoding_rs::UTF_16BE
+}
+
+/// `true` when U+0000 starts inside the first 8 KiB of decoded text.
+fn decoded_prefix_has_nul(text: &str) -> bool {
+    let mut seen = 0usize;
+    for ch in text.chars() {
+        if seen >= BINARY_PREFIX {
+            return false;
+        }
+        if ch == '\u{0000}' {
+            return true;
+        }
+        seen += ch.len_utf8();
+    }
+    false
 }
 
 fn decode_payload(
@@ -200,6 +227,27 @@ mod tests {
         assert_eq!(decoded.encoding, encoding_rs::UTF_16LE);
         assert!(decoded.bom);
         assert!(!decoded.had_malformed);
+        assert!(!decoded.probably_binary);
+    }
+
+    #[test]
+    fn bomless_utf16le_is_binary() {
+        let mut bytes = Vec::new();
+        for unit in "héllo".encode_utf16() {
+            bytes.extend_from_slice(&unit.to_le_bytes());
+        }
+        let decoded = decode(&bytes, &DecodeOptions::default()).unwrap();
+        assert!(!decoded.bom);
+        assert!(decoded.probably_binary);
+        assert_eq!(decoded.encoding, encoding_rs::WINDOWS_1252);
+    }
+
+    #[test]
+    fn utf16le_nul_scalar_in_the_prefix_is_binary() {
+        let decoded = decode(&utf16le_with_bom("a\0b"), &DecodeOptions::default()).unwrap();
+        assert!(decoded.bom);
+        assert!(decoded.probably_binary);
+        assert_eq!(decoded.text.to_string(), "a\0b");
     }
 
     #[test]
