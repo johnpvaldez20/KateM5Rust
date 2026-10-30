@@ -63,13 +63,17 @@ impl TextBuffer {
         }
     }
 
-    /// Returns the offset for a line and a column. The column is clamped to the line.
+    /// Returns the offset for a line and a column.
+    /// The column stops before the line break.
     /// A line past the last line uses the last line.
     pub fn offset(&self, at: LineCol) -> Offset {
         let last = self.text.len_lines() - 1;
         let line = (at.line as usize).min(last);
         let start = self.text.line_to_char(line);
-        let end = self.text.line_to_char(line + 1);
+        let mut end = self.text.line_to_char(line + 1);
+        if end > start && self.text.char(end - 1) == '\n' {
+            end -= 1;
+        }
         let col = (at.col as usize).min(end - start);
         Offset(start + col)
     }
@@ -496,6 +500,7 @@ mod tests {
                     col: 0,
                 })
             );
+            prop_assert_eq!(sample.offset(LineCol { line: 0, col: 100 }), Offset(2));
             prop_assert_eq!(sample.offset(LineCol { line: 1, col: 100 }), sample.len());
         }
     }
