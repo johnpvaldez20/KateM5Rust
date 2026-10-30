@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: 2026 John Valdez
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-//! `kate-fileio`: files on disk.
+//! File loading for the editor.
 //!
-//! Encoding detection and conversion, byte-order marks, line-ending
-//! normalization, atomic save (write to a temporary file, then rename), and
-//! modified-on-disk detection. Depends on `kate-text` only.
-//!
-//! Specified in `docs/design/01-data-structures.md`, section "File I/O and
-//! encodings". Arrives with packets PKT-0005 and PKT-0006.
+//! `decode` turns bytes into a rope. It checks a BOM, then strict UTF-8,
+//! then the fallback encoding. It rewrites CR LF and a lone CR to LF.
+//! `load` reads one path and adds the size, the mtime, and a SHA-256 digest.
+//! Encode and save arrive in a later packet.
+
+mod decode;
+mod load;
+
+pub use decode::{DecodeError, DecodeOptions, Decoded, Encoding, LineEnding, decode};
+pub use load::{LoadError, Loaded, load};

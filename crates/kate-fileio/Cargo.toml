@@ -9,6 +9,13 @@ publish.workspace = true
 license = "LGPL-2.1-or-later"
 
 [dependencies]
+encoding_rs = "0.8.42"
+ropey = { version = "1.6", default-features = false, features = ["simd"] }
+sha2 = "0.11.1"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest = "1.12.0"
+tempfile = "3.27.0"
