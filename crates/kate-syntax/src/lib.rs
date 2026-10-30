@@ -10,3 +10,14 @@
 //!
 //! Specified in `docs/design/01-data-structures.md`, section "Syntax
 //! highlighting". Arrives with packets PKT-0007 to PKT-0009.
+
+mod definition;
+mod load;
+mod repository;
+
+pub use definition::{
+    CommentPosition, CommentStyle, Context, ContextId, ContextSwitch, DefId, DefaultStyle,
+    Definition, FoldId, Format, FormatId, KeywordList, KeywordListId, Rgb, Rule, RuleKind,
+    WordDelimiters,
+};
+pub use repository::{LoadError, Repository};
