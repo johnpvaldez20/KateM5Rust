@@ -816,11 +816,11 @@ mod tests {
 
     const VENDORED: &[&str] = &[
         include_str!("../definitions/rust.xml"),
-        include_str!("../definitions/cpp.xml"),
-        include_str!("../definitions/c.xml"),
-        include_str!("../definitions/json.xml"),
-        include_str!("../definitions/markdown.xml"),
-        include_str!("../definitions/cmake.xml"),
+        include_str!("../definitions/comments.xml"),
+        include_str!("../definitions/alert.xml"),
+        include_str!("../definitions/modelines.xml"),
+        include_str!("../definitions/spdx-comments.xml"),
+        include_str!("../definitions/ansic89.xml"),
     ];
 
     const INNER: &str = r##"
@@ -871,8 +871,8 @@ mod tests {
 </language>
 "##;
 
-    const LOW_CMAKE_EARLY: &str = r##"
-<language name="NotCmakeEarly" section="Test" version="1" kateversion="5.0" extensions="CMakeLists.txt" priority="-1" license="MIT">
+    const LOW_C_EARLY: &str = r##"
+<language name="NotAnsiEarly" section="Test" version="1" kateversion="5.0" extensions="*.c" priority="-1" license="MIT">
   <highlighting>
     <contexts>
       <context name="Normal" attribute="Normal" lineEndContext="#stay"/>
@@ -884,11 +884,26 @@ mod tests {
 </language>
 "##;
 
-    const LOW_CMAKE_LATE: &str = r##"
-<language name="NotCmakeLate" section="Test" version="1" kateversion="5.0" extensions="CMakeLists.txt" priority="-5" license="MIT">
+    const LOW_C_LATE: &str = r##"
+<language name="NotAnsiLate" section="Test" version="1" kateversion="5.0" extensions="*.c" priority="-5" license="MIT">
   <highlighting>
     <contexts>
       <context name="Normal" attribute="Normal" lineEndContext="#stay"/>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal" defStyleNum="dsNormal"/>
+    </itemDatas>
+  </highlighting>
+</language>
+"##;
+
+    const MISSING_DEF: &str = r##"
+<language name="Host" section="Test" version="1" kateversion="5.0" extensions="*.host" license="MIT">
+  <highlighting>
+    <contexts>
+      <context name="Normal" attribute="Normal" lineEndContext="Start##NotLoaded">
+        <DetectChar char="a" context="Body##NotLoaded"/>
+      </context>
     </contexts>
     <itemDatas>
       <itemData name="Normal" defStyleNum="dsNormal"/>
@@ -938,8 +953,10 @@ mod tests {
                 }
             }
         }
+        for def in &repo.definitions {
+            assert_eq!(def.license, "MIT", "{}", def.name);
+        }
         let rust = repo.by_name("Rust").expect("rust");
-        assert_eq!(repo.definition(rust).license, "MIT");
         let mut saw_rust_ident = false;
         for index in repo.definition(rust).contexts.clone() {
             for rule in &repo.context(ContextId(index)).rules {
@@ -958,11 +975,17 @@ mod tests {
             sorted.dedup();
             assert_eq!(&list.words, &sorted, "{}", list.name);
         }
-        let cmake = repo.by_name("CMake").expect("cmake");
-        let cmake_def = repo.definition(cmake);
-        assert_eq!(cmake_def.license, "LGPLv2+");
-        assert!(cmake_def.word_delimiters.weak.contains(&'.'));
-        assert!(!cmake_def.word_delimiters.delimiters.contains(&'.'));
+        let c89 = repo.by_name("ANSI C89").expect("ansi c89");
+        let c89_def = repo.definition(c89);
+        assert_eq!(c89_def.name, "ANSI C89");
+        assert_eq!(c89_def.priority, 2);
+        assert!(c89_def.extensions.iter().any(|ext| ext == "*.c"));
+        assert!(c89_def.comments.iter().any(|style| {
+            matches!(
+                style,
+                CommentStyle::MultiLine { start, end } if start == "/*" && end == "*/"
+            )
+        }));
         assert!(repo.definition(rust).comments.iter().any(|style| {
             matches!(
                 style,
@@ -1002,18 +1025,27 @@ mod tests {
     #[test]
     fn file_name_matching_prefers_priority() {
         let mut repo = Repository::empty();
-        repo.add_xml(LOW_CMAKE_EARLY).expect("early");
+        repo.add_xml(LOW_C_EARLY).expect("early");
         for xml in VENDORED {
             repo.add_xml(xml).expect("vendored file parses");
         }
-        repo.add_xml(LOW_CMAKE_LATE).expect("late");
+        repo.add_xml(LOW_C_LATE).expect("late");
         repo.link().expect("link");
-        let cmake = repo.for_file_name("CMakeLists.txt").expect("cmake");
-        assert!(repo.definition(cmake).name.eq_ignore_ascii_case("cmake"));
+        let c_file = repo.for_file_name("foo.c").expect("c file");
+        assert_eq!(repo.definition(c_file).name, "ANSI C89");
         let rust = repo.for_file_name("main.rs").expect("rust");
-        assert!(repo.definition(rust).name.eq_ignore_ascii_case("rust"));
+        assert_eq!(repo.definition(rust).name, "Rust");
         assert_eq!(repo.for_file_name("x.unknownext"), None);
-        let header = repo.for_file_name("foo.h").expect("header");
-        assert_eq!(repo.definition(header).name, "C++");
+    }
+
+    #[test]
+    fn missing_definition_reference_resolves_to_stay() {
+        let mut repo = Repository::empty();
+        repo.add_xml(MISSING_DEF).expect("parse");
+        repo.link().expect("link");
+        let host = repo.by_name("Host").expect("host");
+        let context = repo.context(repo.definition(host).initial_context);
+        assert_eq!(context.line_end, ContextSwitch::Stay);
+        assert_eq!(context.rules[0].switch, ContextSwitch::Stay);
     }
 }
