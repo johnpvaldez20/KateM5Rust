@@ -1,12 +1,18 @@
 // SPDX-FileCopyrightText: 2026 John Valdez
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-//! `kate-text`: the text storage layer.
+//! Text storage for the editor.
 //!
-//! Owns the rope buffer, flat character offsets, invertible edits grouped into
-//! transactions, the revision log, and anchors that survive edits.
-//! Nothing here knows about files, syntax, views or the GUI.
-//!
-//! The types are specified in `docs/design/01-data-structures.md` and arrive
-//! with packets PKT-0002 to PKT-0004. This file is intentionally empty until
-//! then: no speculative code.
+//! `TextBuffer` holds a rope. Offsets count Unicode scalar values.
+//! A transaction is a sorted list of edits against one pre-state.
+//! `apply` checks every edit, applies the whole list, and increases the revision by 1.
+//! An insert has an empty old side. A delete has an empty new side.
+//! Anchors, undo, and files are later packets.
+
+mod buffer;
+mod edit;
+mod offset;
+
+pub use buffer::{ApplyError, TextBuffer};
+pub use edit::{Edit, Transaction, TransactionError};
+pub use offset::{CharRange, LineCol, Offset, Revision};
