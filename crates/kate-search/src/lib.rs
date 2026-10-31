@@ -6,14 +6,18 @@
 //! Plain and whole-word search walk rope chunks.
 //! Regex search runs on the rope through `regex-cursor`.
 //! It does not copy the buffer into one `String`.
-//! Replace-all builds one transaction.
+//! Replace-all builds one [`Transaction`](kate_text::Transaction).
 //!
 //! Specified in `docs/design/01-data-structures.md`, section "Search".
 //! Arrives with packet PKT-0010.
 
+mod escape;
+mod literal;
+mod regex_find;
+mod replace;
 mod search;
 
-use kate_text::{CharRange, Offset, TextBuffer, Transaction};
+use kate_text::{CharRange, Offset, TextBuffer};
 
 /// The text to find.
 ///
@@ -60,16 +64,45 @@ pub struct Match {
 
 /// Find every non-overlapping hit.
 ///
+/// An empty plain pattern reports an empty hit on each scalar boundary.
+/// That is the same set as `str::match_indices`.
+///
 /// # Errors
 ///
 /// Returns [`SearchError::InvalidRegex`] when the regex does not compile.
 /// Returns [`SearchError::InvalidEscape`] when an escape sequence is not valid.
 pub fn find_all(buf: &TextBuffer, q: &SearchQuery) -> Result<Vec<Match>, SearchError> {
-    let _ = (buf, q);
-    Ok(Vec::new())
+    let (start, end) = clamp_range(buf, q.range);
+    let rope = buf.text();
+    match &q.pattern {
+        Pattern::Plain(pattern) => Ok(literal::find(
+            rope,
+            pattern,
+            q.case_sensitive,
+            q.whole_words,
+            start,
+            end,
+        )),
+        Pattern::EscapeSequences(pattern) => {
+            let expanded = escape::expand_pattern(pattern)?;
+            Ok(literal::find(
+                rope,
+                &expanded,
+                q.case_sensitive,
+                q.whole_words,
+                start,
+                end,
+            ))
+        }
+        Pattern::Regex(pattern) => regex_find::find(rope, pattern, q.case_sensitive, start, end),
+    }
 }
 
 /// Find the next hit after `from`.
+///
+/// A non-empty hit that starts at `from` is a result.
+/// An empty hit that starts at `from` is not a result.
+/// When `wrap` is true and no hit remains, the search continues from the other end of the range.
 ///
 /// # Errors
 ///
@@ -81,11 +114,22 @@ pub fn find_next(
     backwards: bool,
     wrap: bool,
 ) -> Result<Option<Match>, SearchError> {
-    let _ = (buf, q, from, backwards, wrap);
-    Ok(None)
+    let found = find_all(buf, q)?;
+    let from = Offset(from.0.min(buf.len().0));
+    let hit = if backwards {
+        pick_back(&found, from, wrap)
+    } else {
+        pick_forward(&found, from, wrap)
+    };
+    Ok(hit)
 }
 
 /// Build one transaction that replaces every hit.
+///
+/// The `usize` is the number of edits in the transaction.
+/// The replacement text accepts `$0` to `$9`, `${name}`, `\0` to `\9`, `$$`, `\\`, `\n`, and `\t`.
+/// `${name}` is resolved only for a regex pattern.
+/// [`expand_replacement`] has no pattern, so a name there stays as text.
 ///
 /// # Errors
 ///
@@ -94,18 +138,18 @@ pub fn replace_all(
     buf: &TextBuffer,
     q: &SearchQuery,
     replacement: &str,
-) -> Result<(Transaction, usize), SearchError> {
-    let _ = (buf, q, replacement);
-    Ok((
-        Transaction::new(Vec::new()).expect("an empty edit list is valid"),
-        0,
-    ))
+) -> Result<(kate_text::Transaction, usize), SearchError> {
+    replace::replace_all(buf, q, replacement)
 }
 
 /// Expand `$` groups, `\` groups, and the escapes `\n` and `\t`.
+///
+/// This function does not see capture names.
+/// A `${name}` token is copied unchanged.
+/// A missing `$` group expands to an empty string.
+/// A missing `\` digit expands to that digit.
 pub fn expand_replacement(replacement: &str, m: &Match, buf: &TextBuffer) -> String {
-    let _ = (m, buf);
-    replacement.to_string()
+    escape::expand(replacement, m, buf.text(), None)
 }
 
 /// A search request was not valid.
@@ -127,3 +171,46 @@ impl std::fmt::Display for SearchError {
 }
 
 impl std::error::Error for SearchError {}
+
+fn clamp_range(buf: &TextBuffer, range: Option<CharRange>) -> (usize, usize) {
+    let len = buf.len().0;
+    match range {
+        None => (0, len),
+        Some(span) => {
+            let start = span.start().0.min(len);
+            let end = span.end().0.min(len);
+            (start, end)
+        }
+    }
+}
+
+fn empty_at(hit: &Match, from: Offset) -> bool {
+    hit.range.is_empty() && hit.range.start() == from
+}
+
+fn pick_forward(found: &[Match], from: Offset, wrap: bool) -> Option<Match> {
+    if let Some(hit) = found
+        .iter()
+        .find(|hit| hit.range.start() >= from && !empty_at(hit, from))
+    {
+        return Some(hit.clone());
+    }
+    if !wrap {
+        return None;
+    }
+    found.iter().find(|hit| !empty_at(hit, from)).cloned()
+}
+
+fn pick_back(found: &[Match], from: Offset, wrap: bool) -> Option<Match> {
+    if let Some(hit) = found
+        .iter()
+        .rev()
+        .find(|hit| hit.range.end() <= from && !empty_at(hit, from))
+    {
+        return Some(hit.clone());
+    }
+    if !wrap {
+        return None;
+    }
+    found.iter().rev().find(|hit| !empty_at(hit, from)).cloned()
+}
