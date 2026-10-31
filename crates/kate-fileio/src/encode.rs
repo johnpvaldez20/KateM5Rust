@@ -51,18 +51,29 @@ pub fn encode(text: &Rope, opts: &EncodeOptions) -> Result<Vec<u8>, EncodeError>
         v
     } else {
         let mut encoder = opts.encoding.new_encoder();
-        // Grow the buffer on OutputFull until the encoder accepts all input.
+        let mut total_read = 0usize;
+        let mut total_written = 0usize;
         let mut buf = vec![0u8; wire.len() * 2 + 16];
         loop {
-            let (result, read, written) =
-                encoder.encode_from_utf8_without_replacement(&wire, &mut buf, true);
+            let (result, read, written) = encoder.encode_from_utf8_without_replacement(
+                &wire[total_read..],
+                &mut buf[total_written..],
+                false,
+            );
+            total_read += read;
+            total_written += written;
             match result {
                 encoding_rs::EncoderResult::InputEmpty => {
-                    buf.truncate(written);
+                    // Flush any pending state.
+                    buf.resize(total_written + 4, 0);
+                    let (_, _, written) =
+                        encoder.encode_from_utf8_without_replacement("", &mut buf[total_written..], true);
+                    total_written += written;
+                    buf.truncate(total_written);
                     break buf;
                 }
                 encoding_rs::EncoderResult::Unmappable(c) => {
-                    let wire_byte_offset = read - c.len_utf8();
+                    let wire_byte_offset = total_read - c.len_utf8();
                     let wire_char_idx = wire[..wire_byte_offset].chars().count();
                     let src_char_idx = wire_char_to_src_char(wire_char_idx, &s, &opts.line_ending);
                     let (line, col) = line_col_at(&s, src_char_idx);
@@ -238,6 +249,36 @@ mod tests {
     }
 
     #[test]
+    fn iso2022jp_long_alternating_matches_encoding_rs() {
+        let text = "aあ".repeat(200);
+        let rope = Rope::from_str(&text);
+        let opts = EncodeOptions {
+            encoding: encoding_rs::ISO_2022_JP,
+            bom: false,
+            line_ending: LineEnding::Lf,
+            ensure_trailing_newline: false,
+        };
+        let bytes = encode(&rope, &opts).expect("ISO_2022_JP encodes long alternating text");
+        let (expected, _, _) = encoding_rs::ISO_2022_JP.encode(&text);
+        assert_eq!(&bytes[..], &expected[..]);
+    }
+
+    #[test]
+    fn gb18030_long_repeated_matches_encoding_rs() {
+        let text = "é".repeat(200);
+        let rope = Rope::from_str(&text);
+        let opts = EncodeOptions {
+            encoding: encoding_rs::GB18030,
+            bom: false,
+            line_ending: LineEnding::Lf,
+            ensure_trailing_newline: false,
+        };
+        let bytes = encode(&rope, &opts).expect("GB18030 encodes long repeated text");
+        let (expected, _, _) = encoding_rs::GB18030.encode(&text);
+        assert_eq!(&bytes[..], &expected[..]);
+    }
+
+    #[test]
     fn unmappable_on_second_line_reports_correct_position() {
         // '€' (U+20AC) is not in ISO_8859_2 (Latin-2), so it is unmappable.
         // Line/col are computed on the original \n text, so the result is
@@ -278,28 +319,50 @@ mod tests {
                 Just(LineEnding::CrLf),
                 Just(LineEnding::Cr),
             ],
-            text in prop::collection::vec(
-                prop_oneof![
-                    6 => prop::char::range('a', 'z'),
-                    1 => Just('é'),
-                    1 => Just('\n'),
-                    1 => Just(' '),
-                ],
-                0..20,
-            ).prop_map(|chars: Vec<char>| chars.into_iter().collect::<String>()),
+            bom in any::<bool>(),
+            lines in prop::collection::vec(
+                prop::collection::vec(
+                    prop_oneof![
+                        6 => prop::char::range('a', 'z'),
+                        1 => Just(' '),
+                        1 => Just('é'),
+                    ],
+                    0..8,
+                ).prop_map(|chars: Vec<char>| chars.into_iter().collect::<String>()),
+                0..5,
+            ),
         ) {
-            let rope = Rope::from_str(&text);
-            let enc_opts = EncodeOptions {
-                encoding,
-                bom: false,
-                line_ending: ending,
-                ensure_trailing_newline: false,
+            // Build expected on-disk bytes independently of encode().
+            let ending_bytes: &[u8] = match ending {
+                LineEnding::Lf => &[0x0A],
+                LineEnding::CrLf => &[0x0D, 0x0A],
+                LineEnding::Cr => &[0x0D],
             };
 
-            // Generate bytes: valid UTF-8 with non-ASCII, or WINDOWS_1252
-            // containing 0xE9 (not valid UTF-8).
-            let bytes = encode(&rope, &enc_opts)
-                .expect("encoding should succeed for safe chars");
+            let mut bytes: Vec<u8> = Vec::new();
+
+            // BOM only for UTF_8.
+            if bom && encoding == encoding_rs::UTF_8 {
+                bytes.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
+            }
+
+            for (i, line) in lines.iter().enumerate() {
+                if i > 0 {
+                    bytes.extend_from_slice(ending_bytes);
+                }
+                if encoding == encoding_rs::UTF_8 {
+                    bytes.extend_from_slice(line.as_bytes());
+                } else {
+                    // WINDOWS_1252: 'é' → 0xE9, a-z and space are ASCII.
+                    for ch in line.chars() {
+                        if ch == 'é' {
+                            bytes.push(0xE9);
+                        } else {
+                            bytes.push(ch as u8);
+                        }
+                    }
+                }
+            }
 
             let dec_opts = DecodeOptions {
                 max_bytes: 10_000,
