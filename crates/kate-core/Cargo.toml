@@ -9,6 +9,12 @@ publish.workspace = true
 license = "LGPL-2.1-or-later"
 
 [dependencies]
+kate-text = { workspace = true }
+# Grapheme cluster boundaries. A `char` step splits a base from its combining marks.
+unicode-segmentation = "1.13.3"
+
+[dev-dependencies]
+proptest = "1.12.0"
 
 [lints]
 workspace = true
