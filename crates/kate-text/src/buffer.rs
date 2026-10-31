@@ -5,14 +5,18 @@
 //!
 //! `apply` checks every edit, then changes the rope, then increases the revision by 1.
 //! A failed apply leaves the rope and the revision unchanged.
+//! A successful apply appends the transaction to the edit log.
 
+use crate::anchor::{self, Anchor, Bias, StaleAnchor};
 use crate::edit::{Edit, Transaction};
+use crate::log::EditLog;
 use crate::offset::{CharRange, LineCol, Offset, Revision};
 use ropey::{Rope, RopeSlice};
 
 pub struct TextBuffer {
     text: Rope,
     revision: Revision,
+    log: EditLog,
 }
 
 impl TextBuffer {
@@ -28,6 +32,7 @@ impl TextBuffer {
         Self {
             text: Rope::from_str(s),
             revision: Revision(0),
+            log: EditLog::new(Revision(0)),
         }
     }
 
@@ -89,7 +94,91 @@ impl TextBuffer {
             apply_edit(&mut self.text, edit);
         }
         self.revision = Revision(self.revision.0 + 1);
+        self.log.push(tx.clone(), self.revision);
         Ok(self.revision)
+    }
+
+    /// Returns an anchor at `offset` for the current revision.
+    ///
+    /// The offset is not checked against the buffer length.
+    pub fn anchor(&self, offset: Offset, bias: Bias) -> Anchor {
+        Anchor {
+            offset,
+            revision: self.revision,
+            bias,
+        }
+    }
+
+    /// Returns the offset of `anchor` at the current revision.
+    ///
+    /// The result is `Err` when the anchor revision is older than the log.
+    pub fn resolve(&self, anchor: Anchor) -> Result<Offset, StaleAnchor> {
+        self.transform(anchor.offset, anchor.bias, anchor.revision, self.revision)
+    }
+
+    /// Returns `anchor` moved to the current revision.
+    pub fn refresh(&self, anchor: Anchor) -> Result<Anchor, StaleAnchor> {
+        let offset = self.resolve(anchor)?;
+        Ok(Anchor {
+            offset,
+            revision: self.revision,
+            bias: anchor.bias,
+        })
+    }
+
+    /// Moves `offset` from revision `from` to revision `to`.
+    ///
+    /// `from` must be less than or equal to `to`.
+    /// Equal revisions return `offset` and do not read the log.
+    pub fn transform(
+        &self,
+        offset: Offset,
+        bias: Bias,
+        from: Revision,
+        to: Revision,
+    ) -> Result<Offset, StaleAnchor> {
+        if from == to {
+            return Ok(offset);
+        }
+        self.replay_forward(offset, bias, from, to)
+    }
+
+    /// Keeps history from `revision` until the matching unlock.
+    ///
+    /// A revision outside the kept range does not change the log.
+    pub fn lock_revision(&mut self, revision: Revision) {
+        self.log.lock(revision);
+    }
+
+    /// Drops one lock on `revision`.
+    ///
+    /// A revision that is not locked does not change the log.
+    pub fn unlock_revision(&mut self, revision: Revision) {
+        self.log.unlock(revision);
+    }
+
+    fn replay_forward(
+        &self,
+        offset: Offset,
+        bias: Bias,
+        from: Revision,
+        to: Revision,
+    ) -> Result<Offset, StaleAnchor> {
+        if from > to {
+            return Err(self.stale(from));
+        }
+        if to > self.revision {
+            return Err(self.stale(to));
+        }
+        let steps = usize::try_from(to.0 - from.0).map_err(|_| self.stale(from))?;
+        replay_steps(&self.log, offset, bias, from, steps)
+    }
+
+    fn stale(&self, requested: Revision) -> StaleAnchor {
+        StaleAnchor {
+            requested,
+            oldest_available: self.log.oldest_available(),
+        }
     }
 }
 
@@ -129,6 +218,31 @@ fn apply_edit(text: &mut Rope, edit: &Edit) {
     }
     if !edit.new.is_empty() {
         text.insert(start, &edit.new);
+    }
+}
+
+fn replay_steps(
+    log: &EditLog,
+    mut offset: Offset,
+    bias: Bias,
+    from: Revision,
+    steps: usize,
+) -> Result<Offset, StaleAnchor> {
+    let mut seen = 0usize;
+    for tx in log.entries_since(from)? {
+        if seen == steps {
+            break;
+        }
+        offset = anchor::transform_transaction(offset, bias, tx);
+        seen += 1;
+    }
+    if seen == steps {
+        Ok(offset)
+    } else {
+        Err(StaleAnchor {
+            requested: from,
+            oldest_available: log.oldest_available(),
+        })
     }
 }
 
