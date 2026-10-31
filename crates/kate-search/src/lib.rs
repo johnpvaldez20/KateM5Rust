@@ -127,7 +127,8 @@ pub fn find_next(
 /// Build one transaction that replaces every hit.
 ///
 /// The `usize` is the number of edits in the transaction.
-/// The replacement text accepts `$0` to `$9`, `${name}`, `\0` to `\9`, `$$`, `\\`, `\n`, and `\t`.
+/// A plain pattern inserts `replacement` with no `$` or `\` expansion.
+/// Escape and regex patterns expand `$0` to `$9`, `${name}`, `\0` to `\9`, `$$`, `\\`, `\n`, and `\t`.
 /// `${name}` is resolved only for a regex pattern.
 /// [`expand_replacement`] has no pattern, so a name there stays as text.
 ///

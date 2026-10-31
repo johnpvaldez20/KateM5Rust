@@ -398,6 +398,72 @@ mod tests {
     }
 
     #[test]
+    fn replace_all_over_100k_matches_stays_fast() {
+        let count_hits = 100_000;
+        let original = "a".repeat(count_hits);
+        let buf = TextBuffer::from_str(&original);
+        let started = std::time::Instant::now();
+        let (tx, count) = replace_all(&buf, &query(Pattern::Plain("a".into()), true, false), "b")
+            .expect("plain replace does not fail");
+        let elapsed = started.elapsed();
+        assert_eq!(count, count_hits);
+        assert_eq!(tx.edits().len(), count_hits);
+        assert_eq!(tx.edits()[0].start, Offset(0));
+        assert_eq!(tx.edits()[count_hits - 1].start, Offset(count_hits - 1));
+        assert!(
+            elapsed.as_secs() < 15,
+            "replace_all of {count_hits} hits took {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn plain_replace_all_keeps_the_replacement_literal() {
+        let mut buf = TextBuffer::from_str("go");
+        let replacement = r"$5 \1 C:\path";
+        let (tx, count) = replace_all(
+            &buf,
+            &query(Pattern::Plain("go".into()), true, false),
+            replacement,
+        )
+        .expect("plain replace does not fail");
+        assert_eq!(count, 1);
+        assert_eq!(tx.edits()[0].new, replacement);
+        buf.apply(&tx).expect("the transaction matches the buffer");
+        assert_eq!(buf.text().to_string(), replacement);
+    }
+
+    #[test]
+    fn whole_word_keeps_a_hit_that_overlaps_a_rejected_candidate() {
+        let buf = TextBuffer::from_str("ba-a-a");
+        let found = find_all(&buf, &query(Pattern::Plain("a-a".into()), true, true))
+            .expect("plain search does not fail");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].range.start(), Offset(3));
+        assert_eq!(found[0].range.end(), Offset(6));
+
+        let folded = find_all(&buf, &query(Pattern::Plain("A-a".into()), false, true))
+            .expect("plain search does not fail");
+        assert_eq!(folded.len(), 1);
+        assert_eq!(folded[0].range.start(), Offset(3));
+        assert_eq!(folded[0].range.end(), Offset(6));
+    }
+
+    #[test]
+    fn whole_word_treats_accented_letters_as_word_chars() {
+        let inside = TextBuffer::from_str("aéa");
+        let blocked = find_all(&inside, &query(Pattern::Plain("é".into()), true, true))
+            .expect("plain search does not fail");
+        assert!(blocked.is_empty());
+
+        let beside = TextBuffer::from_str("a é b");
+        let found = find_all(&beside, &query(Pattern::Plain("é".into()), true, true))
+            .expect("plain search does not fail");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].range.start(), Offset(2));
+        assert_eq!(found[0].range.end(), Offset(3));
+    }
+
+    #[test]
     fn whole_words_use_boundaries_and_regex_ignores_the_flag() {
         let buf = TextBuffer::from_str("Cat catalog CAT");
         let found = find_all(&buf, &query(Pattern::Plain("cat".into()), false, true))

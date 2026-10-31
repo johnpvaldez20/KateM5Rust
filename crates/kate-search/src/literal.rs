@@ -24,11 +24,11 @@ pub(crate) fn find(
     let mut spans = if needle.is_empty() {
         empty_spans(rope, case_sensitive, start, end)
     } else if case_sensitive {
-        find_exact(rope, needle, start, end)
+        find_exact(rope, needle, start, end, whole_words)
     } else {
-        find_folded(rope, needle, start, end)
+        find_folded(rope, needle, start, end, whole_words)
     };
-    if whole_words {
+    if needle.is_empty() && whole_words {
         spans.retain(|span| is_whole_word(rope, span.0, span.1));
     }
     spans.retain(|span| span.0 >= start && span.1 <= end);
@@ -57,7 +57,13 @@ fn empty_folded(rope: &Rope, start: usize, end: usize) -> Vec<(usize, usize)> {
     found
 }
 
-fn find_exact(rope: &Rope, needle: &str, start: usize, end: usize) -> Vec<(usize, usize)> {
+fn find_exact(
+    rope: &Rope,
+    needle: &str,
+    start: usize,
+    end: usize,
+    whole_words: bool,
+) -> Vec<(usize, usize)> {
     let bytes = needle.as_bytes();
     if bytes.is_empty() {
         return Vec::new();
@@ -76,15 +82,7 @@ fn find_exact(rope: &Rope, needle: &str, start: usize, end: usize) -> Vec<(usize
     let mut pos = start_b;
     let last = end_b - bytes.len();
     while pos <= last {
-        let next = if map.starts_with(pos, bytes) {
-            if let Some(span) = char_span(rope, pos, pos + bytes.len()) {
-                found.push(span);
-            }
-            pos.checked_add(bytes.len())
-        } else {
-            pos.checked_add(1)
-        };
-        let Some(next) = next else {
+        let Some(next) = next_exact(rope, &map, bytes, pos, whole_words, &mut found) else {
             break;
         };
         if next <= pos {
@@ -95,7 +93,45 @@ fn find_exact(rope: &Rope, needle: &str, start: usize, end: usize) -> Vec<(usize
     found
 }
 
-fn find_folded(rope: &Rope, needle: &str, start: usize, end: usize) -> Vec<(usize, usize)> {
+/// A rejected whole-word hit restarts one scalar later. An accepted hit ends the span.
+fn next_exact(
+    rope: &Rope,
+    map: &ChunkMap<'_>,
+    bytes: &[u8],
+    pos: usize,
+    whole_words: bool,
+    found: &mut Vec<(usize, usize)>,
+) -> Option<usize> {
+    if map.starts_with(pos, bytes)
+        && let Some(span) = char_span(rope, pos, pos + bytes.len())
+    {
+        return advance_after_hit(rope, pos, bytes.len(), span, whole_words, found);
+    }
+    pos.checked_add(1)
+}
+
+fn advance_after_hit(
+    rope: &Rope,
+    pos: usize,
+    byte_len: usize,
+    span: (usize, usize),
+    whole_words: bool,
+    found: &mut Vec<(usize, usize)>,
+) -> Option<usize> {
+    if !whole_words || is_whole_word(rope, span.0, span.1) {
+        found.push(span);
+        return pos.checked_add(byte_len);
+    }
+    rope.try_char_to_byte(span.0 + 1).ok()
+}
+
+fn find_folded(
+    rope: &Rope,
+    needle: &str,
+    start: usize,
+    end: usize,
+    whole_words: bool,
+) -> Vec<(usize, usize)> {
     let folded: Vec<char> = needle.to_lowercase().chars().collect();
     if folded.is_empty() {
         return empty_folded(rope, start, end);
@@ -111,11 +147,18 @@ fn find_folded(rope: &Rope, needle: &str, start: usize, end: usize) -> Vec<(usiz
         if window.len() > width {
             window.pop_front();
         }
-        if same_chars(&window, &folded) {
-            let start_at = window[0].1;
-            let end_at = window[width - 1].1 + 1;
+        if !same_chars(&window, &folded) {
+            continue;
+        }
+        let start_at = window[0].1;
+        let end_at = window[width - 1].1 + 1;
+        if !whole_words || is_whole_word(rope, start_at, end_at) {
             found.push((start_at, end_at));
             window.clear();
+            continue;
+        }
+        while window.front().is_some_and(|item| item.1 == start_at) {
+            window.pop_front();
         }
     }
     found
