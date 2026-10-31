@@ -8,7 +8,7 @@
 //! Ranges do not overlap.
 //! The primary index always points at one range.
 
-use kate_text::{CharRange, Offset, Transaction};
+use kate_text::{Bias, CharRange, Offset, Transaction, transform_offset};
 
 /// One cursor in the buffer.
 ///
@@ -74,15 +74,7 @@ impl Selections {
     /// An empty list becomes one caret at offset 0.
     /// A `primary` past the end uses the last input range.
     pub fn new(ranges: Vec<Selection>, primary: usize) -> Self {
-        // Stub. The real normalize lands in the next commit.
-        if ranges.is_empty() {
-            return Self {
-                ranges: vec![Selection::caret(Offset(0))],
-                primary: 0,
-            };
-        }
-        let primary = primary.min(ranges.len() - 1);
-        Self { ranges, primary }
+        normalize(ranges, primary)
     }
 
     /// Return the primary selection.
@@ -110,8 +102,10 @@ impl Selections {
 
     /// Add `s` and make it the primary selection. Then normalize.
     pub fn push(&mut self, s: Selection) {
-        self.ranges.push(s);
-        self.primary = self.ranges.len() - 1;
+        let mut ranges = std::mem::take(&mut self.ranges);
+        ranges.push(s);
+        let primary = ranges.len() - 1;
+        *self = Self::new(ranges, primary);
     }
 
     /// Keep the primary selection and drop the others.
@@ -124,7 +118,9 @@ impl Selections {
     ///
     /// The primary index follows the same slot through the merge.
     pub fn map(&mut self, mut f: impl FnMut(Selection) -> Selection) {
-        self.ranges = self.ranges.iter().copied().map(&mut f).collect();
+        let primary = self.primary;
+        let ranges = self.ranges.iter().copied().map(&mut f).collect();
+        *self = Self::new(ranges, primary);
     }
 
     /// Map every end through `tx`. Then normalize.
@@ -132,9 +128,140 @@ impl Selections {
     /// `anchor` uses left bias. `head` uses right bias.
     /// `goal_col` stays as it is.
     pub fn transformed(&self, tx: &Transaction) -> Selections {
-        let _ = tx;
-        self.clone()
+        let ranges = self
+            .ranges
+            .iter()
+            .map(|selection| Selection {
+                anchor: shift_offset(selection.anchor, Bias::Left, tx),
+                head: shift_offset(selection.head, Bias::Right, tx),
+                goal_col: selection.goal_col,
+            })
+            .collect();
+        Self::new(ranges, self.primary)
     }
+}
+
+fn normalize(ranges: Vec<Selection>, primary: usize) -> Selections {
+    if ranges.is_empty() {
+        return Selections {
+            ranges: vec![Selection::caret(Offset(0))],
+            primary: 0,
+        };
+    }
+    let primary = primary.min(ranges.len() - 1);
+    let order = sort_indices(&ranges);
+    assemble(&ranges, &order, primary)
+}
+
+fn sort_indices(items: &[Selection]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..items.len()).collect();
+    order.sort_by(|&left, &right| {
+        items[left]
+            .min()
+            .cmp(&items[right].min())
+            .then(items[left].max().cmp(&items[right].max()))
+            .then(left.cmp(&right))
+    });
+    order
+}
+
+struct Built {
+    selection: Selection,
+    owns_primary: bool,
+}
+
+fn assemble(items: &[Selection], order: &[usize], primary: usize) -> Selections {
+    let mut built: Vec<Built> = Vec::new();
+    for &index in order {
+        let selection = items[index];
+        if absorb_into_last(&mut built, selection, index == primary) {
+            continue;
+        }
+        built.push(Built {
+            selection,
+            owns_primary: index == primary,
+        });
+    }
+    let primary_at = built.iter().position(|item| item.owns_primary).unwrap_or(0);
+    Selections {
+        ranges: built.into_iter().map(|item| item.selection).collect(),
+        primary: primary_at,
+    }
+}
+
+fn absorb_into_last(built: &mut [Built], selection: Selection, is_primary: bool) -> bool {
+    let Some(last) = built.last_mut() else {
+        return false;
+    };
+    if !overlaps(&last.selection, &selection) {
+        return false;
+    }
+    let current = last.selection;
+    let owner = if is_primary && !last.owns_primary {
+        selection
+    } else {
+        current
+    };
+    last.selection = union_selection(owner, &current, &selection);
+    last.owns_primary = last.owns_primary || is_primary;
+    true
+}
+
+fn union_selection(owner: Selection, left: &Selection, right: &Selection) -> Selection {
+    let min = left.min().min(right.min());
+    let max = left.max().max(right.max());
+    if owner.head < owner.anchor {
+        Selection {
+            anchor: max,
+            head: min,
+            goal_col: owner.goal_col,
+        }
+    } else {
+        Selection {
+            anchor: min,
+            head: max,
+            goal_col: owner.goal_col,
+        }
+    }
+}
+
+struct Span {
+    start: usize,
+    end: usize,
+}
+
+fn span_of(selection: &Selection) -> Span {
+    Span {
+        start: selection.min().0,
+        end: selection.max().0,
+    }
+}
+
+fn overlaps(left: &Selection, right: &Selection) -> bool {
+    let left = span_of(left);
+    let right = span_of(right);
+    if left.start == left.end && right.start == right.end {
+        return left.start == right.start;
+    }
+    if left.start == left.end {
+        return point_inside(left.start, &right);
+    }
+    if right.start == right.end {
+        return point_inside(right.start, &left);
+    }
+    left.start < right.end && right.start < left.end
+}
+
+fn point_inside(point: usize, span: &Span) -> bool {
+    span.start <= point && point < span.end
+}
+
+fn shift_offset(offset: Offset, bias: Bias, tx: &Transaction) -> Offset {
+    let mut at = offset;
+    for edit in tx.edits().iter().rev() {
+        at = transform_offset(at, bias, edit);
+    }
+    at
 }
 
 #[cfg(test)]

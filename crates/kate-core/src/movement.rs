@@ -7,7 +7,8 @@
 //! Vertical movement uses logical lines and a tab column.
 //! Word movement follows Kate with camel-cursor off.
 
-use kate_text::TextBuffer;
+use kate_text::{CharRange, LineCol, Offset, TextBuffer};
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::selection::{Selection, Selections};
 
@@ -53,9 +54,20 @@ pub fn move_selection(
     extend: Extend,
     ctx: &MoveContext,
 ) -> Selection {
-    // Stub. The real move lands in the next commit.
-    let _ = (buf, m, extend, ctx);
-    s
+    let head = clamp_offset(buf, s.head);
+    let place = place_head(buf, head, s.goal_col, m, ctx);
+    match extend {
+        Extend::Yes => Selection {
+            anchor: clamp_offset(buf, s.anchor),
+            head: place.offset,
+            goal_col: place.goal,
+        },
+        Extend::No => Selection {
+            anchor: place.offset,
+            head: place.offset,
+            goal_col: place.goal,
+        },
+    }
 }
 
 /// Move every selection by `m`. Then normalize the set.
@@ -66,8 +78,555 @@ pub fn move_all(
     extend: Extend,
     ctx: &MoveContext,
 ) {
-    let _ = (buf, m, extend, ctx);
-    let _ = sel.primary();
+    sel.map(|selection| move_selection(buf, selection, m, extend, ctx));
+}
+
+struct Place {
+    offset: Offset,
+    goal: Option<u32>,
+}
+
+fn place_head(
+    buf: &TextBuffer,
+    head: Offset,
+    goal: Option<u32>,
+    m: Movement,
+    ctx: &MoveContext,
+) -> Place {
+    if let Some(delta) = line_delta(m) {
+        return place_vertical(buf, head, goal, delta, ctx);
+    }
+    Place {
+        offset: place_horizontal(buf, head, m),
+        goal: None,
+    }
+}
+
+fn line_delta(m: Movement) -> Option<i32> {
+    match m {
+        Movement::Up => Some(-1),
+        Movement::Down => Some(1),
+        Movement::Lines(count) => Some(count),
+        _ => None,
+    }
+}
+
+fn place_horizontal(buf: &TextBuffer, head: Offset, m: Movement) -> Offset {
+    step_offset(buf, head, m)
+        .or_else(|| edge_offset(buf, head, m))
+        .unwrap_or(head)
+}
+
+fn step_offset(buf: &TextBuffer, head: Offset, m: Movement) -> Option<Offset> {
+    match m {
+        Movement::Left => Some(grapheme_before(buf, head)),
+        Movement::Right => Some(grapheme_after(buf, head)),
+        Movement::WordLeft => Some(word_prev(buf, head)),
+        Movement::WordRight => Some(word_next(buf, head)),
+        _ => None,
+    }
+}
+
+fn edge_offset(buf: &TextBuffer, head: Offset, m: Movement) -> Option<Offset> {
+    match m {
+        Movement::LineStart => Some(line_edge(buf, head, false)),
+        Movement::LineEnd => Some(line_edge(buf, head, true)),
+        Movement::SmartHome => Some(smart_home(buf, head)),
+        Movement::DocStart => Some(Offset(0)),
+        Movement::DocEnd => Some(buf.len()),
+        _ => None,
+    }
+}
+
+fn place_vertical(
+    buf: &TextBuffer,
+    head: Offset,
+    goal: Option<u32>,
+    delta: i32,
+    ctx: &MoveContext,
+) -> Place {
+    let width = tab_width(ctx);
+    let current = buf.line_col(head);
+    let current_line = line_str(buf, current.line);
+    let goal_col = goal.unwrap_or_else(|| to_virtual(&current_line, current.col, width));
+    let last = buf.line_count().saturating_sub(1);
+    let target = shift_line(current.line, last, delta);
+    let text = line_str(buf, target);
+    let col = from_virtual(&text, goal_col, width);
+    let offset = buf.offset(LineCol {
+        line: target,
+        col: u32::try_from(col).unwrap_or(u32::MAX),
+    });
+    Place {
+        offset,
+        goal: Some(goal_col),
+    }
+}
+
+fn shift_line(line: u32, last: u32, delta: i32) -> u32 {
+    let target = i64::from(line) + i64::from(delta);
+    let last = i64::from(last);
+    u32::try_from(target.clamp(0, last)).unwrap_or(0)
+}
+
+fn tab_width(ctx: &MoveContext) -> u32 {
+    u32::from(ctx.tab_width).max(1)
+}
+
+fn to_virtual(line: &str, column: u32, width: u32) -> u32 {
+    let mut virtual_col = 0u32;
+    let mut seen = 0u32;
+    for ch in line.chars() {
+        if seen == column {
+            break;
+        }
+        virtual_col = virtual_col.saturating_add(cell_width(ch, virtual_col, width));
+        seen = seen.saturating_add(1);
+    }
+    virtual_col.saturating_add(column.saturating_sub(seen))
+}
+
+fn from_virtual(line: &str, target: u32, width: u32) -> usize {
+    if target == 0 {
+        return 0;
+    }
+    let chars: Vec<char> = line.chars().collect();
+    let maximal = chars
+        .len()
+        .min(usize::try_from(target).unwrap_or(usize::MAX));
+    let mut virtual_col = 0u32;
+    for (index, ch) in chars.iter().take(maximal).enumerate() {
+        virtual_col = virtual_col.saturating_add(cell_width(*ch, virtual_col, width));
+        if virtual_col > target {
+            return index;
+        }
+    }
+    let extra = usize::try_from(target.saturating_sub(virtual_col)).unwrap_or(0);
+    (maximal + extra).min(chars.len())
+}
+
+fn cell_width(ch: char, virtual_col: u32, width: u32) -> u32 {
+    if ch == '\t' {
+        width - virtual_col % width
+    } else {
+        1
+    }
+}
+
+fn line_edge(buf: &TextBuffer, head: Offset, end: bool) -> Offset {
+    let place = buf.line_col(head);
+    let col = if end { u32::MAX } else { 0 };
+    buf.offset(LineCol {
+        line: place.line,
+        col,
+    })
+}
+
+fn smart_home(buf: &TextBuffer, head: Offset) -> Offset {
+    let place = buf.line_col(head);
+    let text = line_str(buf, place.line);
+    let col = smart_home_col(&text, col_index(place.col));
+    buf.offset(LineCol {
+        line: place.line,
+        col: u32::try_from(col).unwrap_or(u32::MAX),
+    })
+}
+
+fn smart_home_col(line: &str, col: usize) -> usize {
+    match line.chars().position(|ch| !ch.is_whitespace()) {
+        Some(first) if col != first => first,
+        _ => 0,
+    }
+}
+
+/// Return the previous grapheme boundary. The offset stays inside the buffer.
+pub(crate) fn grapheme_before(buf: &TextBuffer, offset: Offset) -> Offset {
+    let len = buf.len().0;
+    let at = offset.0.min(len);
+    if at == 0 {
+        return Offset(0);
+    }
+    let (window, rel) = window_at(buf, Offset(at));
+    Offset((window.base + prev_bound(&window.text, rel)).min(len))
+}
+
+/// Return the next grapheme boundary. The offset stays inside the buffer.
+pub(crate) fn grapheme_after(buf: &TextBuffer, offset: Offset) -> Offset {
+    let len = buf.len().0;
+    let at = offset.0.min(len);
+    if at == len {
+        return Offset(len);
+    }
+    let (window, rel) = window_at(buf, Offset(at));
+    Offset((window.base + next_bound(&window.text, rel)).min(len))
+}
+
+struct Window {
+    base: usize,
+    text: String,
+}
+
+fn window_at(buf: &TextBuffer, offset: Offset) -> (Window, usize) {
+    let len = buf.len().0;
+    let at = offset.0.min(len);
+    let place = buf.line_col(Offset(at));
+    let start_line = if place.col == 0 && place.line > 0 {
+        place.line - 1
+    } else {
+        place.line
+    };
+    let base = buf
+        .offset(LineCol {
+            line: start_line,
+            col: 0,
+        })
+        .0;
+    let end = break_end(buf, place.line);
+    let text = copy_text(buf, base, end);
+    (Window { base, text }, at.saturating_sub(base))
+}
+
+fn break_end(buf: &TextBuffer, line: u32) -> usize {
+    let end = buf
+        .offset(LineCol {
+            line,
+            col: u32::MAX,
+        })
+        .0;
+    let len = buf.len().0;
+    if end < len && buf.text().char(end) == '\n' {
+        end + 1
+    } else {
+        end
+    }
+}
+
+fn next_bound(text: &str, rel: usize) -> usize {
+    let mut start = 0usize;
+    for cluster in text.graphemes(true) {
+        let next = start + cluster.chars().count();
+        if start >= rel || next > rel {
+            return next;
+        }
+        start = next;
+    }
+    start
+}
+
+fn prev_bound(text: &str, rel: usize) -> usize {
+    let mut start = 0usize;
+    for cluster in text.graphemes(true) {
+        let next = start + cluster.chars().count();
+        if next >= rel {
+            return start;
+        }
+        start = next;
+    }
+    start
+}
+
+fn is_bound(text: &str, rel: usize) -> bool {
+    let mut start = 0usize;
+    for cluster in text.graphemes(true) {
+        if start == rel {
+            return true;
+        }
+        start += cluster.chars().count();
+        if start > rel {
+            return false;
+        }
+    }
+    start == rel
+}
+
+fn snap(buf: &TextBuffer, offset: Offset, forward: bool) -> Offset {
+    let (window, rel) = window_at(buf, offset);
+    if is_bound(&window.text, rel) {
+        return clamp_offset(buf, offset);
+    }
+    if forward {
+        grapheme_after(buf, offset)
+    } else {
+        grapheme_before(buf, offset)
+    }
+}
+
+fn clamp_offset(buf: &TextBuffer, offset: Offset) -> Offset {
+    Offset(offset.0.min(buf.len().0))
+}
+
+fn copy_text(buf: &TextBuffer, start: usize, end: usize) -> String {
+    let len = buf.len().0;
+    let start = start.min(len);
+    let end = end.min(len);
+    if start >= end {
+        return String::new();
+    }
+    buf.slice(CharRange::new(Offset(start), Offset(end)))
+        .to_string()
+}
+
+fn line_str(buf: &TextBuffer, line: u32) -> String {
+    let start = buf.offset(LineCol { line, col: 0 }).0;
+    let end = buf
+        .offset(LineCol {
+            line,
+            col: u32::MAX,
+        })
+        .0;
+    copy_text(buf, start, end)
+}
+
+fn chars_of(buf: &TextBuffer, line: u32) -> Vec<char> {
+    line_str(buf, line).chars().collect()
+}
+
+#[derive(Copy, Clone)]
+struct Pos {
+    line: u32,
+    col: u32,
+}
+
+fn pos_of(buf: &TextBuffer, offset: Offset) -> Pos {
+    let place = buf.line_col(clamp_offset(buf, offset));
+    Pos {
+        line: place.line,
+        col: place.col,
+    }
+}
+
+fn offset_of(buf: &TextBuffer, pos: Pos) -> Offset {
+    buf.offset(LineCol {
+        line: pos.line,
+        col: pos.col,
+    })
+}
+
+fn col_index(col: u32) -> usize {
+    usize::try_from(col).unwrap_or(usize::MAX)
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Kind {
+    Space,
+    Word,
+    Other,
+}
+
+fn kind_of(ch: char) -> Kind {
+    if ch.is_whitespace() {
+        Kind::Space
+    } else if is_in_word(ch) {
+        Kind::Word
+    } else {
+        Kind::Other
+    }
+}
+
+fn is_in_word(ch: char) -> bool {
+    !is_default_delimiter(ch) && !ch.is_whitespace() && !matches!(ch, '"' | '\'' | '`')
+}
+
+fn is_default_delimiter(ch: char) -> bool {
+    let Ok(byte) = u8::try_from(ch) else {
+        return false;
+    };
+    b"\t !%&()*+,-./:;<=>?[\\]^{|}~".contains(&byte)
+}
+
+fn is_word_char(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_'
+}
+
+fn word_next(buf: &TextBuffer, offset: Offset) -> Offset {
+    let pos = pos_of(buf, offset);
+    let chars = chars_of(buf, pos.line);
+    let landed = if col_index(pos.col) >= chars.len() {
+        let wrapped = wrap_right(buf, pos);
+        let wrapped_chars = chars_of(buf, wrapped.line);
+        skip_spaces_forward(&wrapped_chars, wrapped)
+    } else if chars
+        .get(col_index(pos.col))
+        .copied()
+        .is_some_and(|ch| kind_of(ch) == Kind::Word)
+    {
+        cursor_forward(&chars, pos)
+    } else {
+        let skipped = skip_other_forward(&chars, pos);
+        skip_spaces_forward(&chars, skipped)
+    };
+    snap(buf, offset_of(buf, landed), true)
+}
+
+fn word_prev(buf: &TextBuffer, offset: Offset) -> Offset {
+    let pos = pos_of(buf, offset);
+    let landed = if pos.col == 0 {
+        wrap_left(buf, pos)
+    } else {
+        let chars = chars_of(buf, pos.line);
+        let skipped = skip_spaces_back(&chars, pos);
+        land_back(buf, &chars, skipped)
+    };
+    snap(buf, offset_of(buf, landed), false)
+}
+
+fn land_back(buf: &TextBuffer, chars: &[char], pos: Pos) -> Pos {
+    if pos.col == 0 {
+        return wrap_left(buf, pos);
+    }
+    match prev_kind(chars, pos.col) {
+        Some(Kind::Word) => cursor_back(chars, pos),
+        Some(Kind::Other) => skip_other_back(chars, pos),
+        Some(Kind::Space) | None => pos,
+    }
+}
+
+fn wrap_right(buf: &TextBuffer, pos: Pos) -> Pos {
+    let last = buf.line_count().saturating_sub(1);
+    if pos.line < last {
+        Pos {
+            line: pos.line + 1,
+            col: 0,
+        }
+    } else {
+        pos
+    }
+}
+
+fn wrap_left(buf: &TextBuffer, pos: Pos) -> Pos {
+    if pos.line == 0 {
+        return Pos { line: 0, col: 0 };
+    }
+    let line = pos.line - 1;
+    let col = u32::try_from(chars_of(buf, line).len()).unwrap_or(u32::MAX);
+    Pos { line, col }
+}
+
+fn skip_spaces_forward(chars: &[char], mut pos: Pos) -> Pos {
+    while chars
+        .get(col_index(pos.col))
+        .copied()
+        .is_some_and(|ch| ch.is_whitespace())
+    {
+        pos.col = pos.col.saturating_add(1);
+    }
+    pos
+}
+
+fn skip_other_forward(chars: &[char], mut pos: Pos) -> Pos {
+    while let Some(ch) = chars.get(col_index(pos.col)).copied() {
+        if kind_of(ch) != Kind::Other {
+            break;
+        }
+        pos.col = pos.col.saturating_add(1);
+    }
+    pos
+}
+
+fn skip_spaces_back(chars: &[char], mut pos: Pos) -> Pos {
+    while pos.col > 0 && prev_kind(chars, pos.col) == Some(Kind::Space) {
+        pos.col -= 1;
+    }
+    pos
+}
+
+fn skip_other_back(chars: &[char], mut pos: Pos) -> Pos {
+    while pos.col > 0 && prev_kind(chars, pos.col) == Some(Kind::Other) {
+        pos.col -= 1;
+    }
+    pos
+}
+
+fn prev_kind(chars: &[char], col: u32) -> Option<Kind> {
+    let index = col_index(col).checked_sub(1)?;
+    chars.get(index).copied().map(kind_of)
+}
+
+fn cursor_forward(chars: &[char], pos: Pos) -> Pos {
+    let start = col_index(pos.col).min(chars.len());
+    let mut col = start;
+    while col < chars.len() && is_word_char(chars[col]) {
+        col += 1;
+    }
+    while col < chars.len() && chars[col].is_whitespace() {
+        col += 1;
+    }
+    if col == start {
+        col = start.saturating_add(1).min(chars.len());
+    }
+    Pos {
+        line: pos.line,
+        col: u32::try_from(col).unwrap_or(u32::MAX),
+    }
+}
+
+fn cursor_back(chars: &[char], pos: Pos) -> Pos {
+    let Some(size) = isize::try_from(chars.len()).ok() else {
+        return Pos {
+            line: pos.line,
+            col: 0,
+        };
+    };
+    if size == 0 {
+        return Pos {
+            line: pos.line,
+            col: 0,
+        };
+    }
+    let column = isize::try_from(pos.col).unwrap_or(size);
+    let mut col = column.min(size - 1) - 1;
+    col = adjust_end_letter(chars, column, size, col);
+    col = skip_back_spaces(chars, col);
+    col = skip_back_word(chars, col);
+    if col >= 0 && char_at(chars, col).is_some_and(|ch| !is_word_char(ch)) {
+        col += 1;
+    }
+    Pos {
+        line: pos.line,
+        col: u32::try_from(jump_back(col, column)).unwrap_or(0),
+    }
+}
+
+fn adjust_end_letter(chars: &[char], column: isize, size: isize, col: isize) -> isize {
+    if column != size {
+        return col;
+    }
+    let last_is_letter = char_at(chars, col + 1).is_some_and(|ch| ch.is_alphabetic());
+    let before_is_space = col >= 0 && char_at(chars, col).is_some_and(|ch| ch.is_whitespace());
+    if last_is_letter && before_is_space {
+        col + 1
+    } else {
+        col
+    }
+}
+
+fn skip_back_spaces(chars: &[char], mut col: isize) -> isize {
+    while col > 0 && char_at(chars, col).is_some_and(|ch| ch.is_whitespace()) {
+        col -= 1;
+    }
+    col
+}
+
+fn skip_back_word(chars: &[char], mut col: isize) -> isize {
+    while col > 0 && char_at(chars, col).is_some_and(is_word_char) {
+        col -= 1;
+    }
+    col
+}
+
+fn jump_back(col: isize, column: isize) -> isize {
+    if col < 0 {
+        0
+    } else if col == column && column > 0 {
+        column - 1
+    } else {
+        col
+    }
+}
+
+fn char_at(chars: &[char], index: isize) -> Option<char> {
+    let index = usize::try_from(index).ok()?;
+    chars.get(index).copied()
 }
 
 #[cfg(test)]

@@ -7,8 +7,9 @@
 //! The edits use pre-state offsets.
 //! Overlapping edits return [`TransactionError`].
 
-use kate_text::{Edit, TextBuffer, Transaction, TransactionError};
+use kate_text::{CharRange, Edit, Offset, TextBuffer, Transaction, TransactionError};
 
+use crate::movement::{grapheme_after, grapheme_before};
 use crate::selection::{Selection, Selections};
 
 /// Build one transaction from one edit per selection.
@@ -20,9 +21,27 @@ pub fn fan_out(
     sel: &Selections,
     mut f: impl FnMut(&TextBuffer, Selection) -> Option<Edit>,
 ) -> Result<(Transaction, Selections), TransactionError> {
-    // Stub. The real fan-out lands in the next commit.
-    let _ = f(buf, sel.primary());
-    Ok((Transaction::default(), sel.clone()))
+    let sel = clamp_set(buf, sel);
+    let mut edits = Vec::new();
+    for selection in sel.iter().copied() {
+        if let Some(edit) = f(buf, selection) {
+            edits.push(edit);
+        }
+    }
+    let tx = Transaction::new(edits)?;
+    let after = sel.transformed(&tx);
+    Ok((tx, after))
+}
+
+fn clamp_set(buf: &TextBuffer, sel: &Selections) -> Selections {
+    let len = buf.len().0;
+    let mut clamped = sel.clone();
+    clamped.map(|selection| Selection {
+        anchor: Offset(selection.anchor.0.min(len)),
+        head: Offset(selection.head.0.min(len)),
+        goal_col: selection.goal_col,
+    });
+    clamped
 }
 
 /// Replace each selection with `text`.
@@ -34,10 +53,11 @@ pub fn insert_text(
     sel: &Selections,
     text: &str,
 ) -> Result<(Transaction, Selections), TransactionError> {
-    fan_out(buf, sel, |_, _| {
-        let _ = text;
-        None
-    })
+    let (tx, mut after) = fan_out(buf, sel, |buffer, selection| {
+        Some(replace_span(buffer, selection.min(), selection.max(), text))
+    })?;
+    after.map(|selection| Selection::caret(selection.head));
+    Ok((tx, after))
 }
 
 /// Delete one grapheme before a caret, or delete a selection.
@@ -45,7 +65,7 @@ pub fn delete_backward(
     buf: &TextBuffer,
     sel: &Selections,
 ) -> Result<(Transaction, Selections), TransactionError> {
-    fan_out(buf, sel, |_, _| None)
+    delete_with(buf, sel, false)
 }
 
 /// Delete one grapheme after a caret, or delete a selection.
@@ -53,7 +73,62 @@ pub fn delete_forward(
     buf: &TextBuffer,
     sel: &Selections,
 ) -> Result<(Transaction, Selections), TransactionError> {
-    fan_out(buf, sel, |_, _| None)
+    delete_with(buf, sel, true)
+}
+
+fn delete_with(
+    buf: &TextBuffer,
+    sel: &Selections,
+    forward: bool,
+) -> Result<(Transaction, Selections), TransactionError> {
+    let (tx, mut after) = fan_out(buf, sel, |buffer, selection| {
+        delete_edit(buffer, selection, forward)
+    })?;
+    after.map(|selection| Selection {
+        anchor: selection.anchor,
+        head: selection.head,
+        goal_col: None,
+    });
+    Ok((tx, after))
+}
+
+fn delete_edit(buf: &TextBuffer, selection: Selection, forward: bool) -> Option<Edit> {
+    let (start, end) = deletion_bounds(buf, selection, forward);
+    let edit = replace_span(buf, start, end, "");
+    if edit.old.is_empty() {
+        None
+    } else {
+        Some(edit)
+    }
+}
+
+fn deletion_bounds(buf: &TextBuffer, selection: Selection, forward: bool) -> (Offset, Offset) {
+    if !selection.is_caret() {
+        return (selection.min(), selection.max());
+    }
+    let head = Offset(selection.head.0.min(buf.len().0));
+    if forward {
+        (head, grapheme_after(buf, head))
+    } else {
+        (grapheme_before(buf, head), head)
+    }
+}
+
+fn replace_span(buf: &TextBuffer, start: Offset, end: Offset, new_text: &str) -> Edit {
+    let len = buf.len().0;
+    let start = start.0.min(end.0).min(len);
+    let end = start.max(end.0.min(len));
+    let old = if start == end {
+        String::new()
+    } else {
+        buf.slice(CharRange::new(Offset(start), Offset(end)))
+            .to_string()
+    };
+    Edit {
+        start: Offset(start),
+        old,
+        new: new_text.to_string(),
+    }
 }
 
 #[cfg(test)]
