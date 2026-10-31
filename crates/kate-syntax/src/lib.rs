@@ -12,12 +12,18 @@
 //! highlighting". Arrives with packets PKT-0007 to PKT-0009.
 
 mod definition;
+mod engine;
 mod load;
+mod regex;
 mod repository;
+mod state;
 
 pub use definition::{
     CommentPosition, CommentStyle, Context, ContextId, ContextSwitch, DefId, DefaultStyle,
     Definition, FoldId, Format, FormatId, KeywordList, KeywordListId, Rgb, Rule, RuleKind,
     WordDelimiters,
 };
+pub use engine::{FoldEvent, Highlighter, LineHighlight, Span};
+pub use regex::{RegexCache, RegexError, translate_pattern};
 pub use repository::{LoadError, Repository};
+pub use state::{Frame, State, StateId, StateInterner};
