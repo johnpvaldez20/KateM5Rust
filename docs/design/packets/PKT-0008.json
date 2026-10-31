@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0008",
   "title": "kate-syntax: context-stack highlighting engine with upstream golden tests",
-  "summary": "The matching side. highlight_line takes a line and an interned start state, runs the rules of the top context left to right exactly like KSyntaxHighlighting's AbstractHighlighter::highlightLine (lookahead, firstNonSpace, column, dynamic captures, lineEndContext, lineEmptyContext, fallthrough, folding regions) and returns spans plus the end state. Golden tests reuse upstream autotests/input and autotests/reference for the vendored definitions, converted to our span format by a committed script output, so the Rust engine is held to the C++ engine's exact output.",
+  "summary": "The matching side. highlight_line takes a line and an interned start state, runs the rules of the top context left to right exactly like KSyntaxHighlighting's AbstractHighlighter::highlightLine (lookahead, firstNonSpace, column, dynamic captures, lineEndContext, lineEmptyContext, fallthrough, folding regions) and returns spans plus the end state. Golden tests reuse upstream autotests/input and autotests/reference for the vendored definitions, converted to our span format by a committed script output, so the Rust engine is held to the C++ engine's exact output. Per-rule delimiter overrides are not fields of Rule, and the loader drops them. This packet does not add those fields, because definition.rs is a forbidden path. The six MIT files do not set those overrides on a rule.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-10-29T23:10:00Z",
