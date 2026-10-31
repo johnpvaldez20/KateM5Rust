@@ -9,16 +9,19 @@
 //! An insert has an empty old side. A delete has an empty new side.
 //! An anchor stores an offset, a revision, and a bias.
 //! Resolve replays the edit log.
-//! Undo and files are later packets.
+//! `History` records undo and redo.
+//! A file load is a later packet.
 
 mod anchor;
 mod buffer;
 mod edit;
+mod history;
 mod log;
 mod offset;
 
 pub use anchor::{Anchor, Bias, StaleAnchor, transform_offset};
 pub use buffer::{ApplyError, TextBuffer};
 pub use edit::{Edit, Transaction, TransactionError};
+pub use history::{EditKind, History, HistoryEntry};
 pub use log::EditLog;
 pub use offset::{CharRange, LineCol, Offset, Revision};
