@@ -17,6 +17,7 @@ mod load;
 mod regex;
 mod repository;
 mod state;
+mod theme;
 
 pub use definition::{
     CommentPosition, CommentStyle, Context, ContextId, ContextSwitch, DefId, DefaultStyle,
@@ -27,3 +28,4 @@ pub use engine::{FoldEvent, Highlighter, LineHighlight, Span};
 pub use regex::{RegexCache, RegexError, translate_pattern};
 pub use repository::{LoadError, Repository};
 pub use state::{Frame, State, StateId, StateInterner};
+pub use theme::{EditorColor, Rgba, Style, Theme, ThemeError};
