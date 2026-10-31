@@ -33,15 +33,14 @@
       "runtime": "CLOUD",
       "host": {
         "kind": "CURSOR_CLOUD",
-        "name": "cursor-cloud-vm",
-        "os": "Ubuntu 24.04",
-        "arch": "x86_64"
+        "name": "cursor-cloud-vm"
       },
       "model": {
-        "provider": "ANTHROPIC",
-        "name": "claude-sonnet-5-5-high",
+        "provider": "XAI",
+        "name": "grok-4.7",
         "settings": {
-          "temperature": 0
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 500000
         }
       },
       "tool": {
@@ -51,13 +50,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 3,
+    "issue_number": 17,
     "branch": "pkt/PKT-0003-anchors-revision-transform",
-    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+    "base_sha": "2c31abec09eb3d13c06d14d1d5bee3cb13b1ab68"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/3"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/17"
   },
   "lane": {
     "runtime": "CLOUD",
@@ -110,7 +109,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "TextBuffer gains a private EditLog field and six public methods. Nothing existing changes shape. Unlocked history older than the oldest lock is dropped; resolving an anchor older than that is an error, not a guess."
+    "schema_diff_summary": "TextBuffer gains a private EditLog field and six public methods. Nothing existing changes shape. Unlocked history older than the oldest lock is dropped; resolving an anchor older than that is an error, not a guess. With no lock the log retains only the most recent transaction (one more than KTextEditor). lock/unlock on a revision outside the retained range, and EditLog::push with a non-consecutive revision, are silent no-ops. Edits within one transaction are transformed last-to-first, matching TextBuffer::apply. TextBuffer::transform returns Err(StaleAnchor) for from > to or to beyond the current revision; from == to returns the offset unchanged without consulting the log. Backward (to < from) transforms are not supported."
   },
   "verification_plan": {
     "commands": [
