@@ -66,8 +66,11 @@ pub fn encode(text: &Rope, opts: &EncodeOptions) -> Result<Vec<u8>, EncodeError>
                 encoding_rs::EncoderResult::InputEmpty => {
                     // Flush any pending state.
                     buf.resize(total_written + 4, 0);
-                    let (_, _, written) =
-                        encoder.encode_from_utf8_without_replacement("", &mut buf[total_written..], true);
+                    let (_, _, written) = encoder.encode_from_utf8_without_replacement(
+                        "",
+                        &mut buf[total_written..],
+                        true,
+                    );
                     total_written += written;
                     buf.truncate(total_written);
                     break buf;
@@ -168,7 +171,7 @@ fn wire_char_to_src_char(wire_idx: usize, s: &str, line_ending: &LineEnding) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{decode, DecodeOptions};
+    use crate::{DecodeOptions, decode};
     use proptest::prelude::*;
     use proptest::test_runner::RngSeed;
 

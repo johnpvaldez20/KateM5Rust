@@ -6,7 +6,7 @@
 //! No fallback to non-atomic writes. If the directory is not writable,
 //! the error names the step that failed.
 
-use crate::{encode, EncodeOptions};
+use crate::{EncodeOptions, encode};
 use ropey::Rope;
 use sha2::{Digest, Sha256};
 use std::io::Write;
@@ -96,10 +96,11 @@ fn do_save(temp_path: &Path, target: &Path, bytes: &[u8]) -> Result<Saved, SaveE
 
     // Copy mode bits from the existing target, if any.
     if let Ok(meta) = std::fs::metadata(target) {
-        file.set_permissions(meta.permissions()).map_err(|e| SaveError::Io {
-            step: SaveStep::CopyMode,
-            source: e,
-        })?;
+        file.set_permissions(meta.permissions())
+            .map_err(|e| SaveError::Io {
+                step: SaveStep::CopyMode,
+                source: e,
+            })?;
     }
 
     drop(file);
@@ -109,7 +110,9 @@ fn do_save(temp_path: &Path, target: &Path, bytes: &[u8]) -> Result<Saved, SaveE
         source: e,
     })?;
 
-    let mtime = std::fs::metadata(target).ok().and_then(|m| m.modified().ok());
+    let mtime = std::fs::metadata(target)
+        .ok()
+        .and_then(|m| m.modified().ok());
 
     let mut hasher = Sha256::new();
     hasher.update(bytes);
