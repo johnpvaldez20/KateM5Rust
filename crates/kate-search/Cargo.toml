@@ -9,6 +9,13 @@ publish.workspace = true
 license = "LGPL-2.1-or-later"
 
 [dependencies]
+kate-text = { version = "0.1.0", path = "../kate-text" }
+regex = "1.13.1"
+regex-cursor = "0.1.5"
+ropey = { version = "1.6", default-features = false, features = ["simd"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest = "1.12.0"
