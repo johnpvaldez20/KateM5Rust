@@ -24,23 +24,25 @@ fn upstream_reference_output_matches() {
         .expect("golden dir")
         .flatten()
         .collect::<Vec<_>>();
+    cases.retain(|entry| entry.path().is_dir());
     cases.sort_by_key(|entry| entry.file_name());
-    assert!(!cases.is_empty(), "no golden cases");
+    let names: Vec<String> = cases
+        .iter()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, ["alerts", "modelines", "rust"]);
     for case in cases {
-        if !case.path().is_dir() {
-            continue;
-        }
         let name = fs::read_to_string(case.path().join("definition")).expect("definition");
         let name = name.trim();
         let owned = fs::read_to_string(case.path().join("input")).expect("input");
-        // QTextStream drops a leading BOM. The reference lines do not contain it.
-        let input = owned.trim_start_matches('\u{feff}');
+        // QTextStream drops one leading BOM. The reference lines do not contain it.
+        let input = owned.strip_prefix('\u{feff}').unwrap_or(owned.as_str());
         let expected = fs::read_to_string(case.path().join("expected.spans")).expect("expected");
         let repo = load_vendored();
         let id = repo
             .by_name(name)
             .unwrap_or_else(|| panic!("missing {name}"));
-        let mut hl = Highlighter::new(&repo, id);
+        let mut hl = Highlighter::new(&repo, id).expect("patterns");
         let got = render(&repo, &mut hl, input);
         assert_spans_equal(name, input, &got, &expected);
     }

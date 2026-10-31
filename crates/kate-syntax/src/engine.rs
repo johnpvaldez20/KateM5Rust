@@ -8,7 +8,7 @@ use std::sync::Arc;
 use fancy_regex::{Regex, RegexInput};
 
 use crate::definition::{ContextId, ContextSwitch, DefId, FoldId, FormatId, Rule, RuleKind};
-use crate::regex::RegexCache;
+use crate::regex::{RegexCache, RegexError};
 use crate::repository::Repository;
 use crate::state::{Frame, State, StateId, StateInterner};
 
@@ -56,17 +56,15 @@ struct Hit {
 }
 
 impl<'a> Highlighter<'a> {
-    pub fn new(repo: &'a Repository, def: DefId) -> Self {
-        let regexes = RegexCache::compile(repo, def).unwrap_or_else(|err| {
-            panic!("unsupported pattern at load: {err}");
-        });
+    pub fn new(repo: &'a Repository, def: DefId) -> Result<Self, RegexError> {
+        let regexes = RegexCache::compile(repo, def)?;
         let definition = repo.definition(def);
-        Self {
+        Ok(Self {
             repo,
             regexes,
             interner: StateInterner::new(definition.initial_context),
             delim: Delimiters::from_chars(&definition.word_delimiters.delimiters),
-        }
+        })
     }
 
     pub fn initial_state(&self) -> StateId {
@@ -485,9 +483,9 @@ fn apply_switch(state: &mut State, switch: ContextSwitch, captures: Option<Arc<[
             true
         }
         ContextSwitch::PopPush(count, context) => {
-            let _ = state.pop_frames(count);
+            let survived = state.pop_frames(count);
             state.push_frame(Frame { context, captures });
-            true
+            survived
         }
     }
 }
@@ -1046,6 +1044,25 @@ mod tests {
 </language>
 "##;
 
+    const POP_PUSH: &str = r##"
+<language name="PopPush" section="Test" version="1" kateversion="5.0" extensions="*.pop" license="MIT">
+  <highlighting>
+    <contexts>
+      <context name="Root" attribute="Root" lineEndContext="#pop!Left">
+        <DetectChar char="x" attribute="Root" context="#stay"/>
+      </context>
+      <context name="Left" attribute="Left" lineEndContext="#pop!Right"/>
+      <context name="Right" attribute="Right" lineEndContext="#pop!Root"/>
+    </contexts>
+    <itemDatas>
+      <itemData name="Root" defStyleNum="dsNormal"/>
+      <itemData name="Left" defStyleNum="dsKeyword"/>
+      <itemData name="Right" defStyleNum="dsError"/>
+    </itemDatas>
+  </highlighting>
+</language>
+"##;
+
     fn load_one(xml: &str, name: &str) -> (Repository, crate::definition::DefId) {
         let mut repo = Repository::empty();
         repo.add_xml(xml).expect("parse");
@@ -1057,7 +1074,7 @@ mod tests {
     #[test]
     fn lookahead_rule_consumes_nothing() {
         let (repo, id) = load_one(LOOK, "Look");
-        let mut hl = Highlighter::new(&repo, id);
+        let mut hl = Highlighter::new(&repo, id).expect("patterns");
         let mut out = LineHighlight::default();
         hl.highlight_line("ab", hl.initial_state(), &mut out);
         assert_eq!(out.spans.len(), 1, "{:?}", out.spans);
@@ -1080,7 +1097,7 @@ mod tests {
         }
         repo.link().expect("link");
         let id = repo.by_name("Rust").expect("rust");
-        let mut hl = Highlighter::new(&repo, id);
+        let mut hl = Highlighter::new(&repo, id).expect("patterns");
         let text = include_str!("../testdata/golden/rust/input");
         let lines = source_lines(text);
         let mut starts = Vec::new();
@@ -1100,27 +1117,42 @@ mod tests {
             .iter()
             .position(|line| line.contains("pub struct"))
             .expect("line");
-        let changed = lines[index].replace("pub", "pub ");
-        let mut state = starts[index];
+        let close_at = index + 3;
+        assert!(
+            close_at < lines.len(),
+            "the block comment needs a later line"
+        );
+        let mut edited: Vec<String> = lines.iter().map(|line| (*line).to_string()).collect();
+        edited[index] = format!("/*{}", edited[index]);
+        edited[close_at] = format!("*/{}", edited[close_at]);
         let mut out = LineHighlight::default();
-        let mut converged = false;
-        for cursor in index..lines.len() {
-            let line = if cursor == index {
-                changed.as_str()
-            } else {
-                lines[cursor]
-            };
-            hl.highlight_line(line, state, &mut out);
+        hl.highlight_line(&edited[index], starts[index], &mut out);
+        assert_ne!(
+            out.end_state, cached[index],
+            "the inserted block comment must change the end state"
+        );
+        let mut state = out.end_state;
+        let mut found = None;
+        for cursor in (index + 1)..lines.len() {
+            hl.highlight_line(&edited[cursor], state, &mut out);
             if out.end_state == cached[cursor] {
-                converged = true;
+                found = Some(cursor);
                 break;
             }
             state = out.end_state;
         }
-        assert!(
-            converged,
-            "end state did not meet a cached state inside the file"
-        );
+        let cursor = found.expect("end state did not meet a cached state inside the file");
+        assert!(cursor > index, "convergence must be on a later line");
+    }
+
+    #[test]
+    fn pop_push_from_the_root_stops() {
+        let (repo, id) = load_one(POP_PUSH, "PopPush");
+        let mut hl = Highlighter::new(&repo, id).expect("patterns");
+        let mut out = LineHighlight::default();
+        hl.highlight_line("x", hl.initial_state(), &mut out);
+        let top = hl.interner().get(out.end_state).top().context;
+        assert_eq!(repo.context(top).name, "Left");
     }
 
     fn source_lines(text: &str) -> Vec<&str> {

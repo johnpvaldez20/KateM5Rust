@@ -387,7 +387,7 @@ fn rewrite_quantifier(chars: &[char], index: usize, out: &mut String) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{RegexCache, RegexError, translate_pattern};
+    use super::{RegexError, translate_pattern};
     use crate::Highlighter;
     use crate::repository::Repository;
 
@@ -415,16 +415,8 @@ mod tests {
         repo.add_xml(SKIP_XML).expect("parse");
         repo.link().expect("link");
         let id = repo.by_name("Skip").expect("name");
-        let loaded = RegexCache::compile(&repo, id);
+        let loaded = Highlighter::new(&repo, id);
         assert!(matches!(loaded, Err(RegexError::Unsupported { .. })));
-
-        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _hl = Highlighter::new(&repo, id);
-        }));
-        assert!(
-            caught.is_err(),
-            "Highlighter::new reports the pattern at load"
-        );
     }
 
     #[test]
