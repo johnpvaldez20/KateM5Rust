@@ -477,6 +477,8 @@ dependencies = [
  "fancy-regex 0.20.0",
  "lru",
  "quick-xml",
+ "serde",
+ "serde_json",
  "smallvec",
 ]
 

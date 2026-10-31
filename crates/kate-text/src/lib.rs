@@ -7,12 +7,18 @@
 //! A transaction is a sorted list of edits against one pre-state.
 //! `apply` checks every edit, applies the whole list, and increases the revision by 1.
 //! An insert has an empty old side. A delete has an empty new side.
-//! Anchors, undo, and files are later packets.
+//! An anchor stores an offset, a revision, and a bias.
+//! Resolve replays the edit log.
+//! Undo and files are later packets.
 
+mod anchor;
 mod buffer;
 mod edit;
+mod log;
 mod offset;
 
+pub use anchor::{Anchor, Bias, StaleAnchor, transform_offset};
 pub use buffer::{ApplyError, TextBuffer};
 pub use edit::{Edit, Transaction, TransactionError};
+pub use log::EditLog;
 pub use offset::{CharRange, LineCol, Offset, Revision};
