@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0009",
   "title": "kate-syntax: Theme loader and Format-to-Style resolution",
-  "summary": "Load KSyntaxHighlighting JSON themes (Breeze Light and Breeze Dark vendored, MIT) and resolve a Format against a Theme into a concrete Style: colors and font flags. Resolution order is the upstream one: per-definition custom styles in the theme, then the Format's own overrides, then the theme's default text style. Editor colors (background, current line, selection, line numbers) come along because the GUI needs them from the same file.",
+  "summary": "Load KSyntaxHighlighting JSON themes (Breeze Light and Breeze Dark vendored, MIT) and resolve a Format against a Theme into a concrete Style: colors and font flags. Resolution order is the upstream one: per-definition custom styles in the theme, then the Format's own overrides, then the theme's default text style. Editor colors (background, current line, selection, line numbers) come along because the GUI needs them from the same file. Known differences from upstream: a color that is not valid `#` hex is ThemeError::BadColor rather than unset; JSON null is unset; a color that is not a string and not null is ThemeError::BadColor; a non-bool font flag is ThemeError::Json; unknown text-styles or editor-colors keys are ThemeError::UnknownStyle. `#00000000` is unset. Alpha from `#AARRGGBB` is kept on all theme colors (upstream keeps it for a text-style color through QColor::fromRgba and drops it for a custom-style color through QColor::fromRgb). Format colors are opaque. 9- and 12-digit hex takes the high byte of each 16-bit channel (Qt rounds). Editor colors fall back to the legacy kebab-case keys when BackgroundColor is absent, as upstream does.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-10-29T23:15:00Z",
@@ -28,38 +28,35 @@
       }
     },
     "worker": {
-      "agent_id": "ollama-qwen3-coder-local",
+      "agent_id": "bc-122606a7-21b7-5128-9563-6fb7c7bd7445",
       "role": "CODER",
-      "runtime": "LOCAL",
+      "runtime": "CLOUD",
       "host": {
-        "kind": "OWNER_MACBOOK",
-        "name": "Johns-MacBook-Pro",
-        "os": "macOS 27.0.1 (Darwin 27.0.0)",
-        "arch": "aarch64"
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor"
       },
       "model": {
-        "provider": "OLLAMA",
-        "name": "qwen3-coder:30b",
+        "provider": "XAI",
+        "name": "grok-4.7",
         "settings": {
-          "quantization": "Q4_K_M",
-          "context_window_tokens": 65536,
-          "temperature": 0.1
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 500000
         }
       },
       "tool": {
-        "name": "OLLAMA"
+        "name": "CURSOR_CLOUD_AGENT"
       }
     }
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 9,
+    "issue_number": 19,
     "branch": "pkt/PKT-0009-syntax-themes",
-    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+    "base_sha": "2c31abec09eb3d13c06d14d1d5bee3cb13b1ab68"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/9"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/19"
   },
   "lane": {
     "runtime": "EITHER",
@@ -99,7 +96,7 @@
       {
         "language": "RUST",
         "path": "crates/kate-syntax/src/theme.rs",
-        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Rgba(pub u8, pub u8, pub u8, pub u8);\n\n/// Final appearance of one span. Everything resolved; the renderer does no lookups.\n#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]\npub struct Style {\n    pub fg: Option<Rgba>, pub bg: Option<Rgba>, pub selected_fg: Option<Rgba>, pub selected_bg: Option<Rgba>,\n    pub bold: bool, pub italic: bool, pub underline: bool, pub strikeout: bool,\n}\n\n/// The `editor-colors` block of a theme file, same keys as upstream Theme::EditorColorRole.\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub enum EditorColor { BackgroundColor, TextSelection, CurrentLine, SearchHighlight, ReplaceHighlight, BracketMatching, TabMarker, SpellChecking, IndentationLine, IconBorder, CodeFolding, LineNumbers, CurrentLineNumber, WordWrapMarker, ModifiedLines, SavedLines, Separator, MarkBookmark, MarkBreakpointActive, MarkBreakpointReached, MarkBreakpointDisabled, MarkExecution, MarkWarning, MarkError, TemplateBackground, TemplatePlaceholder, TemplateFocusedPlaceholder, TemplateReadOnlyPlaceholder }\n\npub struct Theme {\n    pub name: String, pub revision: u32, pub license: String,\n    text_styles: [Style; 31],                                          // indexed by DefaultStyle as usize\n    editor_colors: std::collections::HashMap<EditorColor, Rgba>,\n    custom_styles: std::collections::HashMap<(String, String), Style>, // (definition name, format name)\n}\nimpl Theme {\n    pub fn from_json(json: &str) -> Result<Theme, ThemeError>;\n    pub fn text_style(&self, s: DefaultStyle) -> Style;\n    pub fn editor_color(&self, c: EditorColor) -> Option<Rgba>;\n    /// custom_styles[(def, format)] overrides Format fields override text_style(format.style).\n    pub fn resolve(&self, definition: &str, format: &Format) -> Style;\n}\n\n#[derive(Debug)]\npub enum ThemeError { Json(serde_json::Error), UnknownStyle(String), BadColor(String) }"
+        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Rgba(pub u8, pub u8, pub u8, pub u8);\n\n/// Final appearance of one span. Everything resolved; the renderer does no lookups.\n#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]\npub struct Style {\n    pub fg: Option<Rgba>, pub bg: Option<Rgba>, pub selected_fg: Option<Rgba>, pub selected_bg: Option<Rgba>,\n    pub bold: bool, pub italic: bool, pub underline: bool, pub strikeout: bool,\n}\n\n/// The `editor-colors` block of a theme file, same keys as upstream Theme::EditorColorRole.\n#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]\npub enum EditorColor { BackgroundColor, TextSelection, CurrentLine, SearchHighlight, ReplaceHighlight, BracketMatching, TabMarker, SpellChecking, IndentationLine, IconBorder, CodeFolding, LineNumbers, CurrentLineNumber, WordWrapMarker, ModifiedLines, SavedLines, Separator, MarkBookmark, MarkBreakpointActive, MarkBreakpointReached, MarkBreakpointDisabled, MarkExecution, MarkWarning, MarkError, TemplateBackground, TemplatePlaceholder, TemplateFocusedPlaceholder, TemplateReadOnlyPlaceholder }\n\npub struct Theme {\n    pub name: String, pub revision: u32, pub license: String,\n    text_styles: [Style; 31],                                          // indexed by DefaultStyle as usize\n    editor_colors: std::collections::HashMap<EditorColor, Rgba>,\n    custom_styles: std::collections::HashMap<String, std::collections::HashMap<String, StyleSpec>>, // definition name -> format name -> partial style (private; font flags Option<bool>)\n}\nimpl Theme {\n    pub fn from_json(json: &str) -> Result<Theme, ThemeError>;\n    pub fn text_style(&self, s: DefaultStyle) -> Style;\n    pub fn editor_color(&self, c: EditorColor) -> Option<Rgba>;\n    /// custom_styles[(def, format)] overrides Format fields override text_style(format.style).\n    pub fn resolve(&self, definition: &str, format: &Format) -> Style;\n}\n\n#[derive(Debug)]\npub enum ThemeError { Json(serde_json::Error), UnknownStyle(String), BadColor(String) }\nimpl std::fmt::Display for ThemeError;\nimpl std::error::Error for ThemeError;"
       }
     ],
     "public_api_change": "ADDITIVE",
