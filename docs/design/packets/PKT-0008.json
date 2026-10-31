@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0008",
   "title": "kate-syntax: context-stack highlighting engine with upstream golden tests",
-  "summary": "The matching side. highlight_line takes a line and an interned start state, runs the rules of the top context left to right exactly like KSyntaxHighlighting's AbstractHighlighter::highlightLine (lookahead, firstNonSpace, column, dynamic captures, lineEndContext, lineEmptyContext, fallthrough, folding regions) and returns spans plus the end state. Golden tests reuse upstream autotests/input and autotests/reference for the vendored definitions, converted to our span format by a committed script output, so the Rust engine is held to the C++ engine's exact output. Per-rule delimiter overrides are not fields of Rule, and the loader drops them. This packet does not add those fields, because definition.rs is a forbidden path. The six MIT files do not set those overrides on a rule.",
+  "summary": "The matching side. highlight_line takes a line and an interned start state, runs the rules of the top context left to right exactly like KSyntaxHighlighting's AbstractHighlighter::highlightLine (lookahead, firstNonSpace, column, dynamic captures, lineEndContext, lineEmptyContext, fallthrough, folding regions) and returns spans plus the end state. Golden tests reuse upstream autotests/input and autotests/reference for the vendored definitions, converted to our span format by a committed script output, so the Rust engine is held to the C++ engine's exact output. Per-rule delimiter overrides are not fields of Rule, and the loader drops them. This packet does not add those fields, because definition.rs is a forbidden path. The six MIT files do not set those overrides on a rule. Known limits: span columns are Unicode code points, not UTF-16 units. An included rule uses the word delimiters of the definition that includes it.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-10-29T23:10:00Z",
@@ -51,13 +51,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 8,
+    "issue_number": 14,
     "branch": "pkt/PKT-0008-syntax-engine-golden-tests",
-    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+    "base_sha": "951913fffbe5b270cee3fa6bae4d26396eae856b"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/8"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/14"
   },
   "lane": {
     "runtime": "CLOUD",
@@ -103,7 +103,7 @@
       {
         "language": "RUST",
         "path": "crates/kate-syntax/src/engine.rs",
-        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Span { pub start: u32, pub len: u32, pub format: FormatId } // char columns\n\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum FoldEvent { Begin { col: u32, region: FoldId }, End { col: u32, region: FoldId } }\n\n#[derive(Clone, Default, PartialEq, Eq, Debug)]\npub struct LineHighlight { pub spans: Vec<Span>, pub folds: Vec<FoldEvent>, pub end_state: StateId }\n\npub struct Highlighter<'a> { repo: &'a Repository, regexes: RegexCache, interner: StateInterner }\nimpl<'a> Highlighter<'a> {\n    pub fn new(repo: &'a Repository, def: DefId) -> Self;\n    pub fn initial_state(&self) -> StateId;\n    /// Deterministic: same (line, start) always yields the same output. Reuses `out` allocations.\n    pub fn highlight_line(&mut self, line: &str, start: StateId, out: &mut LineHighlight);\n    pub fn interner(&self) -> &StateInterner;\n}"
+        "definition": "#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Span { pub start: u32, pub len: u32, pub format: FormatId } // char columns\n\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub enum FoldEvent { Begin { col: u32, region: FoldId }, End { col: u32, region: FoldId } }\n\n#[derive(Clone, Default, PartialEq, Eq, Debug)]\npub struct LineHighlight { pub spans: Vec<Span>, pub folds: Vec<FoldEvent>, pub end_state: StateId }\n\npub struct Highlighter<'a> { repo: &'a Repository, regexes: RegexCache, interner: StateInterner }\nimpl<'a> Highlighter<'a> {\n    pub fn new(repo: &'a Repository, def: DefId) -> Result<Self, RegexError>;\n    pub fn initial_state(&self) -> StateId;\n    /// Deterministic: same (line, start) always yields the same output. Reuses `out` allocations.\n    pub fn highlight_line(&mut self, line: &str, start: StateId, out: &mut LineHighlight);\n    pub fn interner(&self) -> &StateInterner;\n}"
       },
       {
         "language": "RUST",
@@ -128,8 +128,8 @@
       },
       {
         "name": "engine::tests::highlight_is_deterministic_and_state_converges",
-        "kind": "PROPERTY",
-        "asserts": "Highlighting the same line twice from the same state yields identical output; after a one-line change, re-highlighting from the changed line reaches a line whose end_state equals the cached one within the file length."
+        "kind": "UNIT",
+        "asserts": "Highlighting the same line twice from the same state yields identical output. The edit must change that line's end_state. Re-highlighting from the edited line then reaches a later line whose end_state equals the cached one."
       },
       {
         "name": "engine::tests::lookahead_rule_consumes_nothing",
@@ -139,7 +139,7 @@
       {
         "name": "regex::tests::unsupported_pattern_is_reported_at_load",
         "kind": "UNIT",
-        "asserts": "A pattern using a PCRE verb such as (*SKIP) yields RegexError::Unsupported when the Highlighter is constructed, not a panic during highlight_line."
+        "asserts": "A pattern using a PCRE verb such as (*SKIP) makes Highlighter::new return Err(RegexError::Unsupported). Construction does not panic."
       }
     ],
     "deterministic": true
