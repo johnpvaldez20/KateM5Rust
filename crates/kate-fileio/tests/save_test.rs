@@ -3,7 +3,8 @@
 
 //! Integration test: encode and save round-trip through the filesystem.
 
-use kate_fileio::{decode, save, DecodeOptions, EncodeOptions, LineEnding, Rope};
+use kate_fileio::{decode, save, DecodeOptions, EncodeOptions, LineEnding};
+use ropey::Rope;
 use tempfile::tempdir;
 
 #[test]

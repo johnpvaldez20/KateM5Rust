@@ -18,4 +18,3 @@ pub use decode::{DecodeError, DecodeOptions, Decoded, Encoding, LineEnding, deco
 pub use encode::{EncodeError, EncodeOptions, encode};
 pub use load::{LoadError, Loaded, load};
 pub use save::{SaveError, SaveStep, Saved, save};
-pub use ropey::Rope;

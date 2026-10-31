@@ -61,8 +61,14 @@ pub fn save(path: &Path, text: &Rope, opts: &EncodeOptions) -> Result<Saved, Sav
     let temp_path = dir.join(temp_name);
 
     let result = do_save(&temp_path, path, &bytes);
-    if result.is_err() {
-        // Best-effort cleanup; ignore NotFound when CreateTemp itself failed.
+    if let Err(SaveError::Io {
+        step: SaveStep::CreateTemp,
+        ..
+    }) = &result
+    {
+        // Temp file was never created; nothing to clean up.
+    } else if result.is_err() {
+        // Best-effort cleanup; the file exists but a later step failed.
         let _ = std::fs::remove_file(&temp_path);
     }
     result
