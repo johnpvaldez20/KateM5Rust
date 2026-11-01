@@ -608,9 +608,47 @@ fn place_views(
             state.selections = after.clone();
             continue;
         }
-        state.selections = state.selections.transformed(tx);
+        state.selections = transform_foreign(&state.selections, tx);
     }
     snap_ids(ws, doc_id, &ids);
+}
+
+/// Move selections in a view that did not type the edit.
+///
+/// An empty caret keeps both ends on the right side of inserted text.
+/// A range keeps the anchor on the left and the head on the right.
+fn transform_foreign(sel: &Selections, tx: &Transaction) -> Selections {
+    if sel.iter().all(Selection::is_caret) {
+        let mut after = sel.transformed(tx);
+        after.map(|selection| Selection {
+            anchor: selection.head,
+            head: selection.head,
+            goal_col: selection.goal_col,
+        });
+        return after;
+    }
+    let primary = sel.primary();
+    let mut items = Vec::with_capacity(sel.len());
+    let mut primary_at = 0usize;
+    for selection in sel.iter().copied() {
+        if same_selection(&selection, &primary) {
+            primary_at = items.len();
+        }
+        items.push(map_foreign_one(selection, tx));
+    }
+    Selections::new(items, primary_at)
+}
+
+fn map_foreign_one(selection: Selection, tx: &Transaction) -> Selection {
+    let moved = Selections::single(selection).transformed(tx).primary();
+    if !selection.is_caret() {
+        return moved;
+    }
+    Selection {
+        anchor: moved.head,
+        head: moved.head,
+        goal_col: moved.goal_col,
+    }
 }
 
 fn snap_ids(ws: &mut Workspace, doc_id: DocumentId, ids: &[ViewId]) {
@@ -760,7 +798,7 @@ fn move_views_for_replay(
 fn shift_ids(ws: &mut Workspace, ids: &[ViewId], tx: &Transaction) {
     for id in ids {
         if let Some(state) = ws.views.get_mut(*id) {
-            state.selections = state.selections.transformed(tx);
+            state.selections = transform_foreign(&state.selections, tx);
         }
     }
 }
@@ -1187,13 +1225,31 @@ fn cleanup_edits(
         }
     }
     if config.ensure_trailing_newline {
-        push_final_newline(buf, &mut edits);
+        let strip_last = strips_line(config, touched, buf.line_count().saturating_sub(1));
+        push_final_newline(buf, strip_last, &mut edits);
     }
     edits
 }
 
+fn strips_line(config: &DocumentConfig, touched: Option<&BTreeSet<u32>>, line: u32) -> bool {
+    match config.remove_trailing_spaces {
+        TrailingSpaces::Never => false,
+        TrailingSpaces::All => true,
+        TrailingSpaces::ModifiedLines => touched.is_some_and(|lines| lines.contains(&line)),
+    }
+}
+
 fn push_strip(buf: &TextBuffer, line: u32, edits: &mut Vec<Edit>) {
     let (start, end) = line_bounds(buf, line);
+    let cut = trim_trailing(buf, start, end);
+    if cut == end {
+        return;
+    }
+    let old = buf.text().slice(cut..end).to_string();
+    edits.push(Edit::delete(Offset(cut), old));
+}
+
+fn trim_trailing(buf: &TextBuffer, start: usize, end: usize) -> usize {
     let mut cut = end;
     let rope = buf.text();
     while cut > start {
@@ -1203,22 +1259,26 @@ fn push_strip(buf: &TextBuffer, line: u32, edits: &mut Vec<Edit>) {
         }
         cut -= 1;
     }
-    if cut == end {
-        return;
-    }
-    edits.push(Edit::delete(Offset(cut), rope.slice(cut..end).to_string()));
+    cut
 }
 
-fn push_final_newline(buf: &TextBuffer, edits: &mut Vec<Edit>) {
-    let len = buf.len().0;
-    if len == 0 {
-        edits.push(Edit::insert(Offset(0), "\n"));
+/// Add a newline when the last line still has text after the strip.
+///
+/// Kate checks the last line after the strip. An empty last line stays empty.
+/// See `DocumentPrivate::removeTrailingSpacesAndAddNewLineAtEof` in
+/// `katedocument.cpp` lines 5750-5754, KTextEditor v6.31.0.
+fn push_final_newline(buf: &TextBuffer, strip_last: bool, edits: &mut Vec<Edit>) {
+    let last = buf.line_count().saturating_sub(1);
+    let (start, end) = line_bounds(buf, last);
+    let cut = if strip_last {
+        trim_trailing(buf, start, end)
+    } else {
+        end
+    };
+    if cut == start {
         return;
     }
-    if buf.text().char(len - 1) == '\n' {
-        return;
-    }
-    edits.push(Edit::insert(Offset(len), "\n"));
+    edits.push(Edit::insert(Offset(cut), "\n"));
 }
 
 fn note_touched(touched: &mut BTreeSet<u32>, splices: &[LineSplice]) {
@@ -1226,9 +1286,7 @@ fn note_touched(touched: &mut BTreeSet<u32>, splices: &[LineSplice]) {
         return;
     }
     let old = std::mem::take(touched);
-    for line in old {
-        touched.insert(map_line(line, splices));
-    }
+    *touched = remap_forward(&old, splices);
     for splice in splices {
         for offset in 0..splice.new_len {
             touched.insert(splice.post_at.saturating_add(offset));
@@ -1239,11 +1297,7 @@ fn note_touched(touched: &mut BTreeSet<u32>, splices: &[LineSplice]) {
 fn note_touched_reverse(touched: &mut BTreeSet<u32>, entry: &HistEntry) {
     for part in entry.parts.iter().rev() {
         let old = std::mem::take(touched);
-        for line in old {
-            if let Some(mapped) = unmap_line(line, &part.splices) {
-                touched.insert(mapped);
-            }
-        }
+        *touched = remap_reverse(&old, &part.splices);
         for splice in &part.splices {
             let count = u32::try_from(splice.old_states.len()).unwrap_or(u32::MAX);
             for offset in 0..count {
@@ -1253,36 +1307,60 @@ fn note_touched_reverse(touched: &mut BTreeSet<u32>, entry: &HistEntry) {
     }
 }
 
-fn map_line(line: u32, splices: &[LineSplice]) -> u32 {
+/// Walk sorted lines and sorted splices once.
+fn remap_forward(lines: &BTreeSet<u32>, splices: &[LineSplice]) -> BTreeSet<u32> {
+    let mut out = BTreeSet::new();
+    let mut index = 0usize;
     let mut delta = 0i32;
-    for splice in splices {
-        let old_end = splice.pre_at.saturating_add(splice.old_states.len() as u32);
-        let change = splice.new_len as i32 - splice.old_states.len() as i32;
-        if line < splice.pre_at {
-            break;
-        }
-        if line >= old_end {
+    for line in lines {
+        while index < splices.len() && splices[index].pre_at <= *line {
+            let old_len = splices[index].old_states.len() as u32;
+            let old_end = splices[index].pre_at.saturating_add(old_len);
+            if *line < old_end {
+                break;
+            }
+            let change = splices[index].new_len as i32 - old_len as i32;
             delta = delta.saturating_add(change);
-            continue;
+            index += 1;
         }
-        return splice.post_at;
+        if let Some(splice) = splices.get(index) {
+            let old_end = splice.pre_at.saturating_add(splice.old_states.len() as u32);
+            if splice.pre_at <= *line && *line < old_end {
+                out.insert(splice.post_at);
+                continue;
+            }
+        }
+        out.insert(add_delta(*line, delta));
     }
-    add_delta(line, delta)
+    out
 }
 
-fn unmap_line(line: u32, splices: &[LineSplice]) -> Option<u32> {
+fn remap_reverse(lines: &BTreeSet<u32>, splices: &[LineSplice]) -> BTreeSet<u32> {
+    let mut out = BTreeSet::new();
+    let mut index = 0usize;
     let mut delta = 0i32;
-    for splice in splices {
-        let post_end = splice.post_at.saturating_add(splice.new_len);
-        if line < splice.post_at {
-            return Some(add_delta(line, -delta));
+    for line in lines {
+        while index < splices.len() && splices[index].post_at <= *line {
+            let post_end = splices[index]
+                .post_at
+                .saturating_add(splices[index].new_len);
+            if *line < post_end {
+                break;
+            }
+            let change = splices[index].new_len as i32 - splices[index].old_states.len() as i32;
+            delta = delta.saturating_add(change);
+            index += 1;
         }
-        if line < post_end {
-            return Some(splice.pre_at);
+        if let Some(splice) = splices.get(index) {
+            let post_end = splice.post_at.saturating_add(splice.new_len);
+            if splice.post_at <= *line && *line < post_end {
+                out.insert(splice.pre_at);
+                continue;
+            }
         }
-        delta = delta.saturating_add(splice.new_len as i32 - splice.old_states.len() as i32);
+        out.insert(add_delta(*line, delta.saturating_neg()));
     }
-    Some(add_delta(line, -delta))
+    out
 }
 
 fn add_delta(line: u32, delta: i32) -> u32 {
@@ -2059,6 +2137,136 @@ mod tests {
         );
     }
 
+    #[test]
+    fn other_view_caret_moves_past_an_insert() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view_a = ws.new_view(doc);
+        ws.execute(view_a, Command::InsertText("hello world".into()))
+            .expect("seed");
+        let view_b = ws.new_view(doc);
+        set_caret(&mut ws, view_a, 5);
+        set_caret(&mut ws, view_b, 5);
+        ws.execute(view_a, Command::InsertText(",".into()))
+            .expect("comma");
+        let other = ws.views.get(view_b).expect("b").selections.primary();
+        assert!(other.is_caret());
+        assert_eq!(other.head, Offset(6));
+        ws.execute(view_b, Command::InsertText("!".into()))
+            .expect("bang");
+        assert_eq!(text_of(&ws, doc), "hello,! world");
+        let first = ws.views.get(view_a).expect("a").selections.primary();
+        assert!(first.is_caret());
+        assert_eq!(first.head, Offset(7));
+    }
+
+    #[test]
+    fn selection_end_inside_a_grapheme_snaps_up() {
+        let buf = kate_text::TextBuffer::from_str("e\u{301}x");
+        let mut sel = Selections::single(Selection {
+            anchor: Offset(0),
+            head: Offset(1),
+            goal_col: None,
+        });
+        super::snap_set(&buf, &mut sel);
+        let primary = sel.primary();
+        assert_eq!(primary.anchor, Offset(0));
+        assert_eq!(primary.head, Offset(2));
+    }
+
+    #[test]
+    fn strip_removes_trailing_tabs() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("tab.txt");
+        std::fs::write(&path, b"ab\t").expect("write");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        let view = ws.new_view(doc);
+        {
+            let config = &mut ws.documents.get_mut(doc).expect("doc").config;
+            config.remove_trailing_spaces = TrailingSpaces::All;
+            config.ensure_trailing_newline = false;
+        }
+        ws.execute(view, Command::Save).expect("save");
+        assert_eq!(std::fs::read(&path).expect("bytes"), b"ab");
+    }
+
+    #[test]
+    fn save_strips_then_adds_one_final_newline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("pad.txt");
+        std::fs::write(&path, b"abc\t \n  ").expect("write");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        let view = ws.new_view(doc);
+        {
+            let config = &mut ws.documents.get_mut(doc).expect("doc").config;
+            config.remove_trailing_spaces = TrailingSpaces::All;
+            config.ensure_trailing_newline = true;
+        }
+        ws.execute(view, Command::Save).expect("save");
+        assert_eq!(std::fs::read(&path).expect("bytes"), b"abc\n");
+        assert_eq!(text_of(&ws, doc), "abc\n");
+    }
+
+    #[test]
+    fn save_of_an_empty_document_does_not_add_a_newline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("empty.txt");
+        std::fs::write(&path, b"").expect("write");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        let view = ws.new_view(doc);
+        ws.documents
+            .get_mut(doc)
+            .expect("doc")
+            .config
+            .ensure_trailing_newline = true;
+        ws.execute(view, Command::Save).expect("save");
+        assert_eq!(std::fs::read(&path).expect("bytes"), b"");
+    }
+
+    #[test]
+    fn modified_lines_with_twenty_thousand_carets_stays_fast() {
+        const COUNT: usize = 20_000;
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view = ws.new_view(doc);
+        let mut seed = String::with_capacity(COUNT * 2);
+        for index in 0..COUNT {
+            if index > 0 {
+                seed.push('\n');
+            }
+            seed.push('a');
+        }
+        ws.execute(view, Command::InsertText(seed)).expect("seed");
+        ws.documents
+            .get_mut(doc)
+            .expect("doc")
+            .config
+            .remove_trailing_spaces = TrailingSpaces::ModifiedLines;
+        let ranges: Vec<Selection> = (0..COUNT)
+            .map(|index| Selection::caret(Offset(index * 2)))
+            .collect();
+        ws.views.get_mut(view).expect("view").selections = Selections::new(ranges, 0);
+        ws.execute(view, Command::InsertText("x".into()))
+            .expect("first key");
+        let ranges: Vec<Selection> = (0..COUNT)
+            .map(|index| Selection::caret(Offset(index * 3)))
+            .collect();
+        ws.views.get_mut(view).expect("view").selections = Selections::new(ranges, 0);
+        let started = Instant::now();
+        ws.execute(view, Command::InsertText("y".into()))
+            .expect("second key");
+        let elapsed = started.elapsed();
+        assert_eq!(ws.extra.get(&doc).expect("extra").touched.len(), COUNT);
+        assert!(text_of(&ws, doc).starts_with("yx"));
+        assert!(
+            elapsed < Duration::from_secs(3),
+            "ModifiedLines at {COUNT} carets took {elapsed:?}"
+        );
+    }
+
     fn arb_text() -> impl Strategy<Value = String> {
         prop::collection::vec(prop::sample::select(vec!['a', 'b', 'é', '\n', ' ']), 0..24)
             .prop_map(|chars| chars.into_iter().collect())
@@ -2083,7 +2291,8 @@ mod tests {
         } else if other > at {
             (other + extra.len(), other + extra.len())
         } else {
-            (other, other + extra.len())
+            let past = other + extra.len();
+            (past, past)
         };
         (chars.into_iter().collect(), anchor_head.0, anchor_head.1)
     }

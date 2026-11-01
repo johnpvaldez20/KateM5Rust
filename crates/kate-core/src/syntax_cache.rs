@@ -135,6 +135,7 @@ impl SyntaxCache {
         if splices.is_empty() {
             return;
         }
+        self.shift_dirty(splices, true);
         if splices.iter().all(LineSplice::trivial) {
             self.restore_trivial(splices);
         } else {
@@ -217,6 +218,7 @@ impl SyntaxCache {
         if splices.is_empty() {
             return;
         }
+        self.shift_dirty(splices, false);
         if !splices.iter().all(LineSplice::trivial) {
             self.rebuild_forward(splices);
         }
@@ -308,7 +310,17 @@ impl SyntaxCache {
             })
             .max()
             .unwrap_or(start);
+        // The line after a restored region still has the post-edit end state.
+        // Visit that line before convergence may stop.
+        let end = if restored { end.saturating_add(1) } else { end };
         self.mark_dirty(start, end);
+    }
+
+    fn shift_dirty(&mut self, splices: &[LineSplice], reverse: bool) {
+        self.dirty_from = self
+            .dirty_from
+            .map(|line| shift_mark(line, splices, reverse));
+        self.dirty_to = self.dirty_to.map(|line| shift_mark(line, splices, reverse));
     }
 
     fn mark_dirty(&mut self, start: u32, end_inclusive: u32) {
@@ -360,9 +372,8 @@ impl SyntaxCache {
             return;
         }
         self.dirty_from = Some(next);
-        if self.dirty_to.is_some_and(|end| end < next) {
-            self.dirty_to = None;
-        }
+        let end = self.dirty_to.map(|line| line.max(next)).unwrap_or(next);
+        self.dirty_to = Some(end);
     }
 
     fn clear_dirty(&mut self) {
@@ -476,6 +487,29 @@ fn add_delta(line: u32, delta: i32) -> u32 {
     u32::try_from(next.max(0)).unwrap_or(u32::MAX)
 }
 
+/// Move a dirty line by the net line change of splices that start before it.
+fn shift_mark(line: u32, splices: &[LineSplice], reverse: bool) -> u32 {
+    let mut delta = 0i32;
+    for splice in splices {
+        let at = if reverse {
+            splice.post_at
+        } else {
+            splice.pre_at
+        };
+        if at >= line {
+            break;
+        }
+        let change = splice.new_len as i32 - splice.old_states.len() as i32;
+        let step = if reverse {
+            change.saturating_neg()
+        } else {
+            change
+        };
+        delta = delta.saturating_add(step);
+    }
+    add_delta(line, delta)
+}
+
 pub(crate) fn line_text(buf: &TextBuffer, line: u32) -> String {
     let (start, end) = line_bounds(buf, line);
     if start >= end {
@@ -505,8 +539,10 @@ pub(crate) fn line_bounds(buf: &TextBuffer, line: u32) -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use super::{SyntaxCache, line_text};
-    use kate_syntax::{Highlighter, Repository};
+    use kate_syntax::{Highlighter, LineHighlight, Repository};
     use kate_text::{Edit, LineCol, Offset, TextBuffer, Transaction};
+    use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
     use std::time::{Duration, Instant};
 
     const RUST_XML: &str = include_str!("../../kate-syntax/definitions/rust.xml");
@@ -737,5 +773,186 @@ mod tests {
         assert_eq!(regions[0].start, 0);
         assert_eq!(regions[0].old_count, 1);
         assert_eq!(regions[0].new_count, 3);
+    }
+
+    fn fresh_states(hl: &mut Highlighter<'_>, buf: &TextBuffer) -> Vec<kate_syntax::StateId> {
+        let mut state = hl.initial_state();
+        let mut out = LineHighlight::default();
+        let mut ends = Vec::new();
+        for line in 0..buf.line_count() {
+            hl.highlight_line(&line_text(buf, line), state, &mut out);
+            state = out.end_state;
+            ends.push(state);
+        }
+        ends
+    }
+
+    fn ensure_all(cache: &mut SyntaxCache, buf: &TextBuffer, hl: &mut Highlighter<'_>) {
+        let last = buf.line_count().saturating_sub(1);
+        let _ = cache.ensure(buf, hl, last);
+    }
+
+    #[test]
+    fn undo_does_not_leave_stale_comment_state() {
+        let (repo, id) = tiny_repo();
+        let mut hl = Highlighter::new(&repo, id).expect("tiny patterns compile");
+        let mut buf = TextBuffer::from_str(&lines_of(60, "code"));
+        let mut cache = SyntaxCache::new(Some(id));
+        ensure_all(&mut cache, &buf, &mut hl);
+        let at = buf.offset(LineCol {
+            line: 30,
+            col: u32::MAX,
+        });
+        let tx = Transaction::single(Edit::insert(at, "/*"));
+        let (splices, _) = cache.plan_and_commit(&buf, &tx);
+        buf.apply(&tx).expect("open comment");
+        ensure_all(&mut cache, &buf, &mut hl);
+        buf.apply(&tx.invert()).expect("undo");
+        cache.commit_reverse(&splices);
+        ensure_all(&mut cache, &buf, &mut hl);
+        assert_eq!(cache.line_end_states, fresh_states(&mut hl, &buf));
+    }
+
+    #[test]
+    fn partial_ensure_keeps_the_pending_tail() {
+        let (repo, id) = tiny_repo();
+        let mut hl = Highlighter::new(&repo, id).expect("tiny patterns compile");
+        let mut buf = TextBuffer::from_str(&lines_of(40, "code"));
+        let mut cache = SyntaxCache::new(Some(id));
+        ensure_all(&mut cache, &buf, &mut hl);
+        insert_at(&mut buf, &mut cache, 10, "/*");
+        let _ = cache.ensure(&buf, &mut hl, 20);
+        insert_at(&mut buf, &mut cache, 5, "x");
+        ensure_all(&mut cache, &buf, &mut hl);
+        assert_eq!(cache.line_end_states, fresh_states(&mut hl, &buf));
+    }
+
+    #[test]
+    fn line_insert_shifts_a_pending_dirty_end() {
+        let (repo, id) = tiny_repo();
+        let mut hl = Highlighter::new(&repo, id).expect("tiny patterns compile");
+        let mut buf = TextBuffer::from_str(&lines_of(30, "code"));
+        let mut cache = SyntaxCache::new(Some(id));
+        ensure_all(&mut cache, &buf, &mut hl);
+        insert_at(&mut buf, &mut cache, 11, "*/");
+        insert_at(&mut buf, &mut cache, 12, "/*");
+        insert_at(&mut buf, &mut cache, 0, "\n");
+        ensure_all(&mut cache, &buf, &mut hl);
+        assert_eq!(cache.line_end_states, fresh_states(&mut hl, &buf));
+    }
+
+    fn oracle_cases() -> u32 {
+        std::env::var("KATE_SYNTAX_ORACLE_CASES")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(128)
+    }
+
+    fn oracle_config() -> ProptestConfig {
+        ProptestConfig {
+            cases: oracle_cases(),
+            rng_seed: RngSeed::Fixed(0x504B_5400_0000_000C),
+            failure_persistence: None,
+            ..ProptestConfig::default()
+        }
+    }
+
+    fn record_edit(
+        cache: &mut SyntaxCache,
+        buf: &mut TextBuffer,
+        tx: Transaction,
+    ) -> (Transaction, Vec<super::LineSplice>) {
+        let (splices, _) = cache.plan_and_commit(buf, &tx);
+        buf.apply(&tx).expect("the edit applies");
+        (tx, splices)
+    }
+
+    fn run_highlight_oracle(steps: &[u8]) {
+        let (repo, id) = tiny_repo();
+        let mut hl = Highlighter::new(&repo, id).expect("tiny patterns compile");
+        let mut buf = TextBuffer::from_str("code");
+        let mut cache = SyntaxCache::new(Some(id));
+        ensure_all(&mut cache, &buf, &mut hl);
+        let mut undo: Vec<(Transaction, Vec<super::LineSplice>)> = Vec::new();
+        let mut redo: Vec<(Transaction, Vec<super::LineSplice>)> = Vec::new();
+        for (index, step) in steps.iter().copied().enumerate() {
+            match step % 7 {
+                0 | 1 | 3 => {
+                    let len = buf.len().0;
+                    let at = if len == 0 {
+                        0
+                    } else {
+                        (usize::from(step).wrapping_mul(17).wrapping_add(index)) % (len + 1)
+                    };
+                    let text = match step % 5 {
+                        0 => "x",
+                        1 => "/*",
+                        2 => "*/",
+                        3 => "\n",
+                        _ => "a",
+                    };
+                    if buf.len().0 > 100 && text != "x" {
+                        continue;
+                    }
+                    let (tx, splices) = record_edit(
+                        &mut cache,
+                        &mut buf,
+                        Transaction::single(Edit::insert(Offset(at), text)),
+                    );
+                    undo.push((tx, splices));
+                    redo.clear();
+                }
+                2 => {
+                    let len = buf.len().0;
+                    if len == 0 {
+                        continue;
+                    }
+                    let at = usize::from(step) % len;
+                    let ch = buf.text().chars().nth(at).expect("scalar");
+                    let (tx, splices) = record_edit(
+                        &mut cache,
+                        &mut buf,
+                        Transaction::single(Edit::delete(Offset(at), ch.to_string())),
+                    );
+                    undo.push((tx, splices));
+                    redo.clear();
+                }
+                4 => {
+                    let through = u32::from(step) % buf.line_count();
+                    let _ = cache.ensure(&buf, &mut hl, through);
+                }
+                5 => {
+                    let Some((tx, splices)) = undo.pop() else {
+                        continue;
+                    };
+                    buf.apply(&tx.invert()).expect("undo applies");
+                    cache.commit_reverse(&splices);
+                    redo.push((tx, splices));
+                }
+                _ => {
+                    let Some((tx, splices)) = redo.pop() else {
+                        continue;
+                    };
+                    buf.apply(&tx).expect("redo applies");
+                    cache.commit_forward(&splices);
+                    undo.push((tx, splices));
+                }
+            }
+        }
+        ensure_all(&mut cache, &buf, &mut hl);
+        assert_eq!(
+            cache.line_end_states,
+            fresh_states(&mut hl, &buf),
+            "text {}",
+            buf.text()
+        );
+    }
+
+    proptest! {
+        #![proptest_config(oracle_config())]
+        #[test]
+        fn highlight_cache_matches_a_fresh_walk(steps in prop::collection::vec(any::<u8>(), 1..28)) {
+            run_highlight_oracle(&steps);
+        }
     }
 }
