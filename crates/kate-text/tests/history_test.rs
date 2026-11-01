@@ -405,6 +405,100 @@ mod history {
             );
         }
 
+        #[test]
+        fn scattered_group_undo_redo_uses_a_cached_pair() {
+            let count = 8_000usize;
+            let mut history = History::new();
+            history.begin_group();
+            for index in 0..count {
+                let at = count - 1 - index;
+                record_at(&mut history, at, "b", "a", EditKind::Replace, index as u64);
+            }
+            history.end_group();
+            let originals = "a".repeat(count);
+            let replaced = "b".repeat(count);
+            let mut buf = TextBuffer::from_str(&replaced);
+            let started = std::time::Instant::now();
+            for _ in 0..3 {
+                history.undo(&mut buf).expect("undo the group");
+                assert_eq!(text_of(&buf), originals);
+                history.redo(&mut buf).expect("redo the group");
+                assert_eq!(text_of(&buf), replaced);
+            }
+            let elapsed = started.elapsed();
+            assert!(
+                elapsed < std::time::Duration::from_secs(5),
+                "repeated undo and redo took {elapsed:?}"
+            );
+        }
+
+        #[test]
+        fn typing_after_a_selection_replace_stays_linear() {
+            let mut history = History::new();
+            record_at(&mut history, 0, "X", "hello", EditKind::Typing, 0);
+            let started = std::time::Instant::now();
+            for index in 0..20_000 {
+                record_at(
+                    &mut history,
+                    1 + index,
+                    "a",
+                    "",
+                    EditKind::Typing,
+                    1 + index as u64,
+                );
+            }
+            let elapsed = started.elapsed();
+            assert!(
+                elapsed < std::time::Duration::from_secs(2),
+                "typing after a selection took {elapsed:?}"
+            );
+            let mut final_text = String::from("X");
+            final_text.push_str(&"a".repeat(20_000));
+            let mut buf = TextBuffer::from_str(&final_text);
+            history
+                .undo(&mut buf)
+                .expect("one undo restores the selection");
+            assert_eq!(text_of(&buf), "hello");
+            assert!(!history.can_undo());
+            history
+                .redo(&mut buf)
+                .expect("redo the replacement and the typing");
+            assert_eq!(text_of(&buf), final_text);
+        }
+
+        #[test]
+        fn backspace_run_returns_the_last_ranges_after() {
+            let mut buf = TextBuffer::from_str("abcd");
+            let mut history = History::new();
+            backspace(&mut history, &mut buf);
+            backspace(&mut history, &mut buf);
+            backspace(&mut history, &mut buf);
+            assert_eq!(text_of(&buf), "a");
+            let before = history.undo(&mut buf).expect("undo the backspaces");
+            assert_eq!(before, caret(4));
+            assert_eq!(text_of(&buf), "abcd");
+            let after = history.redo(&mut buf).expect("redo the backspaces");
+            assert_eq!(after, caret(1));
+            assert_eq!(text_of(&buf), "a");
+        }
+
+        #[test]
+        fn end_group_seals_a_single_typing_entry() {
+            let mut buf = TextBuffer::new();
+            let mut history = History::new();
+            history.begin_group();
+            type_char(&mut history, &mut buf, 'a');
+            history.end_group();
+            type_char(&mut history, &mut buf, 'b');
+            assert_eq!(text_of(&buf), "ab");
+            history.undo(&mut buf).expect("undo only b");
+            assert_eq!(text_of(&buf), "a");
+            assert!(history.can_undo());
+            history.undo(&mut buf).expect("undo a");
+            assert_eq!(text_of(&buf), "");
+            assert!(!history.can_undo());
+        }
+
         fn record_at(
             history: &mut History,
             at: usize,
