@@ -81,7 +81,8 @@ mod history {
     mod tests {
         use super::super::{backspace, caret, paste, record, text_of, type_char};
         use kate_text::{
-            CharRange, Edit, EditKind, History, Offset, Revision, TextBuffer, Transaction,
+            CharRange, Edit, EditKind, History, HistoryEntry, Offset, Revision, TextBuffer,
+            Transaction,
         };
         use proptest::prelude::*;
         use proptest::test_runner::RngSeed;
@@ -253,6 +254,181 @@ mod history {
             assert!(!history.can_redo());
             assert_eq!(history.redo(&mut buf), None);
             assert_eq!(text_of(&buf), "qZ");
+        }
+
+        #[test]
+        fn begin_group_starts_a_new_entry() {
+            let mut buf = TextBuffer::new();
+            let mut history = History::new();
+            type_char(&mut history, &mut buf, 'a');
+            history.begin_group();
+            record(
+                &mut history,
+                &mut buf,
+                Transaction::single(Edit::insert(Offset(1), "Q")),
+                EditKind::Paste,
+                caret(1),
+                caret(2),
+            );
+            record(
+                &mut history,
+                &mut buf,
+                Transaction::single(Edit::insert(Offset(0), "\t")),
+                EditKind::Indent,
+                caret(0),
+                caret(1),
+            );
+            history.end_group();
+            assert_eq!(text_of(&buf), "\taQ");
+            history.undo(&mut buf).expect("undo the group");
+            assert_eq!(text_of(&buf), "a");
+            assert!(history.can_undo());
+            history.undo(&mut buf).expect("undo a");
+            assert_eq!(text_of(&buf), "");
+            assert!(!history.can_undo());
+        }
+
+        #[test]
+        fn clear_resets_the_saved_depth() {
+            let mut buf = TextBuffer::new();
+            let mut history = History::new();
+            type_char(&mut history, &mut buf, 'a');
+            type_char(&mut history, &mut buf, 'b');
+            history.mark_saved();
+            assert!(!history.is_modified());
+            type_char(&mut history, &mut buf, 'c');
+            assert!(history.is_modified());
+            history.undo(&mut buf).expect("undo back to the save");
+            assert!(history.can_redo());
+            history.clear();
+            assert!(!history.is_modified());
+            assert!(!history.can_undo());
+            assert!(!history.can_redo());
+            type_char(&mut history, &mut buf, 'd');
+            assert!(history.is_modified());
+            history.undo(&mut buf).expect("undo the edit after clear");
+            assert!(!history.is_modified());
+        }
+
+        #[test]
+        fn undo_to_the_saved_depth_seals_the_next_merge() {
+            let mut buf = TextBuffer::new();
+            let mut history = History::new();
+            type_char(&mut history, &mut buf, 'a');
+            history.mark_saved();
+            type_char(&mut history, &mut buf, 'b');
+            assert_eq!(text_of(&buf), "ab");
+            history.undo(&mut buf).expect("undo b");
+            assert_eq!(text_of(&buf), "a");
+            assert!(!history.is_modified());
+            type_char(&mut history, &mut buf, 'c');
+            assert_eq!(text_of(&buf), "ac");
+            history.undo(&mut buf).expect("undo only c");
+            assert_eq!(text_of(&buf), "a");
+            assert!(!history.is_modified());
+            assert!(history.can_undo());
+        }
+
+        #[test]
+        fn rejected_redo_keeps_the_entry() {
+            let mut buf = TextBuffer::from_str("hi");
+            let mut history = History::new();
+            record(
+                &mut history,
+                &mut buf,
+                Transaction::single(Edit::delete(Offset(0), "hi")),
+                EditKind::Paste,
+                caret(0),
+                caret(0),
+            );
+            assert_eq!(text_of(&buf), "");
+            history.undo(&mut buf).expect("undo the delete");
+            assert_eq!(text_of(&buf), "hi");
+            assert!(history.can_redo());
+            buf.apply(&Transaction::single(Edit::insert(Offset(0), "Z")))
+                .expect("the direct insert applies");
+            let rev = buf.revision();
+            assert_eq!(history.redo(&mut buf), None);
+            assert_eq!(text_of(&buf), "Zhi");
+            assert_eq!(buf.revision(), rev);
+            assert!(history.can_redo());
+            assert!(!history.can_undo());
+            buf.apply(&Transaction::single(Edit::delete(Offset(0), "Z")))
+                .expect("the direct delete applies");
+            history.redo(&mut buf).expect("redo still applies");
+            assert_eq!(text_of(&buf), "");
+            assert!(!history.can_redo());
+        }
+
+        #[test]
+        fn coalesced_runs_and_grouped_edits_stay_linear() {
+            let started = std::time::Instant::now();
+            let mut history = History::new();
+            let mut rev = 0u64;
+            for index in 0..50_000 {
+                record_at(&mut history, index, "a", "", EditKind::Typing, rev);
+                rev += 1;
+            }
+            for index in 0..50_000 {
+                let at = 50_000 - 1 - index;
+                record_at(&mut history, at, "", "a", EditKind::Deletion, rev);
+                rev += 1;
+            }
+            history.begin_group();
+            let mut grouped = String::new();
+            for index in 0..10_000 {
+                let ch = char::from(b'a' + (index % 26) as u8);
+                grouped.push(ch);
+                record_at(
+                    &mut history,
+                    index,
+                    &ch.to_string(),
+                    "",
+                    EditKind::Paste,
+                    rev,
+                );
+                rev += 1;
+            }
+            history.end_group();
+            let mut buf = TextBuffer::from_str(&grouped);
+            history.undo(&mut buf).expect("undo the group");
+            assert_eq!(text_of(&buf), "");
+            history.undo(&mut buf).expect("undo the backspaces");
+            assert_eq!(text_of(&buf), "a".repeat(50_000));
+            history.undo(&mut buf).expect("undo the typing");
+            assert_eq!(text_of(&buf), "");
+            assert!(!history.can_undo());
+            let elapsed = started.elapsed();
+            assert!(
+                elapsed < std::time::Duration::from_secs(2),
+                "coalesced edits took {elapsed:?}"
+            );
+        }
+
+        fn record_at(
+            history: &mut History,
+            at: usize,
+            new_text: &str,
+            old_text: &str,
+            kind: EditKind,
+            rev: u64,
+        ) {
+            let tx = Transaction::single(Edit {
+                start: Offset(at),
+                old: old_text.to_string(),
+                new: new_text.to_string(),
+            });
+            let inverse = tx.invert();
+            let end = at + new_text.chars().count();
+            history.record(HistoryEntry {
+                forward: tx,
+                inverse,
+                kind,
+                revision_before: Revision(rev),
+                revision_after: Revision(rev + 1),
+                ranges_before: caret(at),
+                ranges_after: caret(end),
+            });
         }
 
         fn assert_empty_stacks_and_a_rejected_undo_do_not_panic() {

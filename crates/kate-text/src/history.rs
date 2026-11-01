@@ -5,8 +5,9 @@
 //!
 //! `History` does not own the buffer. `undo` and `redo` borrow it and apply one transaction.
 //! One entry stores the forward transaction, its inverse, and the selection ranges.
-//! Adjacent `Typing` entries merge. Adjacent `Deletion` entries merge in the other direction.
-//! An open group merges every kind. `end_group` and `mark_saved` stop the next merge.
+//! Adjacent `Typing` entries append in place. Adjacent `Deletion` entries append in place.
+//! `begin_group` starts a new entry. Later records in that group stay in a list.
+//! The list becomes one transaction when undo or redo applies the entry.
 //! `is_modified` is true when the undo length is not the length at the last save.
 
 use crate::buffer::TextBuffer;
@@ -51,12 +52,14 @@ pub struct HistoryEntry {
 /// `saved_depth` is `undo.len()` at the last save.
 /// It is `None` when that state is no longer on the undo or redo stack.
 pub struct History {
-    undo: Vec<HistoryEntry>,
-    redo: Vec<HistoryEntry>,
+    undo: Vec<Stored>,
+    redo: Vec<Stored>,
     group_open: bool,
     saved_depth: Option<usize>,
     /// When true, the next `record` does not merge into the last entry.
-    /// `end_group` and `mark_saved` set it. A new entry clears it.
+    /// `begin_group`, `end_group`, and `mark_saved` set it.
+    /// Undo or redo that lands on the saved depth sets it.
+    /// A new entry clears it.
     coalesce_break: bool,
 }
 
@@ -87,9 +90,12 @@ impl History {
         self.push_new(entry);
     }
 
-    /// The following records merge into one entry until `end_group`.
+    /// Opens a group. The next record starts a new entry.
+    ///
+    /// Later records join that entry until `end_group`.
     pub fn begin_group(&mut self) {
         self.group_open = true;
+        self.coalesce_break = true;
     }
 
     /// Closes the group. The next record does not merge into this entry.
@@ -105,11 +111,15 @@ impl History {
     /// A rejected apply leaves the history and the buffer unchanged.
     pub fn undo(&mut self, buf: &mut TextBuffer) -> Option<Vec<CharRange>> {
         let entry = self.undo.pop()?;
-        if buf.apply(&entry.inverse).is_err() {
+        let Some(inverse) = entry.inverse_tx() else {
+            self.undo.push(entry);
+            return None;
+        };
+        if buf.apply(&inverse).is_err() {
             self.undo.push(entry);
             return None;
         }
-        let ranges = entry.ranges_before.clone();
+        let ranges = entry.meta.ranges_before.clone();
         self.redo.push(entry);
         self.seal_at_saved_depth();
         Some(ranges)
@@ -122,11 +132,15 @@ impl History {
     /// A rejected apply leaves the history and the buffer unchanged.
     pub fn redo(&mut self, buf: &mut TextBuffer) -> Option<Vec<CharRange>> {
         let entry = self.redo.pop()?;
-        if buf.apply(&entry.forward).is_err() {
+        let Some(forward) = entry.forward_tx() else {
+            self.redo.push(entry);
+            return None;
+        };
+        if buf.apply(&forward).is_err() {
             self.redo.push(entry);
             return None;
         }
-        let ranges = entry.ranges_after.clone();
+        let ranges = entry.meta.ranges_after.clone();
         self.undo.push(entry);
         self.seal_at_saved_depth();
         Some(ranges)
@@ -173,31 +187,111 @@ impl History {
     }
 
     fn merge_last(&mut self, entry: HistoryEntry) {
-        let forward = self
-            .undo
-            .last()
-            .and_then(|last| compose::transactions(&last.forward, &entry.forward));
-        let Some(forward) = forward else {
+        if self.group_open {
+            self.merge_into_group(entry);
+            return;
+        }
+        if self.append_typing(&entry) || self.append_deletion(&entry) {
+            return;
+        }
+        self.merge_by_compose(entry);
+    }
+
+    fn merge_into_group(&mut self, entry: HistoryEntry) {
+        let Some(last) = self.undo.pop() else {
+            self.push_new(entry);
+            return;
+        };
+        self.undo.push(append_group_part(last, entry));
+    }
+
+    fn append_typing(&mut self, entry: &HistoryEntry) -> bool {
+        let Some(edit) = pure_insert(&entry.forward) else {
+            return false;
+        };
+        let added = scalar_len(&edit.new);
+        let Some(last) = self.undo.last_mut() else {
+            return false;
+        };
+        let Body::Typing {
+            start,
+            text,
+            len_chars,
+        } = &mut last.body
+        else {
+            return false;
+        };
+        let Some(end) = start.checked_add(*len_chars) else {
+            return false;
+        };
+        if edit.start.0 != end {
+            return false;
+        }
+        let Some(next_len) = len_chars.checked_add(added) else {
+            return false;
+        };
+        text.push_str(&edit.new);
+        *len_chars = next_len;
+        last.meta.revision_after = entry.revision_after;
+        last.meta.ranges_after = entry.ranges_after.clone();
+        true
+    }
+
+    fn append_deletion(&mut self, entry: &HistoryEntry) -> bool {
+        let Some(edit) = pure_delete(&entry.forward) else {
+            return false;
+        };
+        let Some(last) = self.undo.last_mut() else {
+            return false;
+        };
+        let Body::Deletion { start, reversed } = &mut last.body else {
+            return false;
+        };
+        if edit.old_end().0 != *start {
+            return false;
+        }
+        push_reversed(reversed, &edit.old);
+        *start = edit.start.0;
+        last.meta.revision_after = entry.revision_after;
+        last.meta.ranges_after = entry.ranges_after.clone();
+        true
+    }
+
+    fn merge_by_compose(&mut self, entry: HistoryEntry) {
+        let Some(last) = self.undo.pop() else {
+            self.push_new(entry);
+            return;
+        };
+        let Some(forward) = last.forward_tx() else {
+            self.undo.push(last);
+            self.push_new(entry);
+            return;
+        };
+        let Some(forward) = compose::transactions(&forward, &entry.forward) else {
+            self.undo.push(last);
             self.push_new(entry);
             return;
         };
         let Some(inverse) = checked_invert(&forward) else {
+            self.undo.push(last);
             self.push_new(entry);
             return;
         };
-        let Some(last) = self.undo.last_mut() else {
-            self.push_new(entry);
-            return;
-        };
-        last.forward = forward;
-        last.inverse = inverse;
-        last.revision_after = entry.revision_after;
-        last.ranges_after = entry.ranges_after;
+        self.undo.push(Stored {
+            meta: Meta {
+                kind: last.meta.kind,
+                revision_before: last.meta.revision_before,
+                revision_after: entry.revision_after,
+                ranges_before: last.meta.ranges_before,
+                ranges_after: entry.ranges_after,
+            },
+            body: Body::Fixed { forward, inverse },
+        });
     }
 
     fn push_new(&mut self, entry: HistoryEntry) {
         self.coalesce_break = false;
-        self.undo.push(entry);
+        self.undo.push(Stored::from_entry(entry));
     }
 
     fn forget_save_if_redo_holds_it(&mut self) {
@@ -216,14 +310,311 @@ impl History {
     }
 }
 
-fn same_kind_adjacent(last: &HistoryEntry, entry: &HistoryEntry) -> bool {
-    if last.kind != entry.kind {
+struct Meta {
+    kind: EditKind,
+    revision_before: Revision,
+    revision_after: Revision,
+    ranges_before: Vec<CharRange>,
+    ranges_after: Vec<CharRange>,
+}
+
+enum Body {
+    /// One insert. `len_chars` is the scalar count of `text`.
+    Typing {
+        start: usize,
+        text: String,
+        len_chars: usize,
+    },
+    /// Pure deletions. `reversed` stores each new backspace at the end.
+    Deletion { start: usize, reversed: String },
+    Fixed {
+        forward: Transaction,
+        inverse: Transaction,
+    },
+    /// Edits recorded while a group is open. Built into one transaction on apply.
+    Group { parts: Vec<HistoryEntry> },
+}
+
+struct Stored {
+    meta: Meta,
+    body: Body,
+}
+
+impl Stored {
+    fn from_entry(entry: HistoryEntry) -> Self {
+        if entry.kind == EditKind::Typing
+            && let Some((start, text)) = insert_data(&entry.forward)
+        {
+            return Self::typing(entry, start, text);
+        }
+        if entry.kind == EditKind::Deletion
+            && let Some((start, deleted)) = delete_data(&entry.forward)
+        {
+            return Self::deletion(entry, start, &deleted);
+        }
+        Self {
+            meta: Meta::from_entry(&entry),
+            body: Body::Fixed {
+                forward: entry.forward,
+                inverse: entry.inverse,
+            },
+        }
+    }
+
+    fn typing(entry: HistoryEntry, start: usize, text: String) -> Self {
+        let len_chars = scalar_len(&text);
+        Self {
+            meta: Meta::from_entry(&entry),
+            body: Body::Typing {
+                start,
+                text,
+                len_chars,
+            },
+        }
+    }
+
+    fn deletion(entry: HistoryEntry, start: usize, deleted: &str) -> Self {
+        let mut reversed = String::new();
+        push_reversed(&mut reversed, deleted);
+        Self {
+            meta: Meta::from_entry(&entry),
+            body: Body::Deletion { start, reversed },
+        }
+    }
+
+    fn forward_tx(&self) -> Option<Transaction> {
+        self.pair().map(|(forward, _)| forward)
+    }
+
+    fn inverse_tx(&self) -> Option<Transaction> {
+        self.pair().map(|(_, inverse)| inverse)
+    }
+
+    fn pair(&self) -> Option<(Transaction, Transaction)> {
+        match &self.body {
+            Body::Typing { start, text, .. } => Some(insert_pair(*start, text)),
+            Body::Deletion { start, reversed } => Some(delete_pair(*start, reversed)),
+            Body::Fixed { forward, inverse } => Some((forward.clone(), inverse.clone())),
+            Body::Group { parts } => group_pair(parts),
+        }
+    }
+
+    fn into_entry(self) -> HistoryEntry {
+        let pair = match &self.body {
+            Body::Typing { start, text, .. } => Some(insert_pair(*start, text)),
+            Body::Deletion { start, reversed } => Some(delete_pair(*start, reversed)),
+            Body::Fixed { forward, inverse } => Some((forward.clone(), inverse.clone())),
+            Body::Group { parts } => group_pair(parts),
+        };
+        let (forward, inverse) = pair.unwrap_or_else(empty_pair);
+        HistoryEntry {
+            forward,
+            inverse,
+            kind: self.meta.kind,
+            revision_before: self.meta.revision_before,
+            revision_after: self.meta.revision_after,
+            ranges_before: self.meta.ranges_before,
+            ranges_after: self.meta.ranges_after,
+        }
+    }
+}
+
+impl Meta {
+    fn from_entry(entry: &HistoryEntry) -> Self {
+        Self {
+            kind: entry.kind,
+            revision_before: entry.revision_before,
+            revision_after: entry.revision_after,
+            ranges_before: entry.ranges_before.clone(),
+            ranges_after: entry.ranges_after.clone(),
+        }
+    }
+}
+
+fn same_kind_adjacent(last: &Stored, entry: &HistoryEntry) -> bool {
+    if last.meta.kind != entry.kind {
         return false;
     }
     match entry.kind {
-        EditKind::Typing => forward_touch(last, entry),
-        EditKind::Deletion => backward_touch(last, entry),
+        EditKind::Typing => typing_touch(last, entry),
+        EditKind::Deletion => deletion_touch(last, entry),
         EditKind::Paste | EditKind::Replace | EditKind::Indent | EditKind::Programmatic => false,
+    }
+}
+
+fn typing_touch(last: &Stored, entry: &HistoryEntry) -> bool {
+    let Some(next) = only_edit(&entry.forward) else {
+        return false;
+    };
+    let Some(end) = typing_end(last) else {
+        return false;
+    };
+    next.start.0 == end
+}
+
+fn typing_end(last: &Stored) -> Option<usize> {
+    match &last.body {
+        Body::Typing {
+            start, len_chars, ..
+        } => start.checked_add(*len_chars),
+        Body::Fixed { forward, .. } => post_caret(forward),
+        Body::Deletion { .. } | Body::Group { .. } => None,
+    }
+}
+
+fn deletion_touch(last: &Stored, entry: &HistoryEntry) -> bool {
+    let Some(next) = only_edit(&entry.forward) else {
+        return false;
+    };
+    if !next.new.is_empty() {
+        return false;
+    }
+    let Some(edge) = deletion_start(last) else {
+        return false;
+    };
+    next.old_end().0 == edge
+}
+
+fn deletion_start(last: &Stored) -> Option<usize> {
+    match &last.body {
+        Body::Deletion { start, .. } => Some(*start),
+        Body::Fixed { forward, .. } => deletion_edge(forward).map(|offset| offset.0),
+        Body::Typing { .. } | Body::Group { .. } => None,
+    }
+}
+
+fn append_group_part(mut last: Stored, entry: HistoryEntry) -> Stored {
+    last.meta.revision_after = entry.revision_after;
+    last.meta.ranges_after = entry.ranges_after.clone();
+    if let Body::Group { parts } = &mut last.body {
+        parts.push(entry);
+        return last;
+    }
+    let prev = last.into_entry();
+    group_from(prev, entry)
+}
+
+fn group_from(prev: HistoryEntry, entry: HistoryEntry) -> Stored {
+    let meta = Meta {
+        kind: prev.kind,
+        revision_before: prev.revision_before,
+        revision_after: entry.revision_after,
+        ranges_before: prev.ranges_before.clone(),
+        ranges_after: entry.ranges_after.clone(),
+    };
+    Stored {
+        meta,
+        body: Body::Group {
+            parts: vec![prev, entry],
+        },
+    }
+}
+
+fn insert_pair(start: usize, text: &str) -> (Transaction, Transaction) {
+    let forward = Transaction::single(Edit::insert(Offset(start), text.to_string()));
+    let inverse = Transaction::single(Edit::delete(Offset(start), text.to_string()));
+    (forward, inverse)
+}
+
+fn delete_pair(start: usize, reversed: &str) -> (Transaction, Transaction) {
+    let text: String = reversed.chars().rev().collect();
+    let forward = Transaction::single(Edit::delete(Offset(start), text.clone()));
+    let inverse = Transaction::single(Edit::insert(Offset(start), text));
+    (forward, inverse)
+}
+
+fn empty_pair() -> (Transaction, Transaction) {
+    let empty = Transaction::new(Vec::new())
+        .unwrap_or_else(|_| Transaction::single(Edit::insert(Offset(0), "")));
+    (empty.clone(), empty)
+}
+
+fn insert_data(tx: &Transaction) -> Option<(usize, String)> {
+    let edit = pure_insert(tx)?;
+    Some((edit.start.0, edit.new.clone()))
+}
+
+fn delete_data(tx: &Transaction) -> Option<(usize, String)> {
+    let edit = pure_delete(tx)?;
+    Some((edit.start.0, edit.old.clone()))
+}
+
+fn group_pair(parts: &[HistoryEntry]) -> Option<(Transaction, Transaction)> {
+    if let Some(pair) = fuse_inserts(parts) {
+        return Some(pair);
+    }
+    if let Some(pair) = fuse_backspaces(parts) {
+        return Some(pair);
+    }
+    compose_all(parts)
+}
+
+fn fuse_inserts(parts: &[HistoryEntry]) -> Option<(Transaction, Transaction)> {
+    let mut parts = parts.iter();
+    let first = parts.next()?;
+    let edit = pure_insert(&first.forward)?;
+    let start = edit.start.0;
+    let mut text = edit.new.clone();
+    let mut cursor = start.checked_add(scalar_len(&text))?;
+    for part in parts {
+        let edit = pure_insert(&part.forward)?;
+        if edit.start.0 != cursor {
+            return None;
+        }
+        text.push_str(&edit.new);
+        cursor = cursor.checked_add(scalar_len(&edit.new))?;
+    }
+    Some(insert_pair(start, &text))
+}
+
+fn fuse_backspaces(parts: &[HistoryEntry]) -> Option<(Transaction, Transaction)> {
+    let mut parts = parts.iter();
+    let first = parts.next()?;
+    let edit = pure_delete(&first.forward)?;
+    let mut start = edit.start.0;
+    let mut reversed = String::new();
+    push_reversed(&mut reversed, &edit.old);
+    for part in parts {
+        let edit = pure_delete(&part.forward)?;
+        if edit.old_end().0 != start {
+            return None;
+        }
+        push_reversed(&mut reversed, &edit.old);
+        start = edit.start.0;
+    }
+    Some(delete_pair(start, &reversed))
+}
+
+fn compose_all(parts: &[HistoryEntry]) -> Option<(Transaction, Transaction)> {
+    let mut forward = parts.first()?.forward.clone();
+    for part in parts.iter().skip(1) {
+        forward = compose::transactions(&forward, &part.forward)?;
+    }
+    let inverse = checked_invert(&forward)?;
+    Some((forward, inverse))
+}
+
+fn pure_insert(tx: &Transaction) -> Option<&Edit> {
+    let edit = only_edit(tx)?;
+    if edit.old.is_empty() && !edit.new.is_empty() {
+        Some(edit)
+    } else {
+        None
+    }
+}
+
+fn pure_delete(tx: &Transaction) -> Option<&Edit> {
+    let edit = only_edit(tx)?;
+    if edit.new.is_empty() && !edit.old.is_empty() {
+        Some(edit)
+    } else {
+        None
+    }
+}
+
+fn push_reversed(reversed: &mut String, deleted: &str) {
+    for ch in deleted.chars().rev() {
+        reversed.push(ch);
     }
 }
 
@@ -250,16 +641,6 @@ fn post_caret(tx: &Transaction) -> Option<usize> {
     usize::try_from(end).ok()
 }
 
-fn forward_touch(last: &HistoryEntry, entry: &HistoryEntry) -> bool {
-    let Some(end) = post_caret(&last.forward) else {
-        return false;
-    };
-    let Some(next) = only_edit(&entry.forward) else {
-        return false;
-    };
-    next.start.0 == end
-}
-
 /// Earliest pre-state start of a pure deletion. `None` when any edit inserts text.
 fn deletion_edge(tx: &Transaction) -> Option<Offset> {
     let edits = tx.edits();
@@ -277,16 +658,6 @@ fn deletion_edge(tx: &Transaction) -> Option<Offset> {
         });
     }
     edge
-}
-
-fn backward_touch(last: &HistoryEntry, entry: &HistoryEntry) -> bool {
-    let Some(edge) = deletion_edge(&last.forward) else {
-        return false;
-    };
-    let Some(next) = only_edit(&entry.forward) else {
-        return false;
-    };
-    next.new.is_empty() && next.old_end() == edge
 }
 
 /// Inverse of a transaction. `None` when the shift does not fit in `usize`.
@@ -752,5 +1123,44 @@ mod compose {
         out.push_str(mid);
         out.push_str(right);
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EditKind, History, HistoryEntry};
+    use crate::buffer::TextBuffer;
+    use crate::edit::{Edit, Transaction};
+    use crate::offset::Offset;
+
+    #[test]
+    fn redo_onto_the_saved_depth_sets_the_seal() {
+        let mut buf = TextBuffer::from_str("q");
+        let mut history = History::new();
+        record_insert(&mut history, &mut buf, 1, "Z");
+        history.mark_saved();
+        record_insert(&mut history, &mut buf, 2, "Y");
+        history.undo(&mut buf).expect("undo Y");
+        history.undo(&mut buf).expect("undo Z");
+        history.coalesce_break = false;
+        history.redo(&mut buf).expect("redo Z onto the saved depth");
+        assert!(history.coalesce_break);
+        assert!(!history.is_modified());
+    }
+
+    fn record_insert(history: &mut History, buf: &mut TextBuffer, at: usize, text: &str) {
+        let tx = Transaction::single(Edit::insert(Offset(at), text));
+        let inverse = tx.invert();
+        let revision_before = buf.revision();
+        let revision_after = buf.apply(&tx).expect("the insert applies");
+        history.record(HistoryEntry {
+            forward: tx,
+            inverse,
+            kind: EditKind::Paste,
+            revision_before,
+            revision_after,
+            ranges_before: Vec::new(),
+            ranges_after: Vec::new(),
+        });
     }
 }
