@@ -28,20 +28,19 @@
       }
     },
     "worker": {
-      "agent_id": "cursor-cloud-coder-01",
+      "agent_id": "bc-a77637aa-c9c6-5f74-a978-ffcbc91ad1e4",
       "role": "CODER",
       "runtime": "CLOUD",
       "host": {
         "kind": "CURSOR_CLOUD",
-        "name": "cursor-cloud-vm",
-        "os": "Ubuntu 24.04",
-        "arch": "x86_64"
+        "name": "cursor-cloud-vm"
       },
       "model": {
-        "provider": "ANTHROPIC",
-        "name": "claude-sonnet-5-5-high",
+        "provider": "XAI",
+        "name": "grok-4.7",
         "settings": {
-          "temperature": 0
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 500000
         }
       },
       "tool": {
@@ -51,13 +50,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 11,
+    "issue_number": 22,
     "branch": "pkt/PKT-0011-core-selections-movement",
-    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+    "base_sha": "6b1495262455e67b2e82e6173018fb339bff484e"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/11"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/22"
   },
   "lane": {
     "runtime": "CLOUD",
@@ -107,7 +106,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "New crate API. Dependency with justification: unicode-segmentation (grapheme cluster boundaries; char stepping splits emoji and combining marks)."
+    "schema_diff_summary": "New crate API. Dependencies with justification: unicode-segmentation 1.13 (grapheme cursor for movement; char stepping splits emoji and combining marks), proptest (dev only). Selections::new turns an empty list into one caret at 0. A primary index past the end uses the last range. It never panics. Normalize uses half-open overlap. Carets at the same offset merge. A caret at a range's max stays separate, and touching ranges stay separate. A merge keeps the primary's direction and goal_col. transformed maps any pre-state transaction in O(selections + edits), using the transform_offset bias (anchor Left, head Right). The own-edit rule applies only when an edit exactly covers its selection. goal_col is kept. fan_out clamps ends, and returns TransactionError when the caller builds overlapping edits. Built-in deletes never error. They drop a fully contained delete and trim a partial overlap. Mixed range-and-caret sets delete at every selection, which differs from Kate keyDelete. The vertical goal is tab-expanded with tab_width (0 means 1), and every other scalar has width 1. Short lines clamp to the line end and keep goal_col. Up on the first line and Down on the last stay on that line. Vertical moves and LineEnd snap to grapheme and CRLF boundaries. Word movement follows KTextEditor v6.31.0 with camel-cursor off: Unicode alphanumerics plus _, with the default delimiters. Grapheme steps use GraphemeCursor over rope chunks with pre-context. They are capped at 256 scalars and match full segmentation below that cap. Delete and insert clear goal_col. With 20k carets, insert, replace, backspace and Right on a 40k-character line each take about 10 ms or less in release. No full-text copy per move."
   },
   "verification_plan": {
     "commands": [
