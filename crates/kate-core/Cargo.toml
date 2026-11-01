@@ -10,11 +10,16 @@ license = "LGPL-2.1-or-later"
 
 [dependencies]
 kate-text = { workspace = true }
+kate-fileio = { workspace = true }
+kate-syntax = { workspace = true }
+# Generational keys. A `Vec` index dangles after a document or a view is closed.
+slotmap = "1.0.7"
 # Grapheme cluster boundaries. A `char` step splits a base from its combining marks.
 unicode-segmentation = "1.13.3"
 
 [dev-dependencies]
 proptest = "1.12.0"
+tempfile = "3.27.0"
 
 [lints]
 workspace = true
