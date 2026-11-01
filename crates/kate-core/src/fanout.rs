@@ -401,6 +401,36 @@ mod tests {
     }
 
     #[test]
+    fn fan_out_extends_the_head_when_text_is_appended() {
+        let buf = TextBuffer::from_str("abcd");
+        let sel = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(0),
+                    head: Offset(2),
+                    goal_col: None,
+                },
+                Selection {
+                    anchor: Offset(2),
+                    head: Offset(4),
+                    goal_col: None,
+                },
+            ],
+            0,
+        );
+        let (_tx, after) = fan_out(&buf, &sel, |_buffer, selection| {
+            Some(Edit::insert(selection.max(), ")"))
+        })
+        .expect("the inserts do not overlap");
+        assert_eq!(after.primary().head, Offset(6));
+        assert!(
+            after
+                .iter()
+                .any(|selection| selection.head.0 > selection.min().0)
+        );
+    }
+
+    #[test]
     fn typing_with_twenty_thousand_carets_stays_fast() {
         const COUNT: usize = 20_000;
         let text = "a".repeat(COUNT * 2);

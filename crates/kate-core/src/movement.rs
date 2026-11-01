@@ -8,7 +8,7 @@
 //! Word movement follows Kate with camel-cursor off.
 
 use kate_text::{CharRange, LineCol, Offset, TextBuffer};
-use unicode_segmentation::UnicodeSegmentation;
+use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
 
 use crate::selection::{Selection, Selections};
 
@@ -242,48 +242,109 @@ fn smart_home_col(line: &str, col: usize) -> usize {
     }
 }
 
+/// A cluster longer than this is cut. The cursor does not scan the whole buffer.
+const MAX_CLUSTER_SCALARS: usize = 256;
+
 /// Return the previous grapheme boundary. The offset stays inside the buffer.
 ///
-/// The read is a short slice around the cursor. It does not copy the whole line.
+/// `GraphemeCursor` reads rope chunks and asks for pre-context.
+/// A window that starts inside a cluster is not treated as a boundary.
+/// The walk stops after 256 scalars.
 pub(crate) fn grapheme_before(buf: &TextBuffer, offset: Offset) -> Offset {
-    let len = buf.len().0;
-    let at = offset.0.min(len);
+    let rope = buf.text();
+    let len_chars = rope.len_chars();
+    let at = offset.0.min(len_chars);
     if at == 0 {
         return Offset(0);
     }
-    let mut radius = 8usize;
-    loop {
-        let start = at.saturating_sub(radius);
-        let rel = at - start;
-        let text = copy_text(buf, start, at);
-        let prev = prev_bound(&text, rel);
-        if prev > 0 || start == 0 || radius >= 256 {
-            return Offset(start + prev);
+    let len_bytes = rope.len_bytes();
+    let byte = rope.char_to_byte(at);
+    let mut cursor = GraphemeCursor::new(byte, len_bytes, true);
+    let (mut chunk, mut chunk_start, _, _) = rope.chunk_at_byte(byte - 1);
+    for _ in 0..MAX_CLUSTER_SCALARS {
+        if at.saturating_sub(rope.byte_to_char(cursor.cur_cursor())) > MAX_CLUSTER_SCALARS {
+            return Offset(at - MAX_CLUSTER_SCALARS);
         }
-        radius = radius.saturating_mul(2);
+        match cursor.prev_boundary(chunk, chunk_start) {
+            Ok(Some(boundary)) => return Offset(rope.byte_to_char(boundary)),
+            Ok(None) => return Offset(0),
+            Err(GraphemeIncomplete::PrevChunk) => {
+                if chunk_start == 0 {
+                    return Offset(0);
+                }
+                let (next_chunk, next_start, _, _) = rope.chunk_at_byte(chunk_start - 1);
+                chunk = next_chunk;
+                chunk_start = next_start;
+            }
+            Err(GraphemeIncomplete::PreContext(needed)) => {
+                if !give_context(&mut cursor, buf, needed) {
+                    return Offset(at.saturating_sub(1));
+                }
+            }
+            Err(GraphemeIncomplete::NextChunk | GraphemeIncomplete::InvalidOffset) => {
+                return Offset(at.saturating_sub(1));
+            }
+        }
     }
+    Offset(at.saturating_sub(1))
 }
 
 /// Return the next grapheme boundary. The offset stays inside the buffer.
 ///
-/// The read is a short slice around the cursor. It does not copy the whole line.
+/// `GraphemeCursor` reads rope chunks. The walk stops after 256 scalars.
 pub(crate) fn grapheme_after(buf: &TextBuffer, offset: Offset) -> Offset {
-    let len = buf.len().0;
-    let at = offset.0.min(len);
-    if at == len {
-        return Offset(len);
+    let rope = buf.text();
+    let len_chars = rope.len_chars();
+    let at = offset.0.min(len_chars);
+    if at == len_chars {
+        return Offset(len_chars);
     }
-    let mut radius = 8usize;
-    loop {
-        let end = at.saturating_add(radius).min(len);
-        let text = copy_text(buf, at, end);
-        let next = next_bound(&text, 0);
-        let abs = at + next;
-        if abs < end || end == len || radius >= 256 {
-            return Offset(abs.min(len));
+    let len_bytes = rope.len_bytes();
+    let byte = rope.char_to_byte(at);
+    let mut cursor = GraphemeCursor::new(byte, len_bytes, true);
+    let (mut chunk, mut chunk_start, _, _) = rope.chunk_at_byte(byte);
+    for _ in 0..MAX_CLUSTER_SCALARS {
+        let cursor_char = rope.byte_to_char(cursor.cur_cursor().min(len_bytes));
+        if cursor_char.saturating_sub(at) > MAX_CLUSTER_SCALARS {
+            return Offset((at + MAX_CLUSTER_SCALARS).min(len_chars));
         }
-        radius = radius.saturating_mul(2);
+        match cursor.next_boundary(chunk, chunk_start) {
+            Ok(Some(boundary)) => return Offset(rope.byte_to_char(boundary)),
+            Ok(None) => return Offset(len_chars),
+            Err(GraphemeIncomplete::NextChunk) => {
+                let next_byte = chunk_start.saturating_add(chunk.len());
+                if next_byte >= len_bytes {
+                    return Offset(len_chars);
+                }
+                let (next_chunk, next_start, _, _) = rope.chunk_at_byte(next_byte);
+                chunk = next_chunk;
+                chunk_start = next_start;
+            }
+            Err(GraphemeIncomplete::PreContext(needed)) => {
+                if !give_context(&mut cursor, buf, needed) {
+                    return Offset((at + 1).min(len_chars));
+                }
+            }
+            Err(GraphemeIncomplete::PrevChunk | GraphemeIncomplete::InvalidOffset) => {
+                return Offset((at + 1).min(len_chars));
+            }
+        }
     }
+    Offset((at + 1).min(len_chars))
+}
+
+fn give_context(cursor: &mut GraphemeCursor, buf: &TextBuffer, needed: usize) -> bool {
+    if needed == 0 {
+        return false;
+    }
+    let rope = buf.text();
+    let (chunk, chunk_start, _, _) = rope.chunk_at_byte(needed - 1);
+    let end = needed.saturating_sub(chunk_start).min(chunk.len());
+    if end == 0 {
+        return false;
+    }
+    cursor.provide_context(&chunk[..end], chunk_start);
+    true
 }
 
 /// Move an offset that sits inside a cluster back to the cluster start.
@@ -298,30 +359,6 @@ fn snap_floor(buf: &TextBuffer, offset: Offset) -> Offset {
     } else {
         prev
     }
-}
-
-fn next_bound(text: &str, rel: usize) -> usize {
-    let mut start = 0usize;
-    for cluster in text.graphemes(true) {
-        let next = start + cluster.chars().count();
-        if start >= rel || next > rel {
-            return next;
-        }
-        start = next;
-    }
-    start
-}
-
-fn prev_bound(text: &str, rel: usize) -> usize {
-    let mut start = 0usize;
-    for cluster in text.graphemes(true) {
-        let next = start + cluster.chars().count();
-        if next >= rel {
-            return start;
-        }
-        start = next;
-    }
-    start
 }
 
 fn snap(buf: &TextBuffer, offset: Offset, forward: bool) -> Offset {
@@ -932,6 +969,62 @@ mod tests {
             &ctx(),
         );
         assert_eq!(moved.head, Offset(6));
+    }
+
+    #[test]
+    fn left_steps_over_a_zwj_sequence_longer_than_eight_scalars() {
+        let family = "\u{1F469}\u{1F3FD}\u{200D}\u{1F469}\u{1F3FD}\u{200D}\u{1F467}\u{200D}\u{1F466}\u{1F3FD}";
+        assert!(family.chars().count() > 8);
+        let text = format!("a{family}b");
+        let family_end = 1 + family.chars().count();
+        let buf = TextBuffer::from_str(&text);
+        let moved = move_selection(
+            &buf,
+            Selection::caret(Offset(family_end)),
+            Movement::Left,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(moved.head, Offset(1));
+
+        let sel = Selections::single(Selection::caret(Offset(family_end)));
+        let (tx, after) =
+            crate::delete_backward(&buf, &sel).expect("backspace deletes one cluster");
+        let mut edited = TextBuffer::from_str(&text);
+        edited.apply(&tx).expect("the delete matches the buffer");
+        assert_eq!(edited.text().to_string(), "ab");
+        assert_eq!(after.primary().head, Offset(1));
+    }
+
+    #[test]
+    fn vertical_move_uses_tab_stops_a_fixed_width_tab_would_miss() {
+        let buf = TextBuffer::from_str("abcdefgh\nab\tcdefg");
+        let down = move_selection(
+            &buf,
+            Selection::caret(Offset(5)),
+            Movement::Down,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(down.head, Offset(13));
+        let up = move_selection(
+            &buf,
+            Selection::caret(Offset(12)),
+            Movement::Up,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(up.head, Offset(4));
+
+        let buf = TextBuffer::from_str("\tx\nabcdefgh");
+        let down = move_selection(
+            &buf,
+            Selection::caret(Offset(1)),
+            Movement::Down,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(down.head, Offset(7));
     }
 
     #[test]
