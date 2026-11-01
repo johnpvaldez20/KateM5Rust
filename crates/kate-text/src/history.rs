@@ -9,7 +9,8 @@
 //! A single-edit replace grows when later inserts start at its caret.
 //! `begin_group` starts a new entry. Later records in that group stay in a list.
 //! The group builds one forward and inverse pair once, by a balanced merge.
-//! Each pair is one linear sweep, so the build is about K log K for K edits.
+//! Each pair is one linear sweep. A cluster inside that sweep is one forward pass
+//! over the edits and the text it covers. The build is about K log K for K edits.
 //! The group keeps that pair.
 //! `is_modified` is true when the undo length is not the length at the last save.
 
@@ -728,7 +729,7 @@ fn compose_all(parts: &[HistoryEntry]) -> Option<(Transaction, Transaction)> {
     Some((forward, inverse))
 }
 
-/// Pairwise merge. Each level is linear in the number of edits, so the cost is O(K log K).
+/// Pairwise merge. Each level walks the edits and their text once, so the cost is about K log K.
 fn compose_tree(parts: &[HistoryEntry]) -> Option<Transaction> {
     let mut level: Vec<Transaction> = parts.iter().map(|part| part.forward.clone()).collect();
     if level.is_empty() {
@@ -963,22 +964,23 @@ mod compose {
         ei: usize,
     ) -> Option<usize> {
         let mut last = ei;
-        let mut exp_end = edits[ei].start.0 + scalar_len(&edits[ei].old);
+        let mut exp_end = edit_end(&edits[ei]);
+        let mut hint = *pi;
         loop {
-            let grown = expand_end(pieces, spans, *pi, exp_end);
+            let grown = expand_end(pieces, spans, &mut hint, exp_end);
             if grown > exp_end {
                 exp_end = grown;
             }
             let mut next = last + 1;
             while next < edits.len() && edits[next].start.0 < exp_end {
-                let end = edits[next].start.0 + scalar_len(&edits[next].old);
+                let end = edit_end(&edits[next]);
                 if end > exp_end {
                     exp_end = end;
                 }
                 last = next;
                 next += 1;
             }
-            let grown = expand_end(pieces, spans, *pi, exp_end);
+            let grown = expand_end(pieces, spans, &mut hint, exp_end);
             if grown == exp_end {
                 break;
             }
@@ -993,17 +995,25 @@ mod compose {
         Some(last + 1)
     }
 
-    fn expand_end(pieces: &[Piece], spans: &[Span], pi: usize, end: usize) -> usize {
-        let Some(loc) = locate_from(spans, end, pi) else {
+    fn expand_end(pieces: &[Piece], spans: &[Span], hint: &mut usize, end: usize) -> usize {
+        let Some(loc) = locate_from(spans, end, *hint) else {
             return end;
         };
+        *hint = loc.index;
         if loc.into == 0 {
             return end;
         }
-        let Piece::Put { text, .. } = &pieces[loc.index] else {
+        let Piece::Put { .. } = &pieces[loc.index] else {
             return end;
         };
-        spans[loc.index].post + scalar_len(text)
+        match spans[loc.index].vis {
+            Some(len) => spans[loc.index].post + len,
+            None => end,
+        }
+    }
+
+    fn edit_end(edit: &Edit) -> usize {
+        edit.start.0 + scalar_len(&edit.old)
     }
 
     fn cluster_text(
@@ -1030,6 +1040,7 @@ mod compose {
         edits: &[Edit],
     ) -> Option<String> {
         let mut out = String::new();
+        let mut covered = OldChars::new(edits);
         while pi < pieces.len() && spans[pi].post + into < exp_end {
             let post = spans[pi].post + into;
             let piece_end = match spans[pi].vis {
@@ -1039,10 +1050,8 @@ mod compose {
             let stop = piece_end.min(exp_end);
             let take = stop - post;
             match &pieces[pi] {
-                Piece::Put { text, .. } => out.push_str(&slice_chars(text, into, into + take)),
-                Piece::Gap { .. } | Piece::Tail { .. } => {
-                    out.push_str(&chars_from_edits(edits, post, take)?);
-                }
+                Piece::Put { text, .. } => append_chars(text, into, take, &mut out),
+                Piece::Gap { .. } | Piece::Tail { .. } => covered.append(post, take, &mut out)?,
             }
             if stop == piece_end && spans[pi].vis.is_some() {
                 pi += 1;
@@ -1063,6 +1072,7 @@ mod compose {
         edits: &[Edit],
     ) -> Option<String> {
         let mut out = String::new();
+        let mut covered = OldChars::new(edits);
         while pi < pieces.len() && spans[pi].post + into < exp_end {
             let post = spans[pi].post + into;
             let piece_end = match spans[pi].vis {
@@ -1072,7 +1082,7 @@ mod compose {
             let stop = piece_end.min(exp_end);
             match &pieces[pi] {
                 Piece::Gap { .. } | Piece::Tail { .. } => {
-                    out.push_str(&chars_from_edits(edits, post, stop - post)?);
+                    covered.append(post, stop - post, &mut out)?;
                 }
                 Piece::Put { old, .. } => {
                     if into == 0 {
@@ -1090,50 +1100,162 @@ mod compose {
         Some(out)
     }
 
-    fn chars_from_edits(edits: &[Edit], post: usize, len: usize) -> Option<String> {
-        if len == 0 {
-            return Some(String::new());
+    /// Copies `take` scalars from `text`, starting at scalar `into`.
+    ///
+    /// The caller walks each string forward, so this runs once per slice.
+    fn append_chars(text: &str, into: usize, take: usize, out: &mut String) {
+        if take == 0 {
+            return;
         }
+        let Some(start) = byte_after_chars(text, into) else {
+            return;
+        };
+        match byte_after_chars(&text[start..], take) {
+            Some(end) => out.push_str(&text[start..start + end]),
+            None => out.push_str(&text[start..]),
+        }
+    }
+
+    fn apply_edits_to_chars(visible: &str, region: usize, edits: &[Edit]) -> Option<String> {
         let mut out = String::new();
-        let mut at = post;
-        let end = post + len;
+        let mut rest = visible;
+        let mut pos = 0usize;
         for edit in edits {
-            let lo = edit.start.0;
-            let hi = lo + scalar_len(&edit.old);
-            if hi <= at {
-                continue;
-            }
-            if lo >= end {
-                break;
-            }
-            if lo > at {
+            let start = edit.start.0.checked_sub(region)?;
+            if start < pos {
                 return None;
             }
-            let skip = at - lo;
-            let take = hi.min(end) - at;
-            out.push_str(&slice_chars(&edit.old, skip, skip + take));
-            at += take;
-            if at == end {
-                return Some(out);
+            let skip = byte_after_chars(rest, start - pos)?;
+            let old_len = scalar_len(&edit.old);
+            let old_bytes = byte_after_chars(&rest[skip..], old_len)?;
+            let next = skip + old_bytes;
+            out.push_str(&rest[..skip]);
+            out.push_str(&edit.new);
+            rest = &rest[next..];
+            pos = start + old_len;
+        }
+        out.push_str(rest);
+        Some(out)
+    }
+
+    /// Byte index after `count` scalars. `None` when `text` is shorter than `count`.
+    fn byte_after_chars(text: &str, count: usize) -> Option<usize> {
+        if count == 0 {
+            return Some(0);
+        }
+        for (seen, (index, ch)) in text.char_indices().enumerate() {
+            if seen + 1 == count {
+                return Some(index + ch.len_utf8());
             }
         }
         None
     }
 
-    fn apply_edits_to_chars(visible: &str, region: usize, edits: &[Edit]) -> Option<String> {
-        let mut chars: Vec<char> = visible.chars().collect();
-        for edit in edits.iter().rev() {
-            let start = edit.start.0.checked_sub(region)?;
-            let old_len = scalar_len(&edit.old);
-            if start + old_len > chars.len() {
-                return None;
+    /// Forward cursor over `edit.old` in post-state order.
+    ///
+    /// Each scalar of `old` is visited at most once.
+    struct OldChars<'a> {
+        edits: &'a [Edit],
+        index: usize,
+        into_chars: usize,
+        into_bytes: usize,
+        old_chars: usize,
+        loaded: bool,
+    }
+
+    impl<'a> OldChars<'a> {
+        fn new(edits: &'a [Edit]) -> Self {
+            Self {
+                edits,
+                index: 0,
+                into_chars: 0,
+                into_bytes: 0,
+                old_chars: 0,
+                loaded: false,
             }
-            let replacement: Vec<char> = edit.new.chars().collect();
-            let rest: Vec<char> = chars.split_off(start).split_off(old_len);
-            chars.extend(replacement);
-            chars.extend(rest);
         }
-        Some(chars.into_iter().collect())
+
+        fn append(&mut self, post: usize, len: usize, out: &mut String) -> Option<()> {
+            if len == 0 {
+                return Some(());
+            }
+            let end = post.checked_add(len)?;
+            let mut at = post;
+            while at < end {
+                let edit = self.edits.get(self.index)?;
+                self.ensure_loaded();
+                let lo = edit.start.0;
+                let hi = lo + self.old_chars;
+                if hi <= at {
+                    self.bump();
+                    continue;
+                }
+                if lo > at {
+                    return None;
+                }
+                let skip = at - lo;
+                if skip < self.into_chars {
+                    return None;
+                }
+                self.advance(skip - self.into_chars, None);
+                let take = hi.min(end) - at;
+                self.advance(take, Some(out));
+                at += take;
+                if self.into_chars == self.old_chars {
+                    self.bump();
+                }
+            }
+            Some(())
+        }
+
+        fn ensure_loaded(&mut self) {
+            if self.loaded {
+                return;
+            }
+            self.old_chars = scalar_len(&self.edits[self.index].old);
+            self.into_chars = 0;
+            self.into_bytes = 0;
+            self.loaded = true;
+        }
+
+        fn bump(&mut self) {
+            self.index += 1;
+            self.loaded = false;
+        }
+
+        fn advance(&mut self, count: usize, mut out: Option<&mut String>) {
+            if count == 0 {
+                return;
+            }
+            let start = self.into_bytes;
+            let copied = {
+                let text = &self.edits[self.index].old;
+                match byte_after_chars(&text[start..], count) {
+                    Some(end) => {
+                        if let Some(dest) = out.as_mut() {
+                            dest.push_str(&text[start..start + end]);
+                        }
+                        Some(start + end)
+                    }
+                    None => {
+                        if let Some(dest) = out.as_mut() {
+                            dest.push_str(&text[start..]);
+                        }
+                        None
+                    }
+                }
+            };
+            match copied {
+                Some(byte) => {
+                    self.into_bytes = byte;
+                    self.into_chars += count;
+                }
+                None => {
+                    self.into_bytes = self.edits[self.index].old.len();
+                    self.into_chars = self.old_chars;
+                }
+            }
+        }
     }
 
     fn advance_to(
@@ -1300,13 +1422,6 @@ mod compose {
             }
         }
         out
-    }
-
-    fn slice_chars(text: &str, start: usize, end: usize) -> String {
-        text.chars()
-            .skip(start)
-            .take(end.saturating_sub(start))
-            .collect()
     }
 }
 

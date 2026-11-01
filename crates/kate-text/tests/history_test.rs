@@ -579,6 +579,56 @@ mod history {
             assert_group_round_trip(&mut history, &"A".repeat(pairs), "");
         }
 
+        #[test]
+        fn end_group_on_a_chained_cluster_is_not_quadratic() {
+            let inserts = 16_384usize;
+            let mut history = History::new();
+            history.begin_group();
+            for index in 0..inserts {
+                record_at(
+                    &mut history,
+                    index * 3,
+                    "xyo",
+                    "",
+                    EditKind::Paste,
+                    index as u64,
+                );
+            }
+            let deletes = inserts - 1;
+            for index in 0..deletes {
+                let slot = deletes - 1 - index;
+                record_at(
+                    &mut history,
+                    1 + slot * 3,
+                    "",
+                    "yox",
+                    EditKind::Deletion,
+                    (inserts + index) as u64,
+                );
+            }
+            assert_group_round_trip(&mut history, "xyo", "");
+        }
+
+        #[test]
+        fn end_group_on_inserts_then_one_replace_is_not_quadratic() {
+            let inserts = 32_767usize;
+            let mut history = History::new();
+            history.begin_group();
+            for index in 0..inserts {
+                record_at(&mut history, index, "a", "", EditKind::Paste, index as u64);
+            }
+            let old = "a".repeat(inserts);
+            record_at(
+                &mut history,
+                0,
+                "Z",
+                &old,
+                EditKind::Replace,
+                inserts as u64,
+            );
+            assert_group_round_trip(&mut history, "Z", "");
+        }
+
         fn assert_group_round_trip(history: &mut History, final_text: &str, original: &str) {
             let started = std::time::Instant::now();
             history.end_group();
