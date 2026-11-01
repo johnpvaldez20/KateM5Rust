@@ -28,7 +28,7 @@
       }
     },
     "worker": {
-      "agent_id": "cursor-cloud-coder-02",
+      "agent_id": "bc-4ab65837-e512-5e07-bf0f-15a1efd23d12",
       "role": "CODER",
       "runtime": "CLOUD",
       "host": {
