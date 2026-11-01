@@ -8,7 +8,9 @@
 //! Adjacent `Typing` entries append in place. Adjacent `Deletion` entries append in place.
 //! A single-edit replace grows when later inserts start at its caret.
 //! `begin_group` starts a new entry. Later records in that group stay in a list.
-//! The group builds one forward and inverse pair once, by a balanced merge, then keeps that pair.
+//! The group builds one forward and inverse pair once, by a balanced merge.
+//! Each pair is one linear sweep, so the build is about K log K for K edits.
+//! The group keeps that pair.
 //! `is_modified` is true when the undo length is not the length at the last save.
 
 use crate::buffer::TextBuffer;
@@ -737,127 +739,13 @@ fn compose_tree(parts: &[HistoryEntry]) -> Option<Transaction> {
         let mut drain = level.into_iter();
         while let Some(left) = drain.next() {
             match drain.next() {
-                Some(right) => next.push(merge_or_scan(&left, &right)?),
+                Some(right) => next.push(compose::transactions(&left, &right)?),
                 None => next.push(left),
             }
         }
         level = next;
     }
     level.pop()
-}
-
-fn merge_or_scan(left: &Transaction, right: &Transaction) -> Option<Transaction> {
-    if let Some(merged) = try_merge_disjoint(left, right) {
-        return Some(merged);
-    }
-    compose::transactions(left, right)
-}
-
-/// Merge when every edit of `right` sits in a gap of `left`.
-///
-/// The result matches applying `left` and then `right`.
-/// An edit that rewrites `left`'s new text returns `None`.
-fn try_merge_disjoint(left: &Transaction, right: &Transaction) -> Option<Transaction> {
-    let placed = place_edits(left)?;
-    let mut extras = Vec::with_capacity(right.edits().len());
-    let mut index = 0usize;
-    let mut gap_post = 0usize;
-    let mut gap_pre = 0usize;
-    for edit in right.edits() {
-        let lo = edit.start.0;
-        let hi = lo.checked_add(scalar_len(&edit.old))?;
-        advance_gap(&placed, lo, &mut index, &mut gap_post, &mut gap_pre);
-        if range_hits_new_text(&placed, index, lo, hi) {
-            return None;
-        }
-        let pre_lo = gap_pre.checked_add(lo.checked_sub(gap_post)?)?;
-        let pre_hi = gap_pre.checked_add(hi.checked_sub(gap_post)?)?;
-        if pre_hi.checked_sub(pre_lo) != Some(hi - lo) {
-            return None;
-        }
-        // Two edits at one pre-state offset need the scan compose.
-        // Their order is not a start offset.
-        if shares_start(&placed, index, pre_lo) {
-            return None;
-        }
-        extras.push(Edit {
-            start: Offset(pre_lo),
-            old: edit.old.clone(),
-            new: edit.new.clone(),
-        });
-    }
-    let mut all = Vec::with_capacity(left.edits().len() + extras.len());
-    all.extend(left.edits().iter().cloned());
-    all.extend(extras);
-    Transaction::new(all).ok()
-}
-
-struct PlacedEdit {
-    pre: usize,
-    post: usize,
-    old_len: usize,
-    new_len: usize,
-}
-
-fn place_edits(tx: &Transaction) -> Option<Vec<PlacedEdit>> {
-    let mut out = Vec::with_capacity(tx.edits().len());
-    let mut pre = 0usize;
-    let mut post = 0usize;
-    for edit in tx.edits() {
-        let start = edit.start.0;
-        if start < pre {
-            return None;
-        }
-        post = post.checked_add(start - pre)?;
-        pre = start;
-        let old_len = scalar_len(&edit.old);
-        let new_len = scalar_len(&edit.new);
-        out.push(PlacedEdit {
-            pre,
-            post,
-            old_len,
-            new_len,
-        });
-        pre = pre.checked_add(old_len)?;
-        post = post.checked_add(new_len)?;
-    }
-    Some(out)
-}
-
-fn advance_gap(
-    placed: &[PlacedEdit],
-    post_lo: usize,
-    index: &mut usize,
-    gap_post: &mut usize,
-    gap_pre: &mut usize,
-) {
-    while *index < placed.len() {
-        let post_end = placed[*index].post + placed[*index].new_len;
-        if post_end > post_lo {
-            break;
-        }
-        *gap_post = post_end;
-        *gap_pre = placed[*index].pre + placed[*index].old_len;
-        *index += 1;
-    }
-}
-
-fn shares_start(placed: &[PlacedEdit], index: usize, pre_lo: usize) -> bool {
-    if index < placed.len() && placed[index].pre == pre_lo {
-        return true;
-    }
-    index > 0 && placed[index - 1].pre == pre_lo
-}
-
-fn range_hits_new_text(placed: &[PlacedEdit], index: usize, lo: usize, hi: usize) -> bool {
-    let Some(edit) = placed.get(index) else {
-        return false;
-    };
-    if edit.new_len == 0 {
-        return false;
-    }
-    let end = edit.post + edit.new_len;
-    lo < end && edit.post < hi
 }
 
 fn pure_insert(tx: &Transaction) -> Option<&Edit> {
@@ -981,25 +869,373 @@ mod compose {
         into: usize,
     }
 
-    enum SplitKind {
-        Put,
-        Gap { pre: usize, len: usize },
-        Tail { pre: usize },
-    }
-
-    struct Expansion {
-        start: usize,
-        end: usize,
-        prefix: String,
-        suffix: String,
-    }
-
     pub(super) fn transactions(first: &Transaction, second: &Transaction) -> Option<Transaction> {
-        let mut pieces = pieces_from(first)?;
-        for edit in second.edits().iter().rev() {
-            pieces = apply_edit(pieces, edit)?;
+        if second.edits().is_empty() {
+            return Some(first.clone());
         }
-        transaction_from(&pieces)
+        if first.edits().is_empty() {
+            return Some(second.clone());
+        }
+        let pieces = pieces_from(first)?;
+        let spans = spans(&pieces);
+        let swept = sweep(&pieces, &spans, second.edits())?;
+        transaction_from(&swept)
+    }
+
+    /// One forward pass over `pieces` and `edits`.
+    ///
+    /// `edits` are sorted and do not overlap. They use the post-state of `pieces`.
+    fn sweep(pieces: &[Piece], spans: &[Span], edits: &[Edit]) -> Option<Vec<Piece>> {
+        let mut out = Vec::new();
+        let mut pi = 0usize;
+        let mut into = 0usize;
+        let mut ei = 0usize;
+        while ei < edits.len() {
+            let start = edits[ei].start.0;
+            copy_before(&mut out, pieces, spans, &mut pi, &mut into, start)?;
+            if pi >= pieces.len() {
+                return None;
+            }
+            let cursor = spans[pi].post + into;
+            if edits[ei].old.is_empty() && cursor == start {
+                let pre = pre_at(&pieces[pi], into);
+                out.push(Piece::Put {
+                    pre,
+                    old: String::new(),
+                    text: edits[ei].new.clone(),
+                });
+                ei += 1;
+                continue;
+            }
+            let consumed = consume_cluster(&mut out, pieces, spans, &mut pi, &mut into, edits, ei)?;
+            ei = consumed;
+        }
+        copy_before(&mut out, pieces, spans, &mut pi, &mut into, usize::MAX)?;
+        Some(out)
+    }
+
+    fn copy_before(
+        out: &mut Vec<Piece>,
+        pieces: &[Piece],
+        spans: &[Span],
+        pi: &mut usize,
+        into: &mut usize,
+        target: usize,
+    ) -> Option<()> {
+        while *pi < pieces.len() {
+            let vis = spans[*pi].vis;
+            let post = spans[*pi].post + *into;
+            if post >= target {
+                return Some(());
+            }
+            let piece_end = match vis {
+                None => usize::MAX,
+                Some(len) => spans[*pi].post + len,
+            };
+            if matches!(&pieces[*pi], Piece::Put { .. })
+                && *into == 0
+                && spans[*pi].post < target
+                && target < piece_end
+            {
+                return Some(());
+            }
+            if piece_end <= target {
+                push_remainder(out, &pieces[*pi], *into);
+                *pi += 1;
+                *into = 0;
+                continue;
+            }
+            let take = target - post;
+            push_slice(out, &pieces[*pi], *into, take)?;
+            *into += take;
+            return Some(());
+        }
+        Some(())
+    }
+
+    fn consume_cluster(
+        out: &mut Vec<Piece>,
+        pieces: &[Piece],
+        spans: &[Span],
+        pi: &mut usize,
+        into: &mut usize,
+        edits: &[Edit],
+        ei: usize,
+    ) -> Option<usize> {
+        let mut last = ei;
+        let mut exp_end = edits[ei].start.0 + scalar_len(&edits[ei].old);
+        loop {
+            let grown = expand_end(pieces, spans, *pi, exp_end);
+            if grown > exp_end {
+                exp_end = grown;
+            }
+            let mut next = last + 1;
+            while next < edits.len() && edits[next].start.0 < exp_end {
+                let end = edits[next].start.0 + scalar_len(&edits[next].old);
+                if end > exp_end {
+                    exp_end = end;
+                }
+                last = next;
+                next += 1;
+            }
+            let grown = expand_end(pieces, spans, *pi, exp_end);
+            if grown == exp_end {
+                break;
+            }
+            exp_end = grown;
+        }
+        let pre = pre_at(&pieces[*pi], *into);
+        let (old, text) = cluster_text(pieces, spans, *pi, *into, &edits[ei..=last], exp_end)?;
+        if !(old.is_empty() && text.is_empty()) {
+            out.push(Piece::Put { pre, old, text });
+        }
+        advance_to(pieces, spans, pi, into, exp_end)?;
+        Some(last + 1)
+    }
+
+    fn expand_end(pieces: &[Piece], spans: &[Span], pi: usize, end: usize) -> usize {
+        let Some(loc) = locate_from(spans, end, pi) else {
+            return end;
+        };
+        if loc.into == 0 {
+            return end;
+        }
+        let Piece::Put { text, .. } = &pieces[loc.index] else {
+            return end;
+        };
+        spans[loc.index].post + scalar_len(text)
+    }
+
+    fn cluster_text(
+        pieces: &[Piece],
+        spans: &[Span],
+        pi: usize,
+        into: usize,
+        edits: &[Edit],
+        exp_end: usize,
+    ) -> Option<(String, String)> {
+        let region_start = spans[pi].post + into;
+        let visible = visible_text(pieces, spans, pi, into, exp_end, edits)?;
+        let edited = apply_edits_to_chars(&visible, region_start, edits)?;
+        let old = original_text(pieces, spans, pi, into, exp_end, edits)?;
+        Some((old, edited))
+    }
+
+    fn visible_text(
+        pieces: &[Piece],
+        spans: &[Span],
+        mut pi: usize,
+        mut into: usize,
+        exp_end: usize,
+        edits: &[Edit],
+    ) -> Option<String> {
+        let mut out = String::new();
+        while pi < pieces.len() && spans[pi].post + into < exp_end {
+            let post = spans[pi].post + into;
+            let piece_end = match spans[pi].vis {
+                None => exp_end,
+                Some(len) => spans[pi].post + len,
+            };
+            let stop = piece_end.min(exp_end);
+            let take = stop - post;
+            match &pieces[pi] {
+                Piece::Put { text, .. } => out.push_str(&slice_chars(text, into, into + take)),
+                Piece::Gap { .. } | Piece::Tail { .. } => {
+                    out.push_str(&chars_from_edits(edits, post, take)?);
+                }
+            }
+            if stop == piece_end && spans[pi].vis.is_some() {
+                pi += 1;
+                into = 0;
+            } else {
+                break;
+            }
+        }
+        Some(out)
+    }
+
+    fn original_text(
+        pieces: &[Piece],
+        spans: &[Span],
+        mut pi: usize,
+        mut into: usize,
+        exp_end: usize,
+        edits: &[Edit],
+    ) -> Option<String> {
+        let mut out = String::new();
+        while pi < pieces.len() && spans[pi].post + into < exp_end {
+            let post = spans[pi].post + into;
+            let piece_end = match spans[pi].vis {
+                None => exp_end,
+                Some(len) => spans[pi].post + len,
+            };
+            let stop = piece_end.min(exp_end);
+            match &pieces[pi] {
+                Piece::Gap { .. } | Piece::Tail { .. } => {
+                    out.push_str(&chars_from_edits(edits, post, stop - post)?);
+                }
+                Piece::Put { old, .. } => {
+                    if into == 0 {
+                        out.push_str(old);
+                    }
+                }
+            }
+            if stop == piece_end && spans[pi].vis.is_some() {
+                pi += 1;
+                into = 0;
+            } else {
+                break;
+            }
+        }
+        Some(out)
+    }
+
+    fn chars_from_edits(edits: &[Edit], post: usize, len: usize) -> Option<String> {
+        if len == 0 {
+            return Some(String::new());
+        }
+        let mut out = String::new();
+        let mut at = post;
+        let end = post + len;
+        for edit in edits {
+            let lo = edit.start.0;
+            let hi = lo + scalar_len(&edit.old);
+            if hi <= at {
+                continue;
+            }
+            if lo >= end {
+                break;
+            }
+            if lo > at {
+                return None;
+            }
+            let skip = at - lo;
+            let take = hi.min(end) - at;
+            out.push_str(&slice_chars(&edit.old, skip, skip + take));
+            at += take;
+            if at == end {
+                return Some(out);
+            }
+        }
+        None
+    }
+
+    fn apply_edits_to_chars(visible: &str, region: usize, edits: &[Edit]) -> Option<String> {
+        let mut chars: Vec<char> = visible.chars().collect();
+        for edit in edits.iter().rev() {
+            let start = edit.start.0.checked_sub(region)?;
+            let old_len = scalar_len(&edit.old);
+            if start + old_len > chars.len() {
+                return None;
+            }
+            let replacement: Vec<char> = edit.new.chars().collect();
+            let rest: Vec<char> = chars.split_off(start).split_off(old_len);
+            chars.extend(replacement);
+            chars.extend(rest);
+        }
+        Some(chars.into_iter().collect())
+    }
+
+    fn advance_to(
+        pieces: &[Piece],
+        spans: &[Span],
+        pi: &mut usize,
+        into: &mut usize,
+        target: usize,
+    ) -> Option<()> {
+        while *pi < pieces.len() && spans[*pi].post + *into < target {
+            let piece_end = match spans[*pi].vis {
+                None => {
+                    *into += target - (spans[*pi].post + *into);
+                    return Some(());
+                }
+                Some(len) => spans[*pi].post + len,
+            };
+            if piece_end <= target {
+                *pi += 1;
+                *into = 0;
+            } else {
+                *into += target - (spans[*pi].post + *into);
+                return Some(());
+            }
+        }
+        Some(())
+    }
+
+    fn locate_from(spans: &[Span], pos: usize, hint: usize) -> Option<Loc> {
+        for span in spans.iter().skip(hint) {
+            match span.vis {
+                None => {
+                    return Some(Loc {
+                        index: span.index,
+                        into: pos.checked_sub(span.post)?,
+                    });
+                }
+                Some(0) => continue,
+                Some(len) => {
+                    let end = span.post + len;
+                    if pos < end && pos >= span.post {
+                        return Some(Loc {
+                            index: span.index,
+                            into: pos - span.post,
+                        });
+                    }
+                    if pos < span.post {
+                        return None;
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn pre_at(piece: &Piece, into: usize) -> usize {
+        match piece {
+            Piece::Gap { pre, .. } | Piece::Tail { pre } => pre + into,
+            Piece::Put { pre, .. } => *pre,
+        }
+    }
+
+    fn push_remainder(out: &mut Vec<Piece>, piece: &Piece, into: usize) {
+        if into == 0 {
+            out.push(piece.clone());
+            return;
+        }
+        match piece {
+            Piece::Gap { pre, len } => {
+                if into < *len {
+                    out.push(Piece::Gap {
+                        pre: pre + into,
+                        len: len - into,
+                    });
+                }
+            }
+            Piece::Tail { pre } => out.push(Piece::Tail { pre: pre + into }),
+            Piece::Put { .. } => out.push(piece.clone()),
+        }
+    }
+
+    fn push_slice(out: &mut Vec<Piece>, piece: &Piece, into: usize, take: usize) -> Option<()> {
+        if take == 0 {
+            return Some(());
+        }
+        match piece {
+            Piece::Gap { pre, .. } => {
+                out.push(Piece::Gap {
+                    pre: pre + into,
+                    len: take,
+                });
+                Some(())
+            }
+            Piece::Tail { pre } => {
+                out.push(Piece::Gap {
+                    pre: pre + into,
+                    len: take,
+                });
+                Some(())
+            }
+            Piece::Put { .. } => None,
+        }
     }
 
     fn pieces_from(tx: &Transaction) -> Option<Vec<Piece>> {
@@ -1045,252 +1281,6 @@ mod compose {
         Transaction::new(edits).ok()
     }
 
-    fn apply_edit(pieces: Vec<Piece>, edit: &Edit) -> Option<Vec<Piece>> {
-        if edit.old.is_empty() {
-            return apply_insert(pieces, edit.start.0, &edit.new);
-        }
-        apply_replace(pieces, edit)
-    }
-
-    fn apply_insert(mut pieces: Vec<Piece>, at: usize, text: &str) -> Option<Vec<Piece>> {
-        if text.is_empty() {
-            return Some(pieces);
-        }
-        let located = locate(&spans(&pieces), at)?;
-        if located.into == 0 {
-            let pre = pre_of(&pieces[located.index]);
-            pieces.insert(
-                located.index,
-                Piece::Put {
-                    pre,
-                    old: String::new(),
-                    text: text.to_string(),
-                },
-            );
-            return Some(pieces);
-        }
-        if let Piece::Put { text: existing, .. } = &pieces[located.index] {
-            let new_text = splice_chars(existing, located.into, text);
-            if let Piece::Put { text, .. } = &mut pieces[located.index] {
-                *text = new_text;
-            }
-            return Some(pieces);
-        }
-        split_gap_or_tail(&mut pieces, at)?;
-        apply_insert(pieces, at, text)
-    }
-
-    fn apply_replace(mut pieces: Vec<Piece>, edit: &Edit) -> Option<Vec<Piece>> {
-        let start = edit.start.0;
-        let end = start.checked_add(scalar_len(&edit.old))?;
-        let expansion = expand(&pieces, start, end)?;
-        split_gap_or_tail(&mut pieces, expansion.start)?;
-        split_gap_or_tail(&mut pieces, expansion.end)?;
-        let spans = spans(&pieces);
-        let covered = covered_indices(&spans, expansion.start, expansion.end);
-        let (first, last) = contiguous(&covered)?;
-        let new_text = join3(&expansion.prefix, &edit.new, &expansion.suffix);
-        let old = composed_old(&pieces, &spans, first, last, start, end, &edit.old)?;
-        let pre = pre_of(&pieces[first]);
-        let piece = if old.is_empty() && new_text.is_empty() {
-            None
-        } else {
-            Some(Piece::Put {
-                pre,
-                old,
-                text: new_text,
-            })
-        };
-        Some(splice(pieces, first, last, piece))
-    }
-
-    fn expand(pieces: &[Piece], start: usize, end: usize) -> Option<Expansion> {
-        let spans = spans(pieces);
-        let mut exp_start = start;
-        let mut exp_end = end;
-        let mut prefix = String::new();
-        let mut suffix = String::new();
-        absorb_start(pieces, &spans, start, &mut exp_start, &mut prefix)?;
-        absorb_end(pieces, &spans, end, &mut exp_end, &mut suffix)?;
-        if exp_end < exp_start {
-            return None;
-        }
-        Some(Expansion {
-            start: exp_start,
-            end: exp_end,
-            prefix,
-            suffix,
-        })
-    }
-
-    fn absorb_start(
-        pieces: &[Piece],
-        spans: &[Span],
-        start: usize,
-        exp_start: &mut usize,
-        prefix: &mut String,
-    ) -> Option<()> {
-        let loc = locate(spans, start)?;
-        if loc.into == 0 {
-            return Some(());
-        }
-        let Piece::Put { text, .. } = &pieces[loc.index] else {
-            return Some(());
-        };
-        *exp_start = spans.iter().find(|span| span.index == loc.index)?.post;
-        *prefix = slice_chars(text, 0, loc.into);
-        Some(())
-    }
-
-    fn absorb_end(
-        pieces: &[Piece],
-        spans: &[Span],
-        end: usize,
-        exp_end: &mut usize,
-        suffix: &mut String,
-    ) -> Option<()> {
-        let loc = locate(spans, end)?;
-        if loc.into == 0 {
-            return Some(());
-        }
-        let Piece::Put { text, .. } = &pieces[loc.index] else {
-            return Some(());
-        };
-        let post = spans.iter().find(|span| span.index == loc.index)?.post;
-        let vis = scalar_len(text);
-        *exp_end = post.checked_add(vis)?;
-        *suffix = slice_chars(text, loc.into, vis);
-        Some(())
-    }
-
-    fn composed_old(
-        pieces: &[Piece],
-        spans: &[Span],
-        first: usize,
-        last: usize,
-        orig_start: usize,
-        orig_end: usize,
-        edit_old: &str,
-    ) -> Option<String> {
-        let mut pending = edit_old.chars();
-        let mut old = String::new();
-        for (index, piece) in pieces.iter().enumerate().take(last + 1).skip(first) {
-            let span = spans.get(index)?;
-            match piece {
-                Piece::Put {
-                    old: put_old, text, ..
-                } => {
-                    old.push_str(put_old);
-                    let vis = scalar_len(text);
-                    let post_end = span.post.checked_add(vis)?;
-                    let lo = span.post.max(orig_start);
-                    let hi = post_end.min(orig_end);
-                    skip_chars(&mut pending, hi.saturating_sub(lo))?;
-                }
-                Piece::Gap { len, .. } => {
-                    let take = take_chars(&mut pending, *len)?;
-                    old.push_str(&take);
-                }
-                Piece::Tail { .. } => return None,
-            }
-        }
-        if pending.next().is_some() {
-            return None;
-        }
-        let pre = pre_of(&pieces[first]);
-        let end_pre = pre_end_of(&pieces[last])?;
-        if scalar_len(&old) != end_pre.checked_sub(pre)? {
-            return None;
-        }
-        Some(old)
-    }
-
-    fn skip_chars(pending: &mut impl Iterator<Item = char>, count: usize) -> Option<()> {
-        for _ in 0..count {
-            pending.next()?;
-        }
-        Some(())
-    }
-
-    fn take_chars(pending: &mut impl Iterator<Item = char>, count: usize) -> Option<String> {
-        let mut out = String::new();
-        for _ in 0..count {
-            out.push(pending.next()?);
-        }
-        Some(out)
-    }
-
-    fn covered_indices(spans: &[Span], start: usize, end: usize) -> Vec<usize> {
-        spans
-            .iter()
-            .filter(|span| is_covered(span, start, end))
-            .map(|span| span.index)
-            .collect()
-    }
-
-    fn contiguous(covered: &[usize]) -> Option<(usize, usize)> {
-        let first = *covered.first()?;
-        let last = *covered.last()?;
-        let width = last.checked_sub(first)?.checked_add(1)?;
-        if width == covered.len() {
-            Some((first, last))
-        } else {
-            None
-        }
-    }
-
-    fn is_covered(span: &Span, start: usize, end: usize) -> bool {
-        if start >= end {
-            return false;
-        }
-        match span.vis {
-            None => span.post < end,
-            Some(0) => start <= span.post && span.post < end,
-            Some(len) => start < span.post.saturating_add(len) && span.post < end,
-        }
-    }
-
-    fn split_gap_or_tail(pieces: &mut Vec<Piece>, pos: usize) -> Option<()> {
-        let located = locate(&spans(pieces), pos)?;
-        if located.into == 0 {
-            return Some(());
-        }
-        let into = located.into;
-        let index = located.index;
-        let kind = match &pieces[index] {
-            Piece::Put { .. } => SplitKind::Put,
-            Piece::Gap { pre, len } => SplitKind::Gap {
-                pre: *pre,
-                len: *len,
-            },
-            Piece::Tail { pre } => SplitKind::Tail { pre: *pre },
-        };
-        match kind {
-            SplitKind::Put => None,
-            SplitKind::Gap { pre, len } => {
-                if into >= len {
-                    return None;
-                }
-                let right_pre = pre.checked_add(into)?;
-                pieces[index] = Piece::Gap { pre, len: into };
-                pieces.insert(
-                    index + 1,
-                    Piece::Gap {
-                        pre: right_pre,
-                        len: len - into,
-                    },
-                );
-                Some(())
-            }
-            SplitKind::Tail { pre } => {
-                let right_pre = pre.checked_add(into)?;
-                pieces[index] = Piece::Gap { pre, len: into };
-                pieces.insert(index + 1, Piece::Tail { pre: right_pre });
-                Some(())
-            }
-        }
-    }
-
     fn spans(pieces: &[Piece]) -> Vec<Span> {
         let mut out = Vec::with_capacity(pieces.len());
         let mut cursor = 0usize;
@@ -1312,83 +1302,11 @@ mod compose {
         out
     }
 
-    fn locate(spans: &[Span], pos: usize) -> Option<Loc> {
-        for span in spans {
-            match span.vis {
-                None => {
-                    return Some(Loc {
-                        index: span.index,
-                        into: pos.checked_sub(span.post)?,
-                    });
-                }
-                Some(0) => continue,
-                Some(len) => {
-                    let end = span.post.saturating_add(len);
-                    if pos < end {
-                        return Some(Loc {
-                            index: span.index,
-                            into: pos - span.post,
-                        });
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn pre_of(piece: &Piece) -> usize {
-        match piece {
-            Piece::Gap { pre, .. } | Piece::Put { pre, .. } | Piece::Tail { pre } => *pre,
-        }
-    }
-
-    fn pre_end_of(piece: &Piece) -> Option<usize> {
-        match piece {
-            Piece::Gap { pre, len } => pre.checked_add(*len),
-            Piece::Put { pre, old, .. } => pre.checked_add(scalar_len(old)),
-            Piece::Tail { .. } => None,
-        }
-    }
-
-    fn splice(pieces: Vec<Piece>, first: usize, last: usize, piece: Option<Piece>) -> Vec<Piece> {
-        let mut out = Vec::with_capacity(pieces.len());
-        out.extend(pieces.iter().take(first).cloned());
-        if let Some(piece) = piece {
-            out.push(piece);
-        }
-        out.extend(pieces.into_iter().skip(last + 1));
-        out
-    }
-
     fn slice_chars(text: &str, start: usize, end: usize) -> String {
         text.chars()
             .skip(start)
             .take(end.saturating_sub(start))
             .collect()
-    }
-
-    fn splice_chars(text: &str, at: usize, insert: &str) -> String {
-        let mut out = String::new();
-        let mut count = 0usize;
-        for ch in text.chars() {
-            if count == at {
-                out.push_str(insert);
-            }
-            out.push(ch);
-            count += 1;
-        }
-        if count == at {
-            out.push_str(insert);
-        }
-        out
-    }
-
-    fn join3(left: &str, mid: &str, right: &str) -> String {
-        let mut out = String::with_capacity(left.len() + mid.len() + right.len());
-        out.push_str(left);
-        out.push_str(mid);
-        out.push_str(right);
-        out
     }
 }
 
@@ -1422,6 +1340,25 @@ mod tests {
                 Transaction::single(Edit::insert(Offset(0), "Q")),
                 Transaction::single(Edit::insert(Offset(0), "a")),
             ],
+        );
+        check_pair(
+            "ab",
+            Edit::insert(Offset(0), "AB"),
+            Edit::delete(Offset(1), "B"),
+        );
+        check_pair(
+            "ab",
+            Edit::insert(Offset(0), "HELLO"),
+            Edit {
+                start: Offset(2),
+                old: "LL".to_string(),
+                new: "YZ".to_string(),
+            },
+        );
+        check_pair(
+            "abcd",
+            Edit::delete(Offset(1), "b"),
+            Edit::insert(Offset(1), "Z"),
         );
         check_compose(
             "hello",
@@ -1481,6 +1418,79 @@ mod tests {
         let inverse = super::checked_invert(&composed).expect("the inverse exists");
         once.apply(&inverse).expect("the inverse applies");
         assert_eq!(once.text().to_string(), initial);
+    }
+
+    #[test]
+    fn sweep_matches_sequential_apply_on_random_edits() {
+        let mut state = 0x504B_5400_0000_0004u64;
+        for _case in 0..300 {
+            let width = 1 + (next_u32(&mut state) as usize % 30);
+            let mut chars: Vec<char> = (0..width)
+                .map(|index| char::from(b'a' + (index % 26) as u8))
+                .collect();
+            let initial: String = chars.iter().collect();
+            let steps = 1 + (next_u32(&mut state) as usize % 48);
+            let mut parts = Vec::with_capacity(steps);
+            for _ in 0..steps {
+                parts.push(Transaction::single(random_edit(&mut chars, &mut state)));
+            }
+            check_compose(&initial, &parts);
+        }
+    }
+
+    fn random_edit(chars: &mut Vec<char>, state: &mut u64) -> Edit {
+        let roll = next_u32(state) % 5;
+        let len = chars.len();
+        if len == 0 || roll == 0 {
+            let at = if len == 0 {
+                0
+            } else {
+                next_u32(state) as usize % (len + 1)
+            };
+            let ch = char::from(b'A' + (next_u32(state) % 26) as u8);
+            chars.insert(at, ch);
+            return Edit::insert(Offset(at), ch.to_string());
+        }
+        if roll == 1 {
+            let at = next_u32(state) as usize % (len + 1);
+            let text = if next_u32(state).is_multiple_of(2) {
+                "AB"
+            } else {
+                "é"
+            };
+            for (offset, ch) in text.chars().enumerate() {
+                chars.insert(at + offset, ch);
+            }
+            return Edit::insert(Offset(at), text);
+        }
+        let start = next_u32(state) as usize % len;
+        let max_len = (len - start).min(3);
+        let take = 1 + (next_u32(state) as usize % max_len);
+        let old: String = chars[start..start + take].iter().collect();
+        let new = match roll {
+            2 => String::new(),
+            3 => "Z".to_string(),
+            _ => "YZ".to_string(),
+        };
+        chars.splice(start..start + take, new.chars());
+        Edit {
+            start: Offset(start),
+            old,
+            new,
+        }
+    }
+
+    fn next_u32(state: &mut u64) -> u32 {
+        *state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
+        (*state >> 32) as u32
+    }
+
+    fn check_pair(initial: &str, first: Edit, second: Edit) {
+        let left = Transaction::single(first);
+        let right = Transaction::single(second);
+        check_compose(initial, &[left, right]);
     }
 
     fn entry_for(tx: Transaction) -> HistoryEntry {

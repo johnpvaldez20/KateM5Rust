@@ -514,6 +514,100 @@ mod history {
         }
 
         #[test]
+        fn end_group_on_overlapping_replaces_is_not_quadratic() {
+            let count = 32_768usize;
+            let width = 64usize;
+            let mut chars = vec!['a'; width];
+            let mut history = History::new();
+            history.begin_group();
+            let mut state = PROPTEST_SEED;
+            for index in 0..count {
+                let at = next_u32(&mut state) as usize % width;
+                let old = chars[at].to_string();
+                let new_ch = if chars[at] == 'a' { 'b' } else { 'a' };
+                chars[at] = new_ch;
+                record_at(
+                    &mut history,
+                    at,
+                    &new_ch.to_string(),
+                    &old,
+                    EditKind::Replace,
+                    index as u64,
+                );
+            }
+            let final_text: String = chars.into_iter().collect();
+            assert_group_round_trip(&mut history, &final_text, &"a".repeat(width));
+        }
+
+        #[test]
+        fn end_group_on_same_start_inserts_is_not_quadratic() {
+            let count = 32_768usize;
+            let mut history = History::new();
+            history.begin_group();
+            for index in 0..count {
+                record_at(&mut history, 0, "A", "", EditKind::Paste, index as u64);
+            }
+            assert_group_round_trip(&mut history, &"A".repeat(count), "");
+        }
+
+        #[test]
+        fn end_group_on_edits_inside_inserted_text_is_not_quadratic() {
+            let pairs = 16_384usize;
+            let mut history = History::new();
+            history.begin_group();
+            for index in 0..pairs {
+                record_at(
+                    &mut history,
+                    index * 2,
+                    "AB",
+                    "",
+                    EditKind::Paste,
+                    index as u64,
+                );
+            }
+            for index in 0..pairs {
+                let at = (pairs - 1 - index) * 2 + 1;
+                record_at(
+                    &mut history,
+                    at,
+                    "",
+                    "B",
+                    EditKind::Deletion,
+                    (pairs + index) as u64,
+                );
+            }
+            assert_group_round_trip(&mut history, &"A".repeat(pairs), "");
+        }
+
+        fn assert_group_round_trip(history: &mut History, final_text: &str, original: &str) {
+            let started = std::time::Instant::now();
+            history.end_group();
+            let end_elapsed = started.elapsed();
+            let mut buf = TextBuffer::from_str(final_text);
+            let started = std::time::Instant::now();
+            history.undo(&mut buf).expect("undo the group");
+            assert_eq!(text_of(&buf), original);
+            history.redo(&mut buf).expect("redo the group");
+            assert_eq!(text_of(&buf), final_text);
+            let apply_elapsed = started.elapsed();
+            assert!(
+                end_elapsed < std::time::Duration::from_secs(2),
+                "end_group took {end_elapsed:?}"
+            );
+            assert!(
+                apply_elapsed < std::time::Duration::from_secs(5),
+                "undo and redo took {apply_elapsed:?}"
+            );
+        }
+
+        fn next_u32(state: &mut u64) -> u32 {
+            *state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            (*state >> 32) as u32
+        }
+
+        #[test]
         fn added_part_after_reopen_drops_the_cached_pair() {
             let mut buf = TextBuffer::new();
             let mut history = History::new();
@@ -567,6 +661,36 @@ mod history {
             let after = history.redo(&mut buf).expect("redo the grown replace");
             assert_eq!(after, caret(3));
             assert_eq!(text_of(&buf), "Xab");
+        }
+
+        #[test]
+        fn one_character_after_a_replace_keeps_ranges_after() {
+            let mut buf = TextBuffer::from_str("hello");
+            let mut history = History::new();
+            record(
+                &mut history,
+                &mut buf,
+                Transaction::single(Edit {
+                    start: Offset(0),
+                    old: "hello".to_string(),
+                    new: "X".to_string(),
+                }),
+                EditKind::Typing,
+                caret(0),
+                caret(1),
+            );
+            type_char(&mut history, &mut buf, 'a');
+            assert_eq!(text_of(&buf), "Xa");
+            let before = history
+                .undo(&mut buf)
+                .expect("undo the replace and the character");
+            assert_eq!(before, caret(0));
+            assert_eq!(text_of(&buf), "hello");
+            let after = history
+                .redo(&mut buf)
+                .expect("redo the replace and the character");
+            assert_eq!(after, caret(2));
+            assert_eq!(text_of(&buf), "Xa");
         }
 
         #[test]
