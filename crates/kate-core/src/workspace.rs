@@ -196,6 +196,14 @@ impl Workspace {
         };
         let doc_id = state.document;
         let last = self.views_of(doc_id).len() == 1;
+        if last
+            && self
+                .documents
+                .get(doc_id)
+                .is_some_and(|doc| doc.history.is_modified())
+        {
+            return CloseResult::RefusedModified(doc_id);
+        }
         self.views.remove(view);
         self.layout.remove_tab(view);
         self.layout.collapse_empty();
@@ -589,7 +597,6 @@ fn place_views(
     tx: &Transaction,
     acting_after: Option<Selections>,
 ) {
-    let _ = tx;
     let ids = ws.views_of(doc_id);
     for id in &ids {
         let Some(state) = ws.views.get_mut(*id) else {
@@ -599,7 +606,9 @@ fn place_views(
             && let Some(after) = &acting_after
         {
             state.selections = after.clone();
+            continue;
         }
+        state.selections = state.selections.transformed(tx);
     }
     snap_ids(ws, doc_id, &ids);
 }
@@ -1145,11 +1154,11 @@ fn file_encoding(doc: &Document, config: &EditorConfig) -> (Encoding, bool, Line
 }
 
 fn encode_options(doc: &Document, config: &EditorConfig) -> EncodeOptions {
-    let (encoding, bom, _line_ending) = file_encoding(doc, config);
+    let (encoding, bom, line_ending) = file_encoding(doc, config);
     EncodeOptions {
         encoding,
         bom,
-        line_ending: LineEnding::Lf,
+        line_ending,
         ensure_trailing_newline: false,
     }
 }

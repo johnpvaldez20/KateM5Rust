@@ -341,8 +341,10 @@ impl SyntaxCache {
             hl.highlight_line(&text, self.input_state(line), &mut out);
             self.store(line, out.end_state);
             end = line + 1;
-            // The stub walks every dirty line. It does not stop on convergence.
-            let _ = cached != MISSING && out.end_state == cached && line >= must;
+            if cached != MISSING && out.end_state == cached && line >= must {
+                self.clear_dirty();
+                return start..end;
+            }
             if line == limit {
                 break;
             }
