@@ -483,6 +483,93 @@ mod history {
         }
 
         #[test]
+        fn end_group_on_a_large_scattered_group_is_not_quadratic() {
+            let count = 32_000usize;
+            let mut history = History::new();
+            history.begin_group();
+            for index in 0..count {
+                let at = count - 1 - index;
+                record_at(&mut history, at, "b", "a", EditKind::Replace, index as u64);
+            }
+            let started = std::time::Instant::now();
+            history.end_group();
+            let end_elapsed = started.elapsed();
+            let originals = "a".repeat(count);
+            let replaced = "b".repeat(count);
+            let mut buf = TextBuffer::from_str(&replaced);
+            let started = std::time::Instant::now();
+            history.undo(&mut buf).expect("undo the group");
+            assert_eq!(text_of(&buf), originals);
+            history.redo(&mut buf).expect("redo the group");
+            assert_eq!(text_of(&buf), replaced);
+            let apply_elapsed = started.elapsed();
+            assert!(
+                end_elapsed < std::time::Duration::from_secs(2),
+                "end_group took {end_elapsed:?}"
+            );
+            assert!(
+                apply_elapsed < std::time::Duration::from_secs(8),
+                "undo and redo took {apply_elapsed:?}"
+            );
+        }
+
+        #[test]
+        fn added_part_after_reopen_drops_the_cached_pair() {
+            let mut buf = TextBuffer::new();
+            let mut history = History::new();
+            type_char(&mut history, &mut buf, 'x');
+            history.begin_group();
+            record(
+                &mut history,
+                &mut buf,
+                Transaction::single(Edit::insert(Offset(1), "Q")),
+                EditKind::Paste,
+                caret(1),
+                caret(2),
+            );
+            record(
+                &mut history,
+                &mut buf,
+                Transaction::single(Edit::insert(Offset(2), "R")),
+                EditKind::Paste,
+                caret(2),
+                caret(3),
+            );
+            assert_eq!(text_of(&buf), "xQR");
+            history.undo(&mut buf).expect("undo the open group");
+            assert_eq!(text_of(&buf), "x");
+            history.redo(&mut buf).expect("redo the open group");
+            assert_eq!(text_of(&buf), "xQR");
+            record(
+                &mut history,
+                &mut buf,
+                Transaction::single(Edit::insert(Offset(3), "S")),
+                EditKind::Paste,
+                caret(3),
+                caret(4),
+            );
+            assert_eq!(text_of(&buf), "xQRS");
+            history.undo(&mut buf).expect("undo the group including S");
+            assert_eq!(text_of(&buf), "x");
+            assert!(history.can_undo());
+        }
+
+        #[test]
+        fn grow_keeps_the_last_ranges_after() {
+            let mut history = History::new();
+            record_at(&mut history, 0, "X", "hello", EditKind::Typing, 0);
+            record_at(&mut history, 1, "a", "", EditKind::Typing, 1);
+            record_at(&mut history, 2, "b", "", EditKind::Typing, 2);
+            let mut buf = TextBuffer::from_str("Xab");
+            let before = history.undo(&mut buf).expect("undo the grown replace");
+            assert_eq!(before, caret(0));
+            assert_eq!(text_of(&buf), "hello");
+            let after = history.redo(&mut buf).expect("redo the grown replace");
+            assert_eq!(after, caret(3));
+            assert_eq!(text_of(&buf), "Xab");
+        }
+
+        #[test]
         fn end_group_seals_a_single_typing_entry() {
             let mut buf = TextBuffer::new();
             let mut history = History::new();

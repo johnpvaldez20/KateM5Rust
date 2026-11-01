@@ -8,7 +8,7 @@
 //! Adjacent `Typing` entries append in place. Adjacent `Deletion` entries append in place.
 //! A single-edit replace grows when later inserts start at its caret.
 //! `begin_group` starts a new entry. Later records in that group stay in a list.
-//! The group builds one forward and inverse pair once, then keeps that pair.
+//! The group builds one forward and inverse pair once, by a balanced merge, then keeps that pair.
 //! `is_modified` is true when the undo length is not the length at the last save.
 
 use crate::buffer::TextBuffer;
@@ -721,12 +721,143 @@ fn fuse_backspaces(parts: &[HistoryEntry]) -> Option<(Transaction, Transaction)>
 }
 
 fn compose_all(parts: &[HistoryEntry]) -> Option<(Transaction, Transaction)> {
-    let mut forward = parts.first()?.forward.clone();
-    for part in parts.iter().skip(1) {
-        forward = compose::transactions(&forward, &part.forward)?;
-    }
+    let forward = compose_tree(parts)?;
     let inverse = checked_invert(&forward)?;
     Some((forward, inverse))
+}
+
+/// Pairwise merge. Each level is linear in the number of edits, so the cost is O(K log K).
+fn compose_tree(parts: &[HistoryEntry]) -> Option<Transaction> {
+    let mut level: Vec<Transaction> = parts.iter().map(|part| part.forward.clone()).collect();
+    if level.is_empty() {
+        return None;
+    }
+    while level.len() > 1 {
+        let mut next = Vec::with_capacity(level.len().div_ceil(2));
+        let mut drain = level.into_iter();
+        while let Some(left) = drain.next() {
+            match drain.next() {
+                Some(right) => next.push(merge_or_scan(&left, &right)?),
+                None => next.push(left),
+            }
+        }
+        level = next;
+    }
+    level.pop()
+}
+
+fn merge_or_scan(left: &Transaction, right: &Transaction) -> Option<Transaction> {
+    if let Some(merged) = try_merge_disjoint(left, right) {
+        return Some(merged);
+    }
+    compose::transactions(left, right)
+}
+
+/// Merge when every edit of `right` sits in a gap of `left`.
+///
+/// The result matches applying `left` and then `right`.
+/// An edit that rewrites `left`'s new text returns `None`.
+fn try_merge_disjoint(left: &Transaction, right: &Transaction) -> Option<Transaction> {
+    let placed = place_edits(left)?;
+    let mut extras = Vec::with_capacity(right.edits().len());
+    let mut index = 0usize;
+    let mut gap_post = 0usize;
+    let mut gap_pre = 0usize;
+    for edit in right.edits() {
+        let lo = edit.start.0;
+        let hi = lo.checked_add(scalar_len(&edit.old))?;
+        advance_gap(&placed, lo, &mut index, &mut gap_post, &mut gap_pre);
+        if range_hits_new_text(&placed, index, lo, hi) {
+            return None;
+        }
+        let pre_lo = gap_pre.checked_add(lo.checked_sub(gap_post)?)?;
+        let pre_hi = gap_pre.checked_add(hi.checked_sub(gap_post)?)?;
+        if pre_hi.checked_sub(pre_lo) != Some(hi - lo) {
+            return None;
+        }
+        // Two edits at one pre-state offset need the scan compose.
+        // Their order is not a start offset.
+        if shares_start(&placed, index, pre_lo) {
+            return None;
+        }
+        extras.push(Edit {
+            start: Offset(pre_lo),
+            old: edit.old.clone(),
+            new: edit.new.clone(),
+        });
+    }
+    let mut all = Vec::with_capacity(left.edits().len() + extras.len());
+    all.extend(left.edits().iter().cloned());
+    all.extend(extras);
+    Transaction::new(all).ok()
+}
+
+struct PlacedEdit {
+    pre: usize,
+    post: usize,
+    old_len: usize,
+    new_len: usize,
+}
+
+fn place_edits(tx: &Transaction) -> Option<Vec<PlacedEdit>> {
+    let mut out = Vec::with_capacity(tx.edits().len());
+    let mut pre = 0usize;
+    let mut post = 0usize;
+    for edit in tx.edits() {
+        let start = edit.start.0;
+        if start < pre {
+            return None;
+        }
+        post = post.checked_add(start - pre)?;
+        pre = start;
+        let old_len = scalar_len(&edit.old);
+        let new_len = scalar_len(&edit.new);
+        out.push(PlacedEdit {
+            pre,
+            post,
+            old_len,
+            new_len,
+        });
+        pre = pre.checked_add(old_len)?;
+        post = post.checked_add(new_len)?;
+    }
+    Some(out)
+}
+
+fn advance_gap(
+    placed: &[PlacedEdit],
+    post_lo: usize,
+    index: &mut usize,
+    gap_post: &mut usize,
+    gap_pre: &mut usize,
+) {
+    while *index < placed.len() {
+        let post_end = placed[*index].post + placed[*index].new_len;
+        if post_end > post_lo {
+            break;
+        }
+        *gap_post = post_end;
+        *gap_pre = placed[*index].pre + placed[*index].old_len;
+        *index += 1;
+    }
+}
+
+fn shares_start(placed: &[PlacedEdit], index: usize, pre_lo: usize) -> bool {
+    if index < placed.len() && placed[index].pre == pre_lo {
+        return true;
+    }
+    index > 0 && placed[index - 1].pre == pre_lo
+}
+
+fn range_hits_new_text(placed: &[PlacedEdit], index: usize, lo: usize, hi: usize) -> bool {
+    let Some(edit) = placed.get(index) else {
+        return false;
+    };
+    if edit.new_len == 0 {
+        return false;
+    }
+    let end = edit.post + edit.new_len;
+    lo < end && edit.post < hi
 }
 
 fn pure_insert(tx: &Transaction) -> Option<&Edit> {
@@ -1266,7 +1397,7 @@ mod tests {
     use super::{EditKind, History, HistoryEntry};
     use crate::buffer::TextBuffer;
     use crate::edit::{Edit, Transaction};
-    use crate::offset::Offset;
+    use crate::offset::{Offset, Revision};
 
     #[test]
     fn redo_onto_the_saved_depth_sets_the_seal() {
@@ -1281,6 +1412,88 @@ mod tests {
         history.redo(&mut buf).expect("redo Z onto the saved depth");
         assert!(history.coalesce_break);
         assert!(!history.is_modified());
+    }
+
+    #[test]
+    fn balanced_group_compose_matches_sequential_apply() {
+        check_compose(
+            "",
+            &[
+                Transaction::single(Edit::insert(Offset(0), "Q")),
+                Transaction::single(Edit::insert(Offset(0), "a")),
+            ],
+        );
+        check_compose(
+            "hello",
+            &[
+                Transaction::single(Edit::insert(Offset(0), "X")),
+                Transaction::single(Edit::delete(Offset(1), "h")),
+            ],
+        );
+        check_compose(
+            "a",
+            &[
+                Transaction::single(Edit::insert(Offset(1), "Q")),
+                Transaction::single(Edit::insert(Offset(0), "\t")),
+            ],
+        );
+        check_compose(
+            "abcd",
+            &[
+                Transaction::single(Edit::delete(Offset(1), "b")),
+                Transaction::single(Edit::insert(Offset(1), "Z")),
+            ],
+        );
+        let text = "abcdefghij";
+        let mut parts = Vec::new();
+        for index in [7usize, 1, 4, 9, 0] {
+            let ch = text.chars().nth(index).expect("index is in range");
+            parts.push(Transaction::single(Edit {
+                start: Offset(index),
+                old: ch.to_string(),
+                new: "Z".to_string(),
+            }));
+        }
+        check_compose(text, &parts);
+        check_compose(
+            "ab",
+            &[
+                Transaction::single(Edit::insert(Offset(0), "HELLO")),
+                Transaction::single(Edit {
+                    start: Offset(2),
+                    old: "LL".to_string(),
+                    new: "Z".to_string(),
+                }),
+            ],
+        );
+    }
+
+    fn check_compose(initial: &str, parts: &[Transaction]) {
+        let mut sequential = TextBuffer::from_str(initial);
+        for part in parts {
+            sequential.apply(part).expect("the part applies");
+        }
+        let entries: Vec<HistoryEntry> = parts.iter().cloned().map(entry_for).collect();
+        let composed = super::compose_tree(&entries).expect("the parts compose");
+        let mut once = TextBuffer::from_str(initial);
+        once.apply(&composed).expect("the composed edit applies");
+        assert_eq!(once.text().to_string(), sequential.text().to_string());
+        let inverse = super::checked_invert(&composed).expect("the inverse exists");
+        once.apply(&inverse).expect("the inverse applies");
+        assert_eq!(once.text().to_string(), initial);
+    }
+
+    fn entry_for(tx: Transaction) -> HistoryEntry {
+        let inverse = tx.invert();
+        HistoryEntry {
+            forward: tx,
+            inverse,
+            kind: EditKind::Programmatic,
+            revision_before: Revision(0),
+            revision_after: Revision(1),
+            ranges_before: Vec::new(),
+            ranges_after: Vec::new(),
+        }
     }
 
     fn record_insert(history: &mut History, buf: &mut TextBuffer, at: usize, text: &str) {
