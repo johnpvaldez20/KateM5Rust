@@ -841,11 +841,13 @@ mod tests {
         assert_eq!(cache.line_end_states, fresh_states(&mut hl, &buf));
     }
 
+    /// CI runs 4096 cases. A stale `dirty_to` showed up near this count.
+    /// `KATE_SYNTAX_ORACLE_CASES` overrides the count for a longer local run.
     fn oracle_cases() -> u32 {
         std::env::var("KATE_SYNTAX_ORACLE_CASES")
             .ok()
             .and_then(|value| value.parse().ok())
-            .unwrap_or(128)
+            .unwrap_or(4096)
     }
 
     fn oracle_config() -> ProptestConfig {
@@ -867,76 +869,256 @@ mod tests {
         (tx, splices)
     }
 
+    type Part = (Transaction, Vec<super::LineSplice>);
+
+    /// Undo entries. An open group keeps its edits in `pending` until `end` or undo.
+    struct OracleHist {
+        undo: Vec<Vec<Part>>,
+        redo: Vec<Vec<Part>>,
+        pending: Vec<Part>,
+        group_open: bool,
+    }
+
+    impl OracleHist {
+        fn new() -> Self {
+            Self {
+                undo: Vec::new(),
+                redo: Vec::new(),
+                pending: Vec::new(),
+                group_open: false,
+            }
+        }
+
+        fn push_group(&mut self, parts: Vec<Part>) {
+            if parts.is_empty() {
+                return;
+            }
+            self.redo.clear();
+            if self.group_open {
+                self.pending.extend(parts);
+            } else {
+                self.undo.push(parts);
+            }
+        }
+
+        fn begin(&mut self) {
+            if !self.group_open {
+                self.group_open = true;
+            }
+        }
+
+        fn end(&mut self) {
+            if !self.group_open {
+                return;
+            }
+            self.group_open = false;
+            if !self.pending.is_empty() {
+                self.undo.push(std::mem::take(&mut self.pending));
+            }
+        }
+
+        fn take_undo(&mut self) -> Option<Vec<Part>> {
+            if self.group_open {
+                self.group_open = false;
+                let parts = std::mem::take(&mut self.pending);
+                if !parts.is_empty() {
+                    return Some(parts);
+                }
+            }
+            self.undo.pop()
+        }
+
+        fn undo_one(&mut self, cache: &mut SyntaxCache, buf: &mut TextBuffer) {
+            let Some(parts) = self.take_undo() else {
+                return;
+            };
+            for (tx, splices) in parts.iter().rev() {
+                buf.apply(&tx.invert()).expect("undo applies");
+                cache.commit_reverse(splices);
+            }
+            self.redo.push(parts);
+        }
+
+        fn redo_one(&mut self, cache: &mut SyntaxCache, buf: &mut TextBuffer) {
+            let Some(parts) = self.redo.pop() else {
+                return;
+            };
+            for (tx, splices) in &parts {
+                buf.apply(tx).expect("redo applies");
+                cache.commit_forward(splices);
+            }
+            self.undo.push(parts);
+        }
+    }
+
+    const ORACLE_CAP: usize = 120;
+
+    fn insert_tx(buf: &TextBuffer, step: u8, index: usize) -> Option<Transaction> {
+        let len = buf.len().0;
+        let at = if len == 0 {
+            0
+        } else {
+            (usize::from(step).wrapping_mul(17).wrapping_add(index)) % (len + 1)
+        };
+        let text = match step % 5 {
+            0 => "x",
+            1 => "/*",
+            2 => "*/",
+            3 => "\n",
+            _ => "a",
+        };
+        if len > ORACLE_CAP && text != "x" {
+            return None;
+        }
+        Some(Transaction::single(Edit::insert(Offset(at), text)))
+    }
+
+    fn delete_tx(buf: &TextBuffer, step: u8) -> Option<Transaction> {
+        let len = buf.len().0;
+        if len == 0 {
+            return None;
+        }
+        let at = usize::from(step) % len;
+        let old = buf.text().slice(at..at + 1).to_string();
+        Some(Transaction::single(Edit::delete(Offset(at), old)))
+    }
+
+    fn multi_insert_tx(buf: &TextBuffer, step: u8, index: usize) -> Option<Transaction> {
+        let len = buf.len().0;
+        let count = 2 + (usize::from(step) % 3);
+        let mut edits = Vec::with_capacity(count);
+        let mut seen = Vec::with_capacity(count);
+        for slot in 0..count {
+            let at = if len == 0 {
+                0
+            } else {
+                (index
+                    .wrapping_mul(3)
+                    .wrapping_add(slot * 5)
+                    .wrapping_add(usize::from(step)))
+                    % (len + 1)
+            };
+            if seen.contains(&at) {
+                continue;
+            }
+            seen.push(at);
+            let text = match (step.wrapping_add(slot as u8)) % 4 {
+                0 => "x",
+                1 => "/*",
+                2 => "\n",
+                _ => "a",
+            };
+            if len > ORACLE_CAP && text != "x" {
+                continue;
+            }
+            edits.push(Edit::insert(Offset(at), text));
+        }
+        if edits.len() < 2 {
+            return None;
+        }
+        Transaction::new(edits).ok()
+    }
+
+    fn replace_tx(buf: &TextBuffer, step: u8) -> Option<Transaction> {
+        let len = buf.len().0;
+        if len == 0 {
+            return None;
+        }
+        let start = usize::from(step) % len;
+        let span = (1 + (usize::from(step) / 3) % 3).min(len - start);
+        let old = buf.text().slice(start..start + span).to_string();
+        let new = if len > ORACLE_CAP {
+            ""
+        } else {
+            match step % 5 {
+                0 => "y",
+                1 => "*/",
+                2 => "",
+                3 => "/*",
+                _ => "q",
+            }
+        };
+        let mut edits = vec![Edit {
+            start: Offset(start),
+            old,
+            new: new.to_string(),
+        }];
+        let next = start + span;
+        if next < len {
+            let at = next + (usize::from(step) % (len - next));
+            let old = buf.text().slice(at..at + 1).to_string();
+            let new = if step.is_multiple_of(2) { "" } else { "z" };
+            edits.push(Edit {
+                start: Offset(at),
+                old,
+                new: new.to_string(),
+            });
+        }
+        Transaction::new(edits).ok()
+    }
+
     fn run_highlight_oracle(steps: &[u8]) {
         let (repo, id) = tiny_repo();
         let mut hl = Highlighter::new(&repo, id).expect("tiny patterns compile");
         let mut buf = TextBuffer::from_str("code");
         let mut cache = SyntaxCache::new(Some(id));
         ensure_all(&mut cache, &buf, &mut hl);
-        let mut undo: Vec<(Transaction, Vec<super::LineSplice>)> = Vec::new();
-        let mut redo: Vec<(Transaction, Vec<super::LineSplice>)> = Vec::new();
+        let mut hist = OracleHist::new();
         for (index, step) in steps.iter().copied().enumerate() {
-            match step % 7 {
-                0 | 1 | 3 => {
-                    let len = buf.len().0;
-                    let at = if len == 0 {
-                        0
-                    } else {
-                        (usize::from(step).wrapping_mul(17).wrapping_add(index)) % (len + 1)
-                    };
-                    let text = match step % 5 {
-                        0 => "x",
-                        1 => "/*",
-                        2 => "*/",
-                        3 => "\n",
-                        _ => "a",
-                    };
-                    if buf.len().0 > 100 && text != "x" {
-                        continue;
+            match step % 12 {
+                0..=2 => {
+                    let tx = insert_tx(&buf, step, index).or_else(|| delete_tx(&buf, step));
+                    if let Some(tx) = tx {
+                        let part = record_edit(&mut cache, &mut buf, tx);
+                        hist.push_group(vec![part]);
                     }
-                    let (tx, splices) = record_edit(
-                        &mut cache,
-                        &mut buf,
-                        Transaction::single(Edit::insert(Offset(at), text)),
-                    );
-                    undo.push((tx, splices));
-                    redo.clear();
                 }
-                2 => {
-                    let len = buf.len().0;
-                    if len == 0 {
-                        continue;
+                3 => {
+                    if let Some(tx) = delete_tx(&buf, step) {
+                        let part = record_edit(&mut cache, &mut buf, tx);
+                        hist.push_group(vec![part]);
                     }
-                    let at = usize::from(step) % len;
-                    let ch = buf.text().chars().nth(at).expect("scalar");
-                    let (tx, splices) = record_edit(
-                        &mut cache,
-                        &mut buf,
-                        Transaction::single(Edit::delete(Offset(at), ch.to_string())),
-                    );
-                    undo.push((tx, splices));
-                    redo.clear();
                 }
-                4 => {
+                4 | 5 => {
+                    let tx = multi_insert_tx(&buf, step, index).or_else(|| delete_tx(&buf, step));
+                    if let Some(tx) = tx {
+                        let part = record_edit(&mut cache, &mut buf, tx);
+                        hist.push_group(vec![part]);
+                    }
+                }
+                6 => {
+                    if let Some(tx) = replace_tx(&buf, step) {
+                        let part = record_edit(&mut cache, &mut buf, tx);
+                        hist.push_group(vec![part]);
+                    }
+                }
+                7 => {
                     let through = u32::from(step) % buf.line_count();
                     let _ = cache.ensure(&buf, &mut hl, through);
                 }
-                5 => {
-                    let Some((tx, splices)) = undo.pop() else {
-                        continue;
-                    };
-                    buf.apply(&tx.invert()).expect("undo applies");
-                    cache.commit_reverse(&splices);
-                    redo.push((tx, splices));
-                }
-                _ => {
-                    let Some((tx, splices)) = redo.pop() else {
-                        continue;
-                    };
-                    buf.apply(&tx).expect("redo applies");
-                    cache.commit_forward(&splices);
-                    undo.push((tx, splices));
-                }
+                8 => hist.undo_one(&mut cache, &mut buf),
+                9 => hist.redo_one(&mut cache, &mut buf),
+                _ => match (step / 12) % 3 {
+                    0 => hist.begin(),
+                    1 => hist.end(),
+                    _ => {
+                        if hist.group_open {
+                            if let Some(tx) = insert_tx(&buf, step, index) {
+                                let part = record_edit(&mut cache, &mut buf, tx);
+                                hist.push_group(vec![part]);
+                            }
+                        } else {
+                            let mut parts = Vec::new();
+                            if let Some(tx) = multi_insert_tx(&buf, step, index) {
+                                parts.push(record_edit(&mut cache, &mut buf, tx));
+                            }
+                            if let Some(tx) = replace_tx(&buf, step.wrapping_add(1)) {
+                                parts.push(record_edit(&mut cache, &mut buf, tx));
+                            }
+                            hist.push_group(parts);
+                        }
+                    }
+                },
             }
         }
         ensure_all(&mut cache, &buf, &mut hl);
@@ -946,6 +1128,14 @@ mod tests {
             "text {}",
             buf.text()
         );
+    }
+
+    #[test]
+    fn grouped_edits_match_a_fresh_highlight() {
+        // 4 multi-insert, 6 replace, 10 begin, 0 and 1 insert,
+        // 22 end, 8 undo, 9 redo, 35 two-edit group, 8 undo, 7 partial ensure.
+        let steps = [4u8, 6, 10, 0, 1, 22, 8, 9, 35, 8, 7];
+        run_highlight_oracle(&steps);
     }
 
     proptest! {

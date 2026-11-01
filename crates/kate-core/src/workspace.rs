@@ -615,40 +615,65 @@ fn place_views(
 
 /// Move selections in a view that did not type the edit.
 ///
+/// Carets and ranges each take one walk over the edits.
 /// An empty caret keeps both ends on the right side of inserted text.
 /// A range keeps the anchor on the left and the head on the right.
 fn transform_foreign(sel: &Selections, tx: &Transaction) -> Selections {
     if sel.iter().all(Selection::is_caret) {
-        let mut after = sel.transformed(tx);
-        after.map(|selection| Selection {
-            anchor: selection.head,
-            head: selection.head,
-            goal_col: selection.goal_col,
-        });
-        return after;
+        return collapse_carets(sel.transformed(tx));
     }
-    let primary = sel.primary();
-    let mut items = Vec::with_capacity(sel.len());
-    let mut primary_at = 0usize;
-    for selection in sel.iter().copied() {
-        if same_selection(&selection, &primary) {
-            primary_at = items.len();
-        }
-        items.push(map_foreign_one(selection, tx));
-    }
-    Selections::new(items, primary_at)
+    transform_mixed(sel, tx)
 }
 
-fn map_foreign_one(selection: Selection, tx: &Transaction) -> Selection {
-    let moved = Selections::single(selection).transformed(tx).primary();
-    if !selection.is_caret() {
-        return moved;
+fn collapse_carets(mut sel: Selections) -> Selections {
+    sel.map(|selection| Selection {
+        anchor: selection.head,
+        head: selection.head,
+        goal_col: selection.goal_col,
+    });
+    sel
+}
+
+/// Map a mixed set with one `transformed` call per kind.
+fn transform_mixed(sel: &Selections, tx: &Transaction) -> Selections {
+    let primary = sel.primary();
+    let primary_is_caret = primary.is_caret();
+    let mut carets = Vec::new();
+    let mut ranges = Vec::new();
+    let mut caret_at = None;
+    let mut range_at = None;
+    for selection in sel.iter().copied() {
+        if selection.is_caret() {
+            if primary_is_caret && caret_at.is_none() && same_selection(&selection, &primary) {
+                caret_at = Some(carets.len());
+            }
+            carets.push(selection);
+            continue;
+        }
+        if !primary_is_caret && range_at.is_none() && same_selection(&selection, &primary) {
+            range_at = Some(ranges.len());
+        }
+        ranges.push(selection);
     }
-    Selection {
-        anchor: moved.head,
-        head: moved.head,
-        goal_col: moved.goal_col,
+    let mapped_ranges = Selections::new(ranges, range_at.unwrap_or(0)).transformed(tx);
+    if carets.is_empty() {
+        return mapped_ranges;
     }
+    let mapped_carets =
+        collapse_carets(Selections::new(carets, caret_at.unwrap_or(0)).transformed(tx));
+    let mapped_primary = if primary_is_caret {
+        mapped_carets.primary()
+    } else {
+        mapped_ranges.primary()
+    };
+    let mut items = Vec::with_capacity(mapped_carets.len() + mapped_ranges.len());
+    items.extend(mapped_carets.iter().copied());
+    items.extend(mapped_ranges.iter().copied());
+    let at = items
+        .iter()
+        .position(|selection| same_selection(selection, &mapped_primary))
+        .unwrap_or(0);
+    Selections::new(items, at)
 }
 
 fn snap_ids(ws: &mut Workspace, doc_id: DocumentId, ids: &[ViewId]) {
@@ -1706,7 +1731,7 @@ mod tests {
     use crate::selection::{Selection, Selections};
     use crate::view::ViewId;
     use kate_syntax::{Repository, Theme};
-    use kate_text::Offset;
+    use kate_text::{Edit, Offset, Transaction};
     use proptest::prelude::*;
     use proptest::test_runner::RngSeed;
     use std::path::Path;
@@ -2017,6 +2042,31 @@ mod tests {
     }
 
     #[test]
+    fn modified_lines_strips_a_shifted_line_after_undo() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("shift.txt");
+        std::fs::write(&path, b"top\ntail  ").expect("write");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        let view = ws.new_view(doc);
+        ws.documents
+            .get_mut(doc)
+            .expect("doc")
+            .config
+            .remove_trailing_spaces = TrailingSpaces::ModifiedLines;
+        set_caret(&mut ws, view, 4);
+        ws.execute(view, Command::InsertText("Z".into()))
+            .expect("type on the last line");
+        set_caret(&mut ws, view, 0);
+        ws.execute(view, Command::InsertText("\n".into()))
+            .expect("newline at the top");
+        ws.execute(view, Command::Undo).expect("undo the newline");
+        ws.execute(view, Command::Save).expect("save");
+        assert_eq!(text_of(&ws, doc), "top\nZtail");
+        assert_eq!(std::fs::read(&path).expect("bytes"), b"top\nZtail");
+    }
+
+    #[test]
     fn save_can_append_a_final_newline() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("nl.txt");
@@ -2161,6 +2211,68 @@ mod tests {
     }
 
     #[test]
+    fn mixed_set_caret_at_an_insert_stays_a_caret() {
+        let sel = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(0),
+                    head: Offset(2),
+                    goal_col: None,
+                },
+                Selection::caret(Offset(2)),
+            ],
+            1,
+        );
+        let tx = Transaction::single(Edit::insert(Offset(2), "x"));
+        let after = super::transform_foreign(&sel, &tx);
+        assert_eq!(after.len(), 2);
+        assert!(after.primary().is_caret());
+        assert_eq!(after.primary().anchor, Offset(3));
+        assert_eq!(after.primary().head, Offset(3));
+        let range = after.iter().find(|item| !item.is_caret()).expect("range");
+        assert_eq!(range.anchor, Offset(0));
+        assert_eq!(range.head, Offset(3));
+    }
+
+    #[test]
+    fn other_view_mixed_set_keeps_a_caret_past_an_insert() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view_a = ws.new_view(doc);
+        ws.execute(view_a, Command::InsertText("hello world".into()))
+            .expect("seed");
+        let view_b = ws.new_view(doc);
+        set_caret(&mut ws, view_a, 5);
+        ws.views.get_mut(view_b).expect("b").selections = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(0),
+                    head: Offset(3),
+                    goal_col: None,
+                },
+                Selection::caret(Offset(5)),
+            ],
+            1,
+        );
+        ws.execute(view_a, Command::InsertText(",".into()))
+            .expect("comma");
+        let other = &ws.views.get(view_b).expect("b").selections;
+        assert_eq!(other.len(), 2);
+        assert!(other.primary().is_caret());
+        assert_eq!(other.primary().anchor, Offset(6));
+        assert_eq!(other.primary().head, Offset(6));
+        let range = other.iter().find(|item| !item.is_caret()).expect("range");
+        assert_eq!(range.anchor, Offset(0));
+        assert_eq!(range.head, Offset(3));
+        ws.execute(view_b, Command::InsertText("!".into()))
+            .expect("bang");
+        assert_eq!(text_of(&ws, doc), "!lo,! world");
+        let first = ws.views.get(view_a).expect("a").selections.primary();
+        assert!(first.is_caret());
+        assert_eq!(first.head, Offset(5));
+    }
+
+    #[test]
     fn selection_end_inside_a_grapheme_snaps_up() {
         let buf = kate_text::TextBuffer::from_str("e\u{301}x");
         let mut sel = Selections::single(Selection {
@@ -2264,6 +2376,78 @@ mod tests {
         assert!(
             elapsed < Duration::from_secs(3),
             "ModifiedLines at {COUNT} carets took {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn mixed_selections_in_the_other_view_stay_fast() {
+        const COUNT: usize = 20_000;
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view_a = ws.new_view(doc);
+        let mut seed = String::with_capacity(COUNT * 3);
+        for index in 0..COUNT {
+            if index > 0 {
+                seed.push('\n');
+            }
+            seed.push_str("ab");
+        }
+        ws.execute(view_a, Command::InsertText(seed.clone()))
+            .expect("seed");
+        let view_b = ws.new_view(doc);
+        let carets: Vec<Selection> = (0..COUNT)
+            .map(|index| Selection::caret(Offset(index * 3)))
+            .collect();
+        ws.views.get_mut(view_a).expect("a").selections = Selections::new(carets, 0);
+        let mixed: Vec<Selection> = (0..COUNT)
+            .map(|index| {
+                let start = index * 3;
+                if index % 2 == 0 {
+                    Selection::caret(Offset(start))
+                } else {
+                    Selection {
+                        anchor: Offset(start),
+                        head: Offset(start + 2),
+                        goal_col: None,
+                    }
+                }
+            })
+            .collect();
+        ws.views.get_mut(view_b).expect("b").selections = Selections::new(mixed, 1);
+        assert_eq!(ws.views.get(view_b).expect("b").selections.len(), COUNT);
+        let started = Instant::now();
+        ws.execute(view_a, Command::InsertText("x".into()))
+            .expect("type");
+        let typed = started.elapsed();
+        let other = &ws.views.get(view_b).expect("b").selections;
+        assert_eq!(other.len(), COUNT);
+        assert!(other.iter().enumerate().all(|(index, selection)| {
+            if index % 2 == 0 {
+                selection.is_caret()
+            } else {
+                !selection.is_caret()
+            }
+        }));
+        let started = Instant::now();
+        ws.execute(view_a, Command::Undo).expect("undo");
+        let undone = started.elapsed();
+        assert_eq!(text_of(&ws, doc), seed);
+        let other = &ws.views.get(view_b).expect("b").selections;
+        assert_eq!(other.len(), COUNT);
+        assert!(other.iter().enumerate().all(|(index, selection)| {
+            if index % 2 == 0 {
+                selection.is_caret()
+            } else {
+                !selection.is_caret()
+            }
+        }));
+        assert!(
+            typed < Duration::from_secs(3),
+            "mixed foreign type at {COUNT} took {typed:?}"
+        );
+        assert!(
+            undone < Duration::from_secs(3),
+            "mixed foreign undo at {COUNT} took {undone:?}"
         );
     }
 
