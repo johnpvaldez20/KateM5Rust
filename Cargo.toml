@@ -28,6 +28,7 @@ kate-syntax = { path = "crates/kate-syntax" }
 kate-search = { path = "crates/kate-search" }
 kate-fileio = { path = "crates/kate-fileio" }
 kate-core = { path = "crates/kate-core" }
+kate-ui = { path = "crates/kate-ui" }
 
 [workspace.lints.rust]
 # No unsafe anywhere in the editor. The GUI toolkit does its own FFI; we do not.

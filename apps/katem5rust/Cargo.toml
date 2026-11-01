@@ -13,6 +13,7 @@ name = "katem5rust"
 path = "src/main.rs"
 
 [dependencies]
+kate-ui = { workspace = true }
 
 [lints]
 workspace = true
