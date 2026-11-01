@@ -8,7 +8,7 @@
 //! Ranges do not overlap.
 //! The primary index always points at one range.
 
-use kate_text::{Bias, CharRange, Offset, Transaction, transform_offset};
+use kate_text::{Bias, CharRange, Edit, Offset, Transaction, transform_offset};
 
 /// One cursor in the buffer.
 ///
@@ -125,19 +125,89 @@ impl Selections {
 
     /// Map every end through `tx`. Then normalize.
     ///
-    /// `anchor` uses left bias. `head` uses right bias.
-    /// `goal_col` stays as it is.
+    /// Each selection uses its own edit.
+    /// `anchor` uses left bias on that edit. `head` uses right bias.
+    /// Earlier edits add one running delta. `goal_col` stays as it is.
     pub fn transformed(&self, tx: &Transaction) -> Selections {
+        let edits = tx.edits();
+        let mut walk = EditWalk { index: 0, delta: 0 };
         let ranges = self
             .ranges
             .iter()
-            .map(|selection| Selection {
-                anchor: shift_offset(selection.anchor, Bias::Left, tx),
-                head: shift_offset(selection.head, Bias::Right, tx),
-                goal_col: selection.goal_col,
-            })
+            .map(|selection| walk.map_selection(selection, edits))
             .collect();
         Self::new(ranges, self.primary)
+    }
+}
+
+struct EditWalk {
+    index: usize,
+    delta: isize,
+}
+
+impl EditWalk {
+    fn map_selection(&mut self, selection: &Selection, edits: &[Edit]) -> Selection {
+        self.consume_prior(selection, edits);
+        if self.index < edits.len() && edit_belongs(&edits[self.index], selection) {
+            let edit = &edits[self.index];
+            let anchor = shift_point(
+                transform_offset(selection.anchor, Bias::Left, edit),
+                self.delta,
+            );
+            let head = shift_point(
+                transform_offset(selection.head, Bias::Right, edit),
+                self.delta,
+            );
+            self.delta = add_delta(self.delta, edit.delta());
+            self.index += 1;
+            return Selection {
+                anchor,
+                head,
+                goal_col: selection.goal_col,
+            };
+        }
+        Selection {
+            anchor: shift_point(selection.anchor, self.delta),
+            head: shift_point(selection.head, self.delta),
+            goal_col: selection.goal_col,
+        }
+    }
+
+    fn consume_prior(&mut self, selection: &Selection, edits: &[Edit]) {
+        while self.index < edits.len() && edit_is_prior(&edits[self.index], selection) {
+            self.delta = add_delta(self.delta, edits[self.index].delta());
+            self.index += 1;
+        }
+    }
+}
+
+fn edit_is_prior(edit: &Edit, selection: &Selection) -> bool {
+    let min = selection.min().0;
+    edit.old_end().0 <= min && edit.start.0 < min && !edit_belongs(edit, selection)
+}
+
+fn edit_belongs(edit: &Edit, selection: &Selection) -> bool {
+    let min = selection.min().0;
+    let max = selection.max().0;
+    let start = edit.start.0;
+    let end = edit.old_end().0;
+    if min == max {
+        return (start == min && end >= min) || (end == min && start < min);
+    }
+    start == min && end == max
+}
+
+fn add_delta(delta: isize, extra: isize) -> isize {
+    delta.saturating_add(extra)
+}
+
+fn shift_point(offset: Offset, delta: isize) -> Offset {
+    if delta > 0 {
+        Offset(offset.0.saturating_add(delta as usize))
+    } else if delta < 0 {
+        Offset(offset.0.saturating_sub(delta.unsigned_abs()))
+    } else {
+        offset
     }
 }
 
@@ -254,14 +324,6 @@ fn overlaps(left: &Selection, right: &Selection) -> bool {
 
 fn point_inside(point: usize, span: &Span) -> bool {
     span.start <= point && point < span.end
-}
-
-fn shift_offset(offset: Offset, bias: Bias, tx: &Transaction) -> Offset {
-    let mut at = offset;
-    for edit in tx.edits().iter().rev() {
-        at = transform_offset(at, bias, edit);
-    }
-    at
 }
 
 #[cfg(test)]

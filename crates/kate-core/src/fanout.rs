@@ -81,15 +81,70 @@ fn delete_with(
     sel: &Selections,
     forward: bool,
 ) -> Result<(Transaction, Selections), TransactionError> {
-    let (tx, mut after) = fan_out(buf, sel, |buffer, selection| {
-        delete_edit(buffer, selection, forward)
-    })?;
+    let sel = clamp_set(buf, sel);
+    let mut edits = Vec::new();
+    for selection in sel.iter().copied() {
+        if let Some(edit) = delete_edit(buf, selection, forward) {
+            edits.push(edit);
+        }
+    }
+    let tx = commit_deletes(edits);
+    let mut after = sel.transformed(&tx);
     after.map(|selection| Selection {
         anchor: selection.anchor,
         head: selection.head,
         goal_col: None,
     });
     Ok((tx, after))
+}
+
+/// Drop a delete that sits inside an earlier delete.
+/// Built-in deletes then build one transaction.
+fn commit_deletes(edits: Vec<Edit>) -> Transaction {
+    let edits = drop_covered_edits(edits);
+    Transaction::new(edits).unwrap_or_else(|_| Transaction::default())
+}
+
+fn drop_covered_edits(mut edits: Vec<Edit>) -> Vec<Edit> {
+    edits.sort_by(|left, right| {
+        left.start
+            .cmp(&right.start)
+            .then(right.old_end().cmp(&left.old_end()))
+    });
+    let mut kept: Vec<Edit> = Vec::with_capacity(edits.len());
+    for edit in edits {
+        keep_or_trim(&mut kept, edit);
+    }
+    kept
+}
+
+fn keep_or_trim(kept: &mut Vec<Edit>, edit: Edit) {
+    let Some(last) = kept.last() else {
+        kept.push(edit);
+        return;
+    };
+    let last_end = last.old_end().0;
+    if edit.start.0 >= last_end {
+        kept.push(edit);
+        return;
+    }
+    if edit.old_end().0 <= last_end {
+        return;
+    }
+    let skip = last_end.saturating_sub(edit.start.0);
+    let old = skip_scalars(&edit.old, skip);
+    if old.is_empty() {
+        return;
+    }
+    kept.push(Edit {
+        start: Offset(last_end),
+        old,
+        new: skip_scalars(&edit.new, skip),
+    });
+}
+
+fn skip_scalars(text: &str, skip: usize) -> String {
+    text.chars().skip(skip).collect()
 }
 
 fn delete_edit(buf: &TextBuffer, selection: Selection, forward: bool) -> Option<Edit> {
@@ -252,5 +307,117 @@ mod tests {
         assert!(tx.is_empty());
         assert_eq!(after.primary().head, Offset(2));
         assert!(after.primary().is_caret());
+    }
+
+    #[test]
+    fn typing_over_touching_selections_keeps_each_caret() {
+        let mut buf = TextBuffer::from_str("abab");
+        let sel = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(0),
+                    head: Offset(2),
+                    goal_col: None,
+                },
+                Selection {
+                    anchor: Offset(2),
+                    head: Offset(4),
+                    goal_col: None,
+                },
+            ],
+            0,
+        );
+        let (tx, after) = insert_text(&buf, &sel, "x").expect("touching ranges type");
+        buf.apply(&tx).expect("the edits match");
+        assert_eq!(buf.text().to_string(), "xx");
+        assert_eq!(after.len(), 2);
+        let heads: Vec<Offset> = after.iter().map(|selection| selection.head).collect();
+        assert_eq!(heads, vec![Offset(1), Offset(2)]);
+
+        let mut buf = TextBuffer::from_str("abab");
+        let sel = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(0),
+                    head: Offset(2),
+                    goal_col: None,
+                },
+                Selection::caret(Offset(2)),
+            ],
+            0,
+        );
+        let (tx, after) = insert_text(&buf, &sel, "x").expect("a caret at the range end types");
+        buf.apply(&tx).expect("the edits match");
+        assert_eq!(buf.text().to_string(), "xxab");
+        assert_eq!(after.len(), 2);
+        let heads: Vec<Offset> = after.iter().map(|selection| selection.head).collect();
+        assert_eq!(heads, vec![Offset(1), Offset(2)]);
+    }
+
+    #[test]
+    fn backspace_at_a_range_end_does_not_overlap() {
+        let mut buf = TextBuffer::from_str("abab");
+        let sel = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(0),
+                    head: Offset(2),
+                    goal_col: None,
+                },
+                Selection::caret(Offset(2)),
+            ],
+            1,
+        );
+        let (tx, after) = delete_backward(&buf, &sel).expect("a built-in delete returns ok");
+        buf.apply(&tx).expect("the delete matches");
+        assert_eq!(buf.text().to_string(), "ab");
+        assert!(after.iter().all(|selection| selection.is_caret()));
+        assert!(after.primary().head.0 <= buf.len().0);
+    }
+
+    #[test]
+    fn typing_and_deleting_across_touching_carets() {
+        let text = "abcd";
+        let sel = Selections::new(
+            vec![Selection::caret(Offset(1)), Selection::caret(Offset(2))],
+            0,
+        );
+        let mut buf = TextBuffer::from_str(text);
+        let (tx, after) = insert_text(&buf, &sel, "x").expect("touching carets type");
+        assert_eq!(tx.edits().len(), 2);
+        buf.apply(&tx).expect("the edits match");
+        assert_eq!(buf.text().to_string(), "axbxcd");
+        assert_eq!(after.len(), 2);
+        let heads: Vec<Offset> = after.iter().map(|selection| selection.head).collect();
+        assert_eq!(heads, vec![Offset(2), Offset(4)]);
+
+        let mut buf = TextBuffer::from_str(text);
+        let (tx, after) = delete_backward(&buf, &sel).expect("touching carets delete");
+        assert_eq!(tx.edits().len(), 2);
+        buf.apply(&tx).expect("the deletes match");
+        assert_eq!(buf.text().to_string(), "cd");
+        assert_eq!(after.len(), 1);
+        assert_eq!(after.primary().head, Offset(0));
+    }
+
+    #[test]
+    fn typing_with_twenty_thousand_carets_stays_fast() {
+        const COUNT: usize = 20_000;
+        let text = "a".repeat(COUNT * 2);
+        let ranges: Vec<Selection> = (0..COUNT)
+            .map(|index| Selection::caret(Offset(index * 2)))
+            .collect();
+        let sel = Selections::new(ranges, 0);
+        let buf = TextBuffer::from_str(&text);
+        let started = std::time::Instant::now();
+        let (tx, after) = insert_text(&buf, &sel, "x").expect("many carets type");
+        let elapsed = started.elapsed();
+        assert_eq!(tx.edits().len(), COUNT);
+        assert_eq!(after.len(), COUNT);
+        assert!(after.iter().all(|selection| selection.is_caret()));
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "typing {COUNT} carets took {elapsed:?}"
+        );
     }
 }

@@ -147,18 +147,20 @@ fn place_vertical(
 ) -> Place {
     let width = tab_width(ctx);
     let current = buf.line_col(head);
-    let current_line = line_str(buf, current.line);
-    let goal_col = goal.unwrap_or_else(|| to_virtual(&current_line, current.col, width));
+    let goal_col = goal.unwrap_or_else(|| {
+        let text = line_prefix(buf, current.line, current.col);
+        to_virtual(&text, current.col, width)
+    });
     let last = buf.line_count().saturating_sub(1);
     let target = shift_line(current.line, last, delta);
-    let text = line_str(buf, target);
+    let text = line_prefix(buf, target, goal_col);
     let col = from_virtual(&text, goal_col, width);
-    let offset = buf.offset(LineCol {
+    let raw = buf.offset(LineCol {
         line: target,
         col: u32::try_from(col).unwrap_or(u32::MAX),
     });
     Place {
-        offset,
+        offset: snap_floor(buf, raw),
         goal: Some(goal_col),
     }
 }
@@ -216,10 +218,11 @@ fn cell_width(ch: char, virtual_col: u32, width: u32) -> u32 {
 fn line_edge(buf: &TextBuffer, head: Offset, end: bool) -> Offset {
     let place = buf.line_col(head);
     let col = if end { u32::MAX } else { 0 };
-    buf.offset(LineCol {
+    let raw = buf.offset(LineCol {
         line: place.line,
         col,
-    })
+    });
+    if end { snap_floor(buf, raw) } else { raw }
 }
 
 fn smart_home(buf: &TextBuffer, head: Offset) -> Offset {
@@ -240,64 +243,60 @@ fn smart_home_col(line: &str, col: usize) -> usize {
 }
 
 /// Return the previous grapheme boundary. The offset stays inside the buffer.
+///
+/// The read is a short slice around the cursor. It does not copy the whole line.
 pub(crate) fn grapheme_before(buf: &TextBuffer, offset: Offset) -> Offset {
     let len = buf.len().0;
     let at = offset.0.min(len);
     if at == 0 {
         return Offset(0);
     }
-    let (window, rel) = window_at(buf, Offset(at));
-    Offset((window.base + prev_bound(&window.text, rel)).min(len))
+    let mut radius = 8usize;
+    loop {
+        let start = at.saturating_sub(radius);
+        let rel = at - start;
+        let text = copy_text(buf, start, at);
+        let prev = prev_bound(&text, rel);
+        if prev > 0 || start == 0 || radius >= 256 {
+            return Offset(start + prev);
+        }
+        radius = radius.saturating_mul(2);
+    }
 }
 
 /// Return the next grapheme boundary. The offset stays inside the buffer.
+///
+/// The read is a short slice around the cursor. It does not copy the whole line.
 pub(crate) fn grapheme_after(buf: &TextBuffer, offset: Offset) -> Offset {
     let len = buf.len().0;
     let at = offset.0.min(len);
     if at == len {
         return Offset(len);
     }
-    let (window, rel) = window_at(buf, Offset(at));
-    Offset((window.base + next_bound(&window.text, rel)).min(len))
+    let mut radius = 8usize;
+    loop {
+        let end = at.saturating_add(radius).min(len);
+        let text = copy_text(buf, at, end);
+        let next = next_bound(&text, 0);
+        let abs = at + next;
+        if abs < end || end == len || radius >= 256 {
+            return Offset(abs.min(len));
+        }
+        radius = radius.saturating_mul(2);
+    }
 }
 
-struct Window {
-    base: usize,
-    text: String,
-}
-
-fn window_at(buf: &TextBuffer, offset: Offset) -> (Window, usize) {
-    let len = buf.len().0;
-    let at = offset.0.min(len);
-    let place = buf.line_col(Offset(at));
-    let start_line = if place.col == 0 && place.line > 0 {
-        place.line - 1
+/// Move an offset that sits inside a cluster back to the cluster start.
+fn snap_floor(buf: &TextBuffer, offset: Offset) -> Offset {
+    let at = clamp_offset(buf, offset);
+    if at.0 == 0 {
+        return at;
+    }
+    let prev = grapheme_before(buf, at);
+    if grapheme_after(buf, prev).0 == at.0 {
+        at
     } else {
-        place.line
-    };
-    let base = buf
-        .offset(LineCol {
-            line: start_line,
-            col: 0,
-        })
-        .0;
-    let end = break_end(buf, place.line);
-    let text = copy_text(buf, base, end);
-    (Window { base, text }, at.saturating_sub(base))
-}
-
-fn break_end(buf: &TextBuffer, line: u32) -> usize {
-    let end = buf
-        .offset(LineCol {
-            line,
-            col: u32::MAX,
-        })
-        .0;
-    let len = buf.len().0;
-    if end < len && buf.text().char(end) == '\n' {
-        end + 1
-    } else {
-        end
+        prev
     }
 }
 
@@ -325,30 +324,29 @@ fn prev_bound(text: &str, rel: usize) -> usize {
     start
 }
 
-fn is_bound(text: &str, rel: usize) -> bool {
-    let mut start = 0usize;
-    for cluster in text.graphemes(true) {
-        if start == rel {
-            return true;
-        }
-        start += cluster.chars().count();
-        if start > rel {
-            return false;
-        }
-    }
-    start == rel
-}
-
 fn snap(buf: &TextBuffer, offset: Offset, forward: bool) -> Offset {
-    let (window, rel) = window_at(buf, offset);
-    if is_bound(&window.text, rel) {
-        return clamp_offset(buf, offset);
+    let at = clamp_offset(buf, offset);
+    let prev = grapheme_before(buf, at);
+    if grapheme_after(buf, prev).0 == at.0 {
+        return at;
     }
     if forward {
-        grapheme_after(buf, offset)
+        grapheme_after(buf, at)
     } else {
-        grapheme_before(buf, offset)
+        prev
     }
+}
+
+fn line_prefix(buf: &TextBuffer, line: u32, chars: u32) -> String {
+    let start = buf.offset(LineCol { line, col: 0 }).0;
+    let end = buf
+        .offset(LineCol {
+            line,
+            col: u32::MAX,
+        })
+        .0;
+    let take = usize::try_from(chars).unwrap_or(usize::MAX);
+    copy_text(buf, start, start.saturating_add(take).min(end))
 }
 
 fn clamp_offset(buf: &TextBuffer, offset: Offset) -> Offset {
@@ -881,6 +879,104 @@ mod tests {
         move_all(&buf, &mut sel, Movement::DocEnd, Extend::No, &ctx());
         assert_eq!(sel.len(), 1);
         assert_eq!(sel.primary().head, buf.len());
+    }
+
+    #[test]
+    fn vertical_move_does_not_land_inside_a_grapheme() {
+        let buf = TextBuffer::from_str("abc\ne\u{301}x");
+        let moved = move_selection(
+            &buf,
+            Selection::caret(Offset(1)),
+            Movement::Down,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(moved.head, Offset(4));
+        assert_eq!(moved.goal_col, Some(1));
+        assert_ne!(moved.head, Offset(5));
+    }
+
+    #[test]
+    fn line_end_and_vertical_move_do_not_split_crlf() {
+        let buf = TextBuffer::from_str("a\r\nb");
+        let end = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::LineEnd,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(end.head, Offset(1));
+        assert_ne!(end.head, Offset(2));
+
+        let buf = TextBuffer::from_str("ab\n\r\nc");
+        let down = move_selection(
+            &buf,
+            Selection::caret(Offset(1)),
+            Movement::Down,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(down.head, Offset(3));
+        assert_ne!(down.head, Offset(4));
+    }
+
+    #[test]
+    fn word_right_crosses_non_ascii_letters() {
+        let buf = TextBuffer::from_str("héllo world");
+        let moved = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(moved.head, Offset(6));
+    }
+
+    #[test]
+    fn vertical_move_expands_tabs_using_tab_width() {
+        let buf = TextBuffer::from_str("0123456789\n\t\tXXXX");
+        let start = Selection::caret(Offset(4));
+        let narrow = move_selection(
+            &buf,
+            start,
+            Movement::Down,
+            Extend::No,
+            &MoveContext { tab_width: 4 },
+        );
+        let wide = move_selection(
+            &buf,
+            start,
+            Movement::Down,
+            Extend::No,
+            &MoveContext { tab_width: 8 },
+        );
+        assert_eq!(narrow.head, Offset(12));
+        assert_eq!(wide.head, Offset(11));
+        assert_ne!(narrow.head, wide.head);
+        assert_eq!(narrow.goal_col, Some(4));
+        assert_eq!(wide.goal_col, Some(4));
+    }
+
+    #[test]
+    fn right_on_a_long_line_stays_fast() {
+        const COUNT: usize = 20_000;
+        let text = "a".repeat(COUNT * 2);
+        let buf = TextBuffer::from_str(&text);
+        let ranges: Vec<Selection> = (0..COUNT)
+            .map(|index| Selection::caret(Offset(index)))
+            .collect();
+        let mut sel = Selections::new(ranges, 0);
+        let started = std::time::Instant::now();
+        move_all(&buf, &mut sel, Movement::Right, Extend::No, &ctx());
+        let elapsed = started.elapsed();
+        assert_eq!(sel.len(), COUNT);
+        assert_eq!(sel.primary().head, Offset(1));
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "right on {COUNT} carets took {elapsed:?}"
+        );
     }
 
     #[test]
