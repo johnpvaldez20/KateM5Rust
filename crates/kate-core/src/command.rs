@@ -23,6 +23,10 @@ pub enum Command {
     InsertText(String),
     /// Insert a line break at each selection.
     Newline,
+    /// Add one indent unit on each touched line.
+    Indent,
+    /// Remove one indent unit from each touched line.
+    Unindent,
     /// Delete one grapheme before a caret, or delete a selection.
     DeleteBackward,
     /// Delete one grapheme after a caret, or delete a selection.
