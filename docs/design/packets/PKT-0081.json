@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 80,
     "branch": "pkt/PKT-0081-load-regular-file",
     "base_sha": "c0fc9c3ae6a04934327979fb2734c0ef249458c2"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/80"
   },
   "lane": {
     "runtime": "CLOUD",
@@ -85,8 +85,8 @@
       "crates/kate-core/src/view.rs",
       "crates/kate-core/src/command.rs",
       "crates/kate-core/src/workspace.rs",
-    "crates/kate-fileio/src/decode.rs",
-    "crates/kate-fileio/src/save.rs"
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-fileio/src/save.rs"
     ],
     "crates_touched": [
       "kate-fileio"
