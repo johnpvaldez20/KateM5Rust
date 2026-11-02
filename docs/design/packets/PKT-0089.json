@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 89,
     "branch": "pkt/PKT-0089-command-notice-call",
     "base_sha": "1aa4d8f2fdeee900340eddac792f4b5bde81f105"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/89"
   },
   "lane": {
     "runtime": "CLOUD",
