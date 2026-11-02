@@ -247,6 +247,19 @@ mod tests {
     }
 
     #[test]
+    fn wrap_finds_a_hit_on_the_other_side() {
+        let buf = TextBuffer::from_str("aba");
+        let mut bar = sample("a", "", FindMode::Plain, true);
+        bar.wrap = true;
+        let hit = bar
+            .find_from(&buf, Offset(0))
+            .expect("plain search does not fail")
+            .expect("wrap finds the match at offset 2");
+        assert_eq!(hit.range.start(), Offset(2));
+        assert_eq!(hit.range.end(), Offset(3));
+    }
+
+    #[test]
     fn escape_replacement_expands_and_keeps_an_unknown_name() {
         let mut buf = TextBuffer::from_str("a");
         let bar = sample("a", "\\n${head}", FindMode::EscapeSequences, false);
