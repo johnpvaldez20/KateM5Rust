@@ -13,6 +13,7 @@ mod command;
 mod config;
 mod document;
 mod fanout;
+mod fuzzy;
 mod movement;
 mod selection;
 mod syntax_cache;
@@ -28,6 +29,7 @@ pub use document::{
     DiskChange, Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, TrailingSpaces,
 };
 pub use fanout::{delete_backward, delete_forward, fan_out, insert_text};
+pub use fuzzy::{FuzzyHit, fuzzy_match};
 pub use movement::{Extend, MoveContext, Movement, move_all, move_selection};
 pub use selection::{Selection, Selections};
 pub use syntax_cache::SyntaxCache;
