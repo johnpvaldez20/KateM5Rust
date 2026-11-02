@@ -70,6 +70,18 @@ pub enum DiskChange {
     Created,
 }
 
+impl FileState {
+    /// Set `disk_change` from the file that is now on disk.
+    pub fn note_disk(&mut self, exists: bool, digest: [u8; 32]) {
+        self.disk_change = match exists {
+            false => Some(DiskChange::Deleted),
+            true if self.disk_change == Some(DiskChange::Deleted) => Some(DiskChange::Created),
+            true if digest != self.digest_on_disk => Some(DiskChange::Modified),
+            true => None,
+        };
+    }
+}
+
 /// A mark anchored at a line start.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Mark {
