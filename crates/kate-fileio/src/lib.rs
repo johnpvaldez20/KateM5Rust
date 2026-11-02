@@ -14,7 +14,9 @@ mod encode;
 mod load;
 mod save;
 
-pub use decode::{DecodeError, DecodeOptions, Decoded, Encoding, LineEnding, decode};
+pub use decode::{
+    DecodeError, DecodeOptions, Decoded, Encoding, LineEnding, decode, encoding_for_label,
+};
 pub use encode::{EncodeError, EncodeOptions, encode};
 pub use load::{LoadError, Loaded, load};
 pub use save::{SaveError, SaveStep, Saved, save};
