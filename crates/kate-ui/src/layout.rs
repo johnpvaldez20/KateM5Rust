@@ -12,6 +12,10 @@ use gpui::Pixels;
 #[cfg(not(target_os = "macos"))]
 use shim::Pixels;
 
+#[cfg_attr(not(test), allow(dead_code))]
+#[path = "notice.rs"]
+mod notice;
+
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 /// Return the half-open line range that intersects the viewport.
 ///
