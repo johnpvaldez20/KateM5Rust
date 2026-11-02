@@ -154,6 +154,27 @@ This wave does not add a packet to keep those edits.
 | PKT-0067 | `kate-search`: wrap flag on `FindBar` | CLOUD | 0050 |
 | PKT-0068 | `kate-ui` layout: visual row count. Not session or paint. | CLOUD | 0013 |
 
+## Wave PKT-0069
+
+These packets leave PKT-0051 and PKT-0067 files unchanged.
+PKT-0051 owns `files.rs`, `lib.rs`, and `session.rs`.
+PKT-0067 owns `bar.rs`.
+The `FindBar` wrap call stays in that file.
+The `gpui-tests` feature stays an owner Mac step.
+Their files do not overlap.
+The index is `docs/design/WAVE-0069.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0069 | `kate-ui`: name a command error | CLOUD | 0013, 0068 |
+| PKT-0070 | `kate-ui`: selection spans for the visible lines | CLOUD | 0013, 0015 |
+| PKT-0071 | `kate-ui`: paint the selection after the line background | LOCAL | 0013, 0015, 0045 |
+| PKT-0072 | `kate-syntax`: selection color off the line background | CLOUD | 0001, 0007, 0009 |
+| PKT-0073 | `kate-core`: store indent folds on the view | CLOUD | 0012, 0065 |
+| PKT-0074 | `kate-core`: insert a word completion | CLOUD | 0018, 0055, 0063, 0066 |
+| PKT-0075 | `kate-core`: classify a change on disk | CLOUD | 0012, 0017 |
+| PKT-0076 | `kate-core`: move to the matching bracket | CLOUD | 0011, 0052 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
