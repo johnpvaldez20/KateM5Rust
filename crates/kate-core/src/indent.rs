@@ -215,4 +215,50 @@ mod tests {
         let partial = unindent_lines(&TextBuffer::from_str("  ab"), &[0], &config).expect("part");
         assert_eq!(partial.edits()[0].old, "  ");
     }
+
+    #[test]
+    fn spaces_mode_strips_one_tab() {
+        let config = DocumentConfig::default();
+        let tab = unindent_lines(&TextBuffer::from_str("\tab"), &[0], &config).expect("tab");
+        assert_eq!(tab.edits().len(), 1);
+        assert_eq!(tab.edits()[0].start, Offset(0));
+        assert_eq!(tab.edits()[0].old, "\t");
+        assert_eq!(tab.edits()[0].new, "");
+        let mixed =
+            unindent_lines(&TextBuffer::from_str("\t    ab"), &[0], &config).expect("mixed");
+        assert_eq!(mixed.edits().len(), 1);
+        assert_eq!(mixed.edits()[0].old, "\t");
+        let spaces =
+            unindent_lines(&TextBuffer::from_str("    ab"), &[0], &config).expect("spaces");
+        assert_eq!(spaces.edits().len(), 1);
+        assert_eq!(spaces.edits()[0].old, "    ");
+    }
+
+    #[test]
+    fn tab_mode_strips_leading_spaces() {
+        let config = DocumentConfig {
+            indent_with_spaces: false,
+            indent_width: 4,
+            ..DocumentConfig::default()
+        };
+        let four = unindent_lines(&TextBuffer::from_str("    ab"), &[0], &config).expect("four");
+        assert_eq!(four.edits().len(), 1);
+        assert_eq!(four.edits()[0].start, Offset(0));
+        assert_eq!(four.edits()[0].old, "    ");
+        assert_eq!(four.edits()[0].new, "");
+        let two = unindent_lines(&TextBuffer::from_str("  \tab"), &[0], &config).expect("two");
+        assert_eq!(two.edits().len(), 1);
+        assert_eq!(two.edits()[0].old, "  ");
+        let tab = unindent_lines(&TextBuffer::from_str("\tab"), &[0], &config).expect("tab");
+        assert_eq!(tab.edits().len(), 1);
+        assert_eq!(tab.edits()[0].old, "\t");
+        let narrow = DocumentConfig {
+            indent_with_spaces: false,
+            indent_width: 0,
+            ..DocumentConfig::default()
+        };
+        let one = unindent_lines(&TextBuffer::from_str("  ab"), &[0], &narrow).expect("narrow");
+        assert_eq!(one.edits().len(), 1);
+        assert_eq!(one.edits()[0].old, " ");
+    }
 }
