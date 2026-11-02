@@ -11,6 +11,9 @@ use kate_text::CharRange;
 use crate::document::DocumentId;
 use crate::selection::Selections;
 
+#[path = "fold.rs"]
+mod fold;
+
 slotmap::new_key_type! {
     /// Key for one view in a [`crate::Workspace`].
     pub struct ViewId;

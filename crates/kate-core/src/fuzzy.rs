@@ -34,12 +34,12 @@ pub fn fuzzy_match(pattern: &str, candidate: &str) -> Option<FuzzyHit> {
     }
     let chars: Vec<char> = candidate.chars().collect();
     let mut positions = Vec::new();
-    let mut score = 0;
+    let mut score: i32 = 0;
     let mut start = 0;
     let mut previous_match = None;
     for pattern_char in pattern.chars() {
         let index = next_index(&chars, start, pattern_char)?;
-        score += score_one(&chars, index, previous_match);
+        score = score.saturating_add(score_one(&chars, index, previous_match));
         positions.push(index);
         previous_match = Some(index);
         start = index + 1;
@@ -75,14 +75,14 @@ fn gap_adjust(previous_match: Option<usize>, index: usize) -> i32 {
     let Some(previous_match) = previous_match else {
         return 0;
     };
-    let skipped = i32::try_from(index - previous_match - 1).expect("a scalar gap fits in i32");
+    let skipped = i32::try_from(index - previous_match - 1).unwrap_or(i32::MAX);
     let consecutive = i32::from(index == previous_match + 1) * 8;
-    consecutive - skipped
+    consecutive.saturating_sub(skipped)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{FuzzyHit, fuzzy_match};
+    use super::{FuzzyHit, fuzzy_match, gap_adjust};
 
     #[test]
     fn foo_bar_scores_the_documented_hits() {
@@ -111,6 +111,14 @@ mod tests {
                 score: 0,
                 positions: Vec::new(),
             })
+        );
+    }
+
+    #[test]
+    fn a_huge_gap_does_not_panic() {
+        assert_eq!(
+            gap_adjust(Some(0), usize::MAX),
+            0i32.saturating_sub(i32::MAX)
         );
     }
 }
