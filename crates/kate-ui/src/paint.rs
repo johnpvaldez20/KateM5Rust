@@ -288,6 +288,8 @@ fn draw_editor(
         .filter(|line| shaped.get(*line, snap.revision).is_none())
         .collect();
     let plans = root.update(cx, |root, cx| root.plans_for(&misses, plain_from, cx));
+    let drew_plain = plain_from.is_some_and(|start| plans.iter().any(|plan| plan.index >= start));
+    root.update(cx, |root, _| root.note_plain_draw(drew_plain));
     let highlight_micros = micros(highlight_started.elapsed());
     let font_size = px(FONT_SIZE);
     let mut shape_micros = 0u64;

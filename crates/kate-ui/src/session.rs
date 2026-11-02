@@ -183,6 +183,15 @@ impl ColorGate {
         self.redraw_requested
     }
 
+    /// A cache miss was drawn with no theme spans, and syntax already covers it.
+    fn note_plain_draw(&mut self, drew_plain: bool) {
+        let last = self.visible_last.saturating_sub(1);
+        if drew_plain && self.checkpoint > last {
+            self.colorize_visible = true;
+            self.color_at = self.visible_first;
+        }
+    }
+
     /// Record that this paint still has theme spans to draw.
     ///
     /// `apply_frame` asks GPUI for another frame when this returns true.
@@ -235,12 +244,6 @@ impl ColorGate {
                 None => (step.plain_from, 0..0),
             }
         };
-        // A plain viewport inside an already highlighted region must be drawn again in color.
-        let drew_plain = plain_from.is_some_and(|start| start <= last);
-        if drew_plain && self.checkpoint > last && !colorize {
-            self.colorize_visible = true;
-            self.color_at = first;
-        }
         let want_catch_up = self.checkpoint <= last;
         if want_catch_up {
             self.catch_up_to = last;
@@ -374,6 +377,10 @@ impl WindowRoot {
     /// Highlight only a short span from the checkpoint.
     ///
     /// A viewport past that span is left plain. Catch-up runs after paint.
+    pub(crate) fn note_plain_draw(&mut self, drew_plain: bool) {
+        self.gate.note_plain_draw(drew_plain);
+    }
+
     pub(crate) fn prepare_highlight(
         &mut self,
         first: u32,
@@ -998,6 +1005,10 @@ fn paint_viewport(view: &mut Viewport<'_>, first: u32, last: u32) -> Vec<paint::
         view.shaped
             .insert(plan.index, plan.revision, crate::ShapedLine::default());
     }
+    let drew_plain = prep
+        .plain_from
+        .is_some_and(|start| plans.iter().any(|plan| plan.index >= start));
+    view.gate.note_plain_draw(drew_plain);
     let _ = view.gate.end_paint();
     plans
 }
