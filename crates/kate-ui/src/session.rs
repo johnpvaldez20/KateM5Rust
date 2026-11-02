@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 John Valdez
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#![cfg(target_os = "macos")]
+
 //! The window, the scroll position, and the IME composition.
 //!
 //! The document stays read-only. Marked text is drawn on top of the caret.

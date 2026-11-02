@@ -28,8 +28,8 @@
       }
     },
     "worker": {
-      "agent_id": "cursor-local-coder-01",
-      "role": "CODER",
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
       "runtime": "LOCAL",
       "host": {
         "kind": "OWNER_MACBOOK",
@@ -38,10 +38,10 @@
         "arch": "aarch64"
       },
       "model": {
-        "provider": "ANTHROPIC",
-        "name": "claude-opus-5-thinking-high",
+        "provider": "XAI",
+        "name": "grok-4.7",
         "settings": {
-          "reasoning_effort": "high"
+          "reasoning_effort": "xhigh"
         }
       },
       "tool": {
@@ -51,13 +51,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 13,
+    "issue_number": 33,
     "branch": "pkt/PKT-0013-ui-gpui-spike",
-    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+    "base_sha": "be82f302a77e11df558f8790fbb849f2faad219b"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/13"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/33"
   },
   "lane": {
     "runtime": "LOCAL",
@@ -74,7 +74,10 @@
     "allowed_files": [
       "crates/kate-ui/",
       "apps/katem5rust/",
-      "Cargo.toml"
+      "Cargo.toml",
+      "Cargo.lock",
+      ".github/workflows/",
+      "tools/gatecheck/src/spdx.rs"
     ],
     "forbidden_paths": [
       "upstream/",
@@ -111,7 +114,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output)."
+    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output). gpui is a macOS-only dependency. On any other target, run() prints an error and exits. The Linux product-target check excludes kate-ui and katem5rust so that check does not run the Metal build script."
   },
   "verification_plan": {
     "commands": [

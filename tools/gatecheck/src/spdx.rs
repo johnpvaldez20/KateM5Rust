@@ -17,6 +17,7 @@ const SPDX_BY_PREFIX: &[(&str, &str)] = &[
     ("crates/kate-fileio/", "LGPL-2.1-or-later"),
     ("crates/kate-search/", "LGPL-2.1-or-later"),
     ("crates/kate-core/", "LGPL-2.1-or-later"),
+    ("crates/kate-ui/", "GPL-3.0-or-later"),
     ("apps/", "GPL-3.0-or-later"),
     ("tools/", "GPL-3.0-or-later"),
 ];

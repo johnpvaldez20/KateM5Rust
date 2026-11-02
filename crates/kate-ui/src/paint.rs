@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 John Valdez
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#![cfg(target_os = "macos")]
+
 //! Paint one view. The element holds layout caches only.
 
 use std::ops::Range;

@@ -6,11 +6,13 @@
 use crate::FrameSample;
 
 /// Serialize one sample. The caller prints it when profiling is on.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub(crate) fn sample_json(sample: &FrameSample) -> String {
     serde_json::to_string(sample).expect("frame sample")
 }
 
 /// Write one JSON line to stderr when `KATEM5_PROFILE` is `1`.
+#[cfg(target_os = "macos")]
 pub(crate) fn write_sample(sample: &FrameSample) {
     let enabled =
         std::env::var_os("KATEM5_PROFILE").is_some_and(|value| value == std::ffi::OsStr::new("1"));

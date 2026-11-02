@@ -5,9 +5,14 @@
 
 use std::ops::Range;
 
-use gpui::Pixels;
 use kate_core::Scroll;
 
+#[cfg(target_os = "macos")]
+use gpui::Pixels;
+#[cfg(not(target_os = "macos"))]
+use shim::Pixels;
+
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 /// Return the half-open line range that intersects the viewport.
 ///
 /// `scroll.first_line` is the first line. A partial line at the bottom is included.
@@ -44,10 +49,14 @@ pub(crate) fn visible_line_range(
 #[cfg(test)]
 mod tests {
     use super::visible_line_range;
-    use crate::ShapedLineCache;
-    use gpui::{ShapedLine, px};
+    use crate::{ShapedLine, ShapedLineCache};
     use kate_core::Scroll;
     use kate_text::Revision;
+
+    #[cfg(not(target_os = "macos"))]
+    use super::shim::px;
+    #[cfg(target_os = "macos")]
+    use gpui::px;
 
     fn scroll(first_line: u32, first_col: u32) -> Scroll {
         Scroll {
@@ -99,7 +108,11 @@ mod tests {
             lines: Default::default(),
         };
         let revision = Revision(1);
-        cache.insert(4, revision, ShapedLine::default());
+        #[cfg(target_os = "macos")]
+        let shaped = ShapedLine::default();
+        #[cfg(not(target_os = "macos"))]
+        let shaped = ShapedLine;
+        cache.insert(4, revision, shaped);
         assert!(
             cache.get(4, revision).is_some(),
             "same line and revision is a hit"
@@ -109,5 +122,34 @@ mod tests {
             "a new buffer revision is a miss"
         );
         assert!(cache.get(5, revision).is_none(), "another line is a miss");
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+#[allow(dead_code)]
+mod shim {
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    pub(crate) struct Pixels(f32);
+
+    impl Pixels {
+        pub(crate) const ZERO: Self = Self(0.0);
+    }
+
+    impl PartialOrd for Pixels {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            self.0.partial_cmp(&other.0)
+        }
+    }
+
+    impl std::ops::Div for Pixels {
+        type Output = f32;
+
+        fn div(self, rhs: Self) -> f32 {
+            self.0 / rhs.0
+        }
+    }
+
+    pub(crate) fn px(value: f32) -> Pixels {
+        Pixels(value)
     }
 }
