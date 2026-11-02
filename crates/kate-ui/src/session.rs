@@ -188,8 +188,9 @@ impl ColorGate {
 
     /// A cache miss was drawn with no theme spans, and syntax already covers it.
     ///
-    /// `first_plain` is the first such line. Coloring resumes there.
-    /// It does not return to the top line when the miss is further down.
+    /// `first_plain` is the first such line.
+    /// An in-viewport cursor keeps its place for a tail and moves back for a hole.
+    /// A cursor outside the viewport resumes at the first visible line.
     fn note_plain_draw(&mut self, first_plain: Option<u32>) {
         let Some(line) = first_plain else {
             return;
@@ -496,7 +497,7 @@ impl WindowRoot {
         let model = self.model.clone();
         let doc = self.doc;
         if let Some(hl) = self.hl.as_mut() {
-            model.update(cx, |app, _| {
+            with_app(&model, cx, |app| {
                 if let Some(document) = app.workspace.documents.get_mut(doc) {
                     document.syntax.ensure(&document.buffer, hl, through);
                 }
@@ -526,10 +527,11 @@ impl WindowRoot {
         // A positive wheel delta moves the document toward line 0.
         self.scroll_y = (self.scroll_y - f32::from(delta.y)).max(0.0);
         self.scroll_x = (self.scroll_x - f32::from(delta.x)).clamp(0.0, 20_000.0);
-        let line_count = self.model.update(cx, |app, _| {
+        let doc = self.doc;
+        let line_count = with_app(&self.model, cx, |app| {
             app.workspace
                 .documents
-                .get(self.doc)
+                .get(doc)
                 .map(|document| document.buffer.line_count())
                 .unwrap_or(1)
         });
@@ -542,7 +544,7 @@ impl WindowRoot {
         let column = f32::from(self.column_width).max(1.0);
         let first_col = (self.scroll_x / column).floor() as u32;
         let view = self.view;
-        self.model.update(cx, |app, _| {
+        with_app(&self.model, cx, |app| {
             let _ = app.workspace.execute(view, Command::ScrollTo(first_line));
             if let Some(state) = app.workspace.views.get_mut(view) {
                 state.scroll.first_col = first_col;
@@ -1276,14 +1278,44 @@ mod tests {
     }
 
     #[test]
+    fn scroll_ten_lines_then_idle_colors_every_visible_line() {
+        let (mut workspace, doc, mut hl) = rust_buffer(120);
+        let mut gate = ColorGate::default();
+        let mut shaped = crate::ShapedLineCache::default();
+        let font = crate::paint::editor_font();
+        let foreground = crate::paint::colors_from_theme(&workspace.theme).foreground;
+        let mut view = open_viewport(
+            &mut workspace,
+            doc,
+            &mut hl,
+            &mut gate,
+            &mut shaped,
+            &font,
+            foreground,
+        );
+        // Syntax already covers the later viewport. The checkpoint stays ahead of it.
+        let _ = paint_viewport(&mut view, 90, 119);
+        catch_up_viewport(&mut view);
+        view.gate.note_scroll();
+        let _ = paint_viewport(&mut view, 0, 39);
+        view.gate.note_scroll();
+        let _ = paint_viewport(&mut view, 10, 49);
+        finish_colors(&mut view, 10, 49);
+    }
+
+    /// `gpui` feature `test-support` also enables Wayland and X11.
+    /// Those links need libraries the macOS runner does not provide.
+    /// Opt in with `cargo test -p kate-ui --features gpui-tests`.
+    #[cfg(feature = "gpui-tests")]
+    #[test]
     fn apply_frame_requests_an_animation_frame_while_coloring_is_pending() {
-        let (root, cx) = open_long_root(80);
+        let (root, mut cx) = open_long_root(80);
         reset_animation_frames();
         cx.update(|window, app| {
             window.draw(app).clear();
         });
         assert_eq!(animation_frames(), 0, "a plain paint requests no frame");
-        catch_up_until_color(&root, cx);
+        catch_up_until_color(&root, &mut cx);
         reset_animation_frames();
         cx.update(|window, app| {
             window.draw(app).clear();
@@ -1296,9 +1328,10 @@ mod tests {
         cx.quit();
     }
 
+    #[cfg(feature = "gpui-tests")]
     #[test]
     fn panic_inside_model_update_keeps_the_window_root_and_the_caches() {
-        let (root, cx) = open_long_root(40);
+        let (root, mut cx) = open_long_root(40);
         let revision = kate_text::Revision(7);
         root.update(cx, |this, _| {
             this.shaped.insert(9, revision, gpui::ShapedLine::default());
@@ -1321,12 +1354,8 @@ mod tests {
         cx.quit();
     }
 
-    fn open_long_root(
-        lines: u32,
-    ) -> (
-        gpui::Entity<super::WindowRoot>,
-        &'static mut gpui::VisualTestContext,
-    ) {
+    #[cfg(feature = "gpui-tests")]
+    fn open_long_root(lines: u32) -> (gpui::Entity<super::WindowRoot>, gpui::VisualTestContext) {
         let path =
             std::env::temp_dir().join(format!("katem5-pkt0045-{}-{lines}.rs", std::process::id()));
         let mut body = String::new();
@@ -1335,18 +1364,22 @@ mod tests {
         }
         std::fs::write(&path, body).expect("fixture");
         let mut app = gpui::TestAppContext::single();
-        let (root, cx) = app.add_window_view(|window, cx| {
+        let window = app.add_window(|window, cx| {
             let focus = cx.focus_handle();
             focus.focus(window);
             super::WindowRoot::open(cx, Some(path.clone()), focus)
         });
-        let path_for_quit = path.clone();
+        let root = window.root(&mut app).expect("window root");
+        let mut cx = gpui::VisualTestContext::from_window(window.into(), &app);
+        cx.run_until_parked();
+        let path_for_quit = path;
         cx.on_quit(move || {
             let _ = std::fs::remove_file(path_for_quit);
         });
         (root, cx)
     }
 
+    #[cfg(feature = "gpui-tests")]
     fn catch_up_until_color(
         root: &gpui::Entity<super::WindowRoot>,
         cx: &mut gpui::VisualTestContext,
@@ -1365,10 +1398,12 @@ mod tests {
         panic!("catch-up did not leave coloring pending");
     }
 
+    #[cfg(feature = "gpui-tests")]
     fn reset_animation_frames() {
         ANIMATION_FRAMES.with(|count| count.set(0));
     }
 
+    #[cfg(feature = "gpui-tests")]
     fn animation_frames() -> u32 {
         ANIMATION_FRAMES.with(|count| count.get())
     }

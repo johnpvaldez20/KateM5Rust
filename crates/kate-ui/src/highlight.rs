@@ -35,9 +35,10 @@ pub(crate) struct HighlightStep {
 /// `visible_first..visible_last` is the viewport. `visible_last` is exclusive.
 /// `plain_line` is the first visible line drawn with no theme spans.
 ///
-/// A plain line before `color_at` is a hole. Coloring resumes at that hole.
-/// A plain line at or after `color_at` is the tail. The cursor stays.
-/// A cursor outside the viewport starts at `plain_line`.
+/// A plain line before an in-viewport cursor is a hole. Coloring resumes at that hole.
+/// A plain line at or after that cursor is the tail. The cursor stays.
+/// A cursor outside the viewport resumes at `visible_first`.
+/// Lines above a later miss can be plain cache hits, and they still need color.
 pub(crate) fn resume_color_line(
     color_at: u32,
     visible_first: u32,
@@ -45,10 +46,12 @@ pub(crate) fn resume_color_line(
     plain_line: u32,
 ) -> u32 {
     let cursor_in_view = (visible_first..visible_last).contains(&color_at);
-    if cursor_in_view && plain_line >= color_at {
-        color_at
-    } else {
+    if !cursor_in_view {
+        visible_first
+    } else if plain_line < color_at {
         plain_line
+    } else {
+        color_at
     }
 }
 
@@ -144,9 +147,10 @@ mod tests {
     }
 
     #[test]
-    fn resume_color_line_starts_at_the_plain_line_when_the_cursor_is_outside() {
-        // `40` is the exclusive end, so the cursor is not in `0..40`.
-        assert_eq!(resume_color_line(40, 0, 40, 20), 20);
-        assert_eq!(resume_color_line(0, 0, 40, 0), 0);
+    fn resume_color_line_starts_at_the_first_line_when_the_cursor_is_outside() {
+        // `40` is the exclusive end, so the cursor is outside `0..40`.
+        // Line 20 is the first plain miss. Lines above it can still be plain cache hits.
+        assert_eq!(resume_color_line(40, 0, 40, 20), 0);
+        assert_eq!(resume_color_line(640, 10, 50, 40), 10);
     }
 }

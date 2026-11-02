@@ -223,6 +223,9 @@ impl Element for EditorSurface {
     ) {
         // The catch stays inside `Entity::update`. A panic that leaves `update`
         // skips `end_lease`, and the window root entity is dropped.
+        // This keeps the root entity and the caches. It does not keep the
+        // `Window`. `App::update_window_id` takes the window out of the map.
+        // A panic drops that window. An `extern "C"` frame callback then aborts.
         let payload = self
             .root
             .update(cx, |root, cx| finish_paint(root, bounds, window, cx));

@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0045",
   "title": "kate-ui: sound paint recovery, resume color, buffer the fixture",
-  "summary": "Sound paint recovery for the GPUI spike. A panic inside entity update no longer drops the window root. Coloring resumes at a plain cache miss. The fixture writer is buffered. The editor font loads before the first timed paint. Steady-state paint and idle recolor stay on the same path.",
+  "summary": "Sound paint recovery for the GPUI spike. A panic inside entity update keeps the window root and its caches. The window itself is still dropped by GPUI. A color cursor outside the viewport resumes at the first visible line. The fixture writer is buffered. The editor font loads before the first timed paint. gpui test-support stays off by default because it enables Wayland and X11.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-11-02T16:54:51Z",
@@ -53,7 +53,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 38,
     "branch": "pkt/PKT-0045-gpui-paint-followups",
-    "base_sha": "4d9172417ab856cfd878dc66ab2e1d1a704a2195"
+    "base_sha": "c0c139805cd22126d5c43e76a6c5debdbae19462"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -67,6 +67,8 @@
   "verdict": "PASS",
   "subsystem_scope": {
     "allowed_files": [
+      "Cargo.lock",
+      "crates/kate-ui/Cargo.toml",
       "crates/kate-ui/src/fixture.rs",
       "crates/kate-ui/src/highlight.rs",
       "crates/kate-ui/src/paint.rs",
@@ -84,7 +86,18 @@
     ],
     "crates_touched": ["kate-ui"],
     "is_atomic": true,
-    "depends_on_packets": ["PKT-0001", "PKT-0013", "PKT-0043"]
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0012",
+      "PKT-0013",
+      "PKT-0016",
+      "PKT-0017",
+      "PKT-0018",
+      "PKT-0019",
+      "PKT-0043",
+      "PKT-0050",
+      "PKT-0052"
+    ]
   },
   "data_contracts": {
     "structures_defined_upfront": true,
@@ -111,7 +124,7 @@
       }
     ],
     "public_api_change": "NONE",
-    "schema_diff_summary": "No public signature change. Paint catches a panic inside the entity update. Color resume takes the first plain line. The fixture file writer is a BufWriter."
+    "schema_diff_summary": "No public editor signature change. Paint catches a panic inside the entity update. A color cursor outside the viewport resumes at the first visible line. The fixture writer is a BufWriter. kate-ui gains an opt-in gpui-tests feature."
   },
   "verification_plan": {
     "commands": [
@@ -121,9 +134,19 @@
     ],
     "regression_tests": [
       {
+        "name": "highlight::tests::resume_color_line_starts_at_the_first_line_when_the_cursor_is_outside",
+        "kind": "UNIT",
+        "asserts": "A color cursor outside the viewport resumes at the first visible line, even when the plain miss is later."
+      },
+      {
         "name": "highlight::tests::resume_color_line_keeps_the_cursor_when_the_plain_line_is_later",
         "kind": "UNIT",
-        "asserts": "A plain line at or after the color cursor does not move the cursor back to the first visible line."
+        "asserts": "A plain line at or after an in-viewport color cursor does not move the cursor back to the first visible line."
+      },
+      {
+        "name": "session::tests::scroll_ten_lines_then_idle_colors_every_visible_line",
+        "kind": "UNIT",
+        "asserts": "After a plain viewport, a 10-line scroll, and idle coloring, every visible line has theme spans."
       },
       {
         "name": "fixture::tests::fixture_writer_buffers_many_small_line_writes",
