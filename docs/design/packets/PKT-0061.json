@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0061",
   "title": "kate-core: read editorconfig from one handle",
-  "summary": "The change is in push_layer. Check is_file on the path before File::open so a FIFO does not block. Then open a regular file and re-check metadata on the handle. Read with take of the cap plus one. A larger read is skipped and not parsed. Linux CI runs the tests.",
+  "summary": "The change is in push_layer. Check is_file on the path before File::open so a FIFO does not block. Then open a regular file and re-check metadata on the handle. Read with take of the cap plus one. A larger read is skipped and not parsed. The FIFO test runs mkfifo through std::process::Command and times out the open at about 5 seconds. Linux CI runs the tests.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-11-02T19:55:00Z",
@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 61,
     "branch": "pkt/PKT-0061-editorconfig-handle",
-    "base_sha": "8606152f18099210068407e9228d3822220cd077"
+    "base_sha": "623f0859dd101a101da8bfdf8cde7a8e3921e806"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -106,7 +106,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "The change is in push_layer. Check path metadata is_file before File::open. A FIFO is not a regular file, so open is not called. Then open the regular file. Re-check metadata on that handle. If the handle is not a file or its length is over the cap, return without reading. Otherwise read with take(MAX_EDITORCONFIG_BYTES + 1). If the string is longer than the cap, skip it and do not parse it. A skipped file does not set root. Keep the directory test and the oversized test. Add a unix-only FIFO test. Do not edit workspace.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "The change is in push_layer. Check path metadata is_file before File::open. A FIFO is not a regular file, so open is not called. Then open the regular file. Re-check metadata on that handle. If the handle is not a file or its length is over the cap, return without reading. Otherwise read with take(MAX_EDITORCONFIG_BYTES + 1). If the string is longer than the cap, skip it and do not parse it. A skipped file does not set root. Keep the directory test and the oversized test. Add a unix-only FIFO test. The test creates the FIFO by running the mkfifo command through std::process::Command. It adds no new dependency. The test runs the open on a thread. The timeout is about 5 seconds. A regression fails. The call does not hang. Do not edit workspace.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -124,7 +124,7 @@
       {
         "name": "modeline::tests::a_fifo_editorconfig_returns_promptly",
         "kind": "UNIT",
-        "asserts": "This test is cfg unix. A FIFO named .editorconfig is not a regular file. push_layer checks is_file on the path before File::open. read_editorconfig returns with no writer. The call does not block."
+        "asserts": "This test is cfg unix. The test creates the FIFO by running the mkfifo command through std::process::Command. It adds no new dependency. A FIFO named .editorconfig is not a regular file. push_layer checks is_file on the path before File::open. The test runs the open on a thread. The timeout is about 5 seconds. A regression fails. The call does not hang. read_editorconfig returns with no writer."
       }
     ],
     "deterministic": true

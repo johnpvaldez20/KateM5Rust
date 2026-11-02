@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 61,
     "branch": "pkt/PKT-0064-config-uses-fileio-label",
-    "base_sha": "8606152f18099210068407e9228d3822220cd077"
+    "base_sha": "623f0859dd101a101da8bfdf8cde7a8e3921e806"
   },
   "handoff_artifact": {
     "kind": "ISSUE",

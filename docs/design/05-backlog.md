@@ -134,7 +134,8 @@ The index is `docs/design/WAVE-0053.md`.
 
 These packets are cloud lanes.
 They do not edit the kate-ui files PKT-0015 is changing.
-They do not edit `indent.rs`, which PKT-0053 is changing.
+They do not edit `indent.rs`.
+PKT-0053 is on main.
 Their files do not overlap.
 The index is `docs/design/WAVE-0061.md`.
 

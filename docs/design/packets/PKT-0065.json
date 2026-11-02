@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 61,
     "branch": "pkt/PKT-0065-indent-folds",
-    "base_sha": "8606152f18099210068407e9228d3822220cd077"
+    "base_sha": "623f0859dd101a101da8bfdf8cde7a8e3921e806"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -104,11 +104,11 @@
       {
         "language": "RUST",
         "path": "crates/kate-core/src/fold.rs",
-        "definition": "#[cfg_attr(not(test), allow(dead_code))]\npub struct FoldSpan { pub start: u32, pub end: u32 }\n\n#[cfg_attr(not(test), allow(dead_code))]\npub fn indent_folds(text: &str, tab_width: u8) -> Vec<FoldSpan>"
+        "definition": "#[cfg_attr(not(test), allow(dead_code))]\n#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub struct FoldSpan { pub start: u32, pub end: u32 }\n\n#[cfg_attr(not(test), allow(dead_code))]\npub fn indent_folds(text: &str, tab_width: u8) -> Vec<FoldSpan>"
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "view.rs declares fold.rs with a path attribute. FoldSpan and indent_folds both use cfg_attr(not(test), allow(dead_code)). view is private and lib.rs is off limits. That attribute keeps clippy -D warnings green. A line starts a fold only when the next non-blank line has a greater indent. Indent counts spaces as 1 and a tab as tab_width. A width of 0 counts as 1. A blank line stays inside the current fold. end is the first later non-blank line whose indent is less than or equal to the start line. If none, end is the line count. Sort by start, then by longer span first. The nested example yields exactly 0..4 and 1..3. Do not fill View.folds. Do not edit indent.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "view.rs declares fold.rs with a path attribute. FoldSpan and indent_folds both use cfg_attr(not(test), allow(dead_code)). FoldSpan also has #[derive(Clone, Copy, Debug, PartialEq, Eq)]. view is private and lib.rs is off limits. That attribute keeps clippy -D warnings green. A line starts a fold only when the next non-blank line has a greater indent. Indent counts spaces as 1 and a tab as tab_width. A width of 0 counts as 1. A blank line stays inside the current fold. end is the first later non-blank line whose indent is less than or equal to the start line. If none, end is the line count. Sort by start, then by longer span first. The nested example yields exactly 0..4 and 1..3. Do not fill View.folds. Do not edit indent.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
