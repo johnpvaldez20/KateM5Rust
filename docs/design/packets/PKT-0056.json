@@ -1,0 +1,133 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0056",
+  "title": "kate-core: skip a bad editorconfig file",
+  "summary": "read_editorconfig skips a path that is not a file. It also skips a file larger than one mebibyte. A skipped file does not set root. This packet does not change reload. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 51,
+    "branch": "pkt/PKT-0056-editorconfig-guard",
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/51"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust. It does not need a window or a review by the owner. Linux CI runs the tests. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/modeline.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "apps/",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/document.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0017"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/modeline.rs",
+        "definition": "pub const MAX_EDITORCONFIG_BYTES: u64 = 1_048_576;\n\npub fn read_editorconfig(start: &std::path::Path) -> ModeOverride"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Before read_to_string, require is_file. If the length is greater than MAX_EDITORCONFIG_BYTES, do not read the bytes. A directory named .editorconfig is skipped. An oversized file is skipped. Neither one stops the parent walk as root. The oversized-file test is the regression. The directory test already passes on main. Keep that test. Do not edit workspace.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked modeline::",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "modeline::tests::an_oversized_editorconfig_is_skipped",
+        "kind": "UNIT",
+        "asserts": "This is the regression test. It fails on main. A file one byte over MAX_EDITORCONFIG_BYTES is not applied. Its root = true does not stop the walk."
+      },
+      {
+        "name": "modeline::tests::a_directory_named_editorconfig_is_skipped",
+        "kind": "UNIT",
+        "asserts": "This check already passes on main. Keep it. A directory named .editorconfig does not change the override. The walk still reads a higher file when root is not set."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

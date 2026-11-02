@@ -1,0 +1,138 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0060",
+  "title": "kate-core: score a case-insensitive subsequence",
+  "summary": "fuzzy_match scores a case-insensitive subsequence. The score rules are in this packet. Quick open can call it later. This packet does not draw a palette. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 51,
+    "branch": "pkt/PKT-0060-fuzzy-score",
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/51"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust. It does not need a window or a review by the owner. Linux CI runs the tests. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "apps/",
+      "upstream/",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/modeline.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0016",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/fuzzy.rs",
+        "definition": "#[derive(Clone, Debug, PartialEq, Eq)]\npub struct FuzzyHit {\n    pub score: i32,\n    pub positions: Vec<usize>,\n}\n\npub fn fuzzy_match(pattern: &str, candidate: &str) -> Option<FuzzyHit>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Positions are Unicode scalar indexes in the candidate. An empty pattern returns score 0 and no positions. No subsequence returns None. Match greedily from the left. Take the leftmost scalar that matches the next pattern scalar. Do not search for a higher score. Fold case with char::to_lowercase and compare those sequences. Each match adds 16. Index 0 adds 8 and does not also get the separator bonus. A later scalar whose previous scalar is not ASCII alphanumeric adds 8. The next scalar after the previous match adds 8. Each skipped scalar between matches subtracts 1. Do not subtract before the first match. lib.rs re-exports FuzzyHit and fuzzy_match. Do not edit kate-ui. A new Rust file starts with the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked fuzzy::",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "fuzzy::tests::foo_bar_scores_the_documented_hits",
+        "kind": "UNIT",
+        "asserts": "fuzzy_match of fb against foo_bar returns score 45 and positions 0 and 4. The hit at index 0 gets only the index-0 bonus. FB against fooBar returns score 38 and positions 0 and 3. Case folding uses char::to_lowercase. The match is the leftmost subsequence."
+      },
+      {
+        "name": "fuzzy::tests::a_missing_subsequence_returns_none",
+        "kind": "UNIT",
+        "asserts": "fb against bar returns None. An empty pattern returns score 0 and no positions."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

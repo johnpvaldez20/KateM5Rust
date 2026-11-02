@@ -1,0 +1,134 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0053",
+  "title": "kate-core: unindent the other indent style",
+  "summary": "Unindent removes one tab when spaces are configured and the line starts with a tab. It removes spaces when tabs are configured and the line starts with spaces. The configured unit still wins when the line starts with that unit. This packet does not bind a key. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 51,
+    "branch": "pkt/PKT-0053-unindent-other-style",
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/51"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust. It does not need a window or a review by the owner. Linux CI runs the tests. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/indent.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "apps/",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0018"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/indent.rs",
+        "definition": "fn remove_unit(body: &str, config: &crate::DocumentConfig) -> String\n\npub fn unindent_lines(\n    buf: &kate_text::TextBuffer,\n    lines: &[u32],\n    config: &crate::DocumentConfig,\n) -> Result<kate_text::Transaction, kate_text::TransactionError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "If the line starts with indent_unit, delete that unit. Otherwise delete the other style. Spaces mode and a leading tab deletes one tab. Tab mode and leading spaces deletes up to indent_width spaces. A width of 0 counts as 1. A shorter space run is deleted in full. One step does not delete a tab and spaces together. Do not change newline_insertion. Do not edit workspace.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked indent::",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "indent::tests::spaces_mode_strips_one_tab",
+        "kind": "UNIT",
+        "asserts": "With indent_with_spaces true, unindent of a line that starts with one tab deletes that tab. A line that starts with four spaces still loses those four spaces."
+      },
+      {
+        "name": "indent::tests::tab_mode_strips_leading_spaces",
+        "kind": "UNIT",
+        "asserts": "With indent_with_spaces false and indent_width 4, unindent deletes four leading spaces. Two leading spaces are deleted in full. A leading tab is still deleted."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,129 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0059",
+  "title": "kate-syntax: cite the pinned syntax commit",
+  "summary": "The convert script cites the v6.31.0 syntax-highlighting commit. The old commit hash is removed. This packet does not change span output. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 51,
+    "branch": "pkt/PKT-0059-reference-pin-comment",
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/51"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust. It does not need a window or a review by the owner. Linux CI runs the tests. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/testdata/convert_reference.py",
+      "crates/kate-syntax/tests/reference_pin.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-syntax/src/",
+      "crates/kate-syntax/definitions/",
+      "upstream/",
+      "crates/kate-ui/",
+      "apps/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0008",
+      "PKT-0044"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/tests/reference_pin.rs",
+        "definition": "fn convert_reference_cites_the_pinned_commit()"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "The comment commit is 6d8ab7945958e7354295db7f399cce06f7de7571. Delete 2d07614ca2ba8565915cc7e0959fd44745702ca1. The tag in the comment is v6.31.0. Do not change the parser. The test reads the script from CARGO_MANIFEST_DIR. A new Rust file starts with the MIT SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-syntax --locked --test reference_pin",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "reference_pin::convert_reference_cites_the_pinned_commit",
+        "kind": "UNIT",
+        "asserts": "The script contains 6d8ab7945958e7354295db7f399cce06f7de7571. It does not contain 2d07614ca2ba8565915cc7e0959fd44745702ca1."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
