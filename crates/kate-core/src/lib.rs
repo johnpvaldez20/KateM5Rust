@@ -37,3 +37,19 @@ pub use selection::{Selection, Selections};
 pub use syntax_cache::SyntaxCache;
 pub use view::{Scroll, View, ViewId};
 pub use workspace::{Axis, CloseResult, EditorConfig, OpenError, SplitTree, Workspace};
+
+#[cfg(test)]
+mod lib_tests {
+    #[test]
+    fn reload_choice_is_exported() {
+        let choices = [
+            crate::ReloadChoice::Quiet,
+            crate::ReloadChoice::Reload,
+            crate::ReloadChoice::Ask,
+        ];
+        assert_eq!(choices.len(), 3);
+        assert_ne!(choices[0], choices[1]);
+        assert_ne!(choices[1], choices[2]);
+        assert_ne!(choices[0], choices[2]);
+    }
+}
