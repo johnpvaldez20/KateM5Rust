@@ -12,6 +12,9 @@ use kate_text::{CharRange, Edit, Offset, TextBuffer, Transaction, TransactionErr
 use crate::movement::{grapheme_after, grapheme_before};
 use crate::selection::{Selection, Selections};
 
+#[path = "pair.rs"]
+mod pair;
+
 /// Build one transaction from one edit per selection.
 ///
 /// `f` may return `None` when that selection does not edit.
@@ -46,18 +49,132 @@ fn clamp_set(buf: &TextBuffer, sel: &Selections) -> Selections {
 
 /// Replace each selection with `text`.
 ///
-/// The returned set is a caret at the end of each insert.
+/// Pairing is always on.
+/// One scalar can wrap a pair or step over a closer.
+/// A longer insert stays a plain replace.
+/// The returned set is one caret per selection.
 /// One caret and many carets use this same function.
 pub fn insert_text(
     buf: &TextBuffer,
     sel: &Selections,
     text: &str,
 ) -> Result<(Transaction, Selections), TransactionError> {
-    let (tx, mut after) = fan_out(buf, sel, |buffer, selection| {
-        Some(replace_span(buffer, selection.min(), selection.max(), text))
-    })?;
-    after.map(|selection| Selection::caret(selection.head));
-    Ok((tx, after))
+    if pair::cannot_pair(text) || plans_are_plain(buf, sel, text) {
+        let (tx, mut after) = fan_out(buf, sel, |buffer, selection| {
+            Some(replace_span(buffer, selection.min(), selection.max(), text))
+        })?;
+        after.map(|selection| Selection::caret(selection.head));
+        return Ok((tx, after));
+    }
+    insert_paired(buf, sel, text)
+}
+
+fn plans_are_plain(buf: &TextBuffer, sel: &Selections, text: &str) -> bool {
+    let sel = clamp_set(buf, sel);
+    sel.iter()
+        .all(|selection| pair::plan_pair(buf, *selection, text) == pair::PairPlan::Plain)
+}
+
+fn insert_paired(
+    buf: &TextBuffer,
+    sel: &Selections,
+    text: &str,
+) -> Result<(Transaction, Selections), TransactionError> {
+    let sel = clamp_set(buf, sel);
+    let mut edits = Vec::new();
+    let mut carets = Vec::with_capacity(sel.len());
+    let mut prior = 0isize;
+    for selection in sel.iter().copied() {
+        let plan = pair::plan_pair(buf, selection, text);
+        if let Some(edit) = edit_for(buf, selection, text, plan) {
+            edits.push(edit);
+        }
+        carets.push(Selection::caret(caret_at(selection, text, plan, prior)));
+        prior += delta_of(selection, text, plan);
+    }
+    let tx = Transaction::new(edits)?;
+    Ok((tx, Selections::new(carets, primary_slot(&sel))))
+}
+
+fn edit_for(
+    buf: &TextBuffer,
+    selection: Selection,
+    text: &str,
+    plan: pair::PairPlan,
+) -> Option<Edit> {
+    match plan {
+        pair::PairPlan::TypeOver => None,
+        pair::PairPlan::Plain => Some(replace_span(buf, selection.min(), selection.max(), text)),
+        pair::PairPlan::Wrap { .. } => Some(wrap_span(buf, selection, text)),
+    }
+}
+
+fn wrap_span(buf: &TextBuffer, selection: Selection, text: &str) -> Edit {
+    let base = replace_span(buf, selection.min(), selection.max(), "");
+    let new_text = match text.chars().next() {
+        Some(opener) => pair::wrapped_text(opener, &base.old),
+        None => text.to_string(),
+    };
+    Edit {
+        start: base.start,
+        old: base.old,
+        new: new_text,
+    }
+}
+
+fn caret_at(selection: Selection, text: &str, plan: pair::PairPlan, prior: isize) -> Offset {
+    let start = shift_offset(selection.min().0, prior);
+    let at = match plan {
+        pair::PairPlan::Plain => plain_caret(selection, text, start),
+        pair::PairPlan::Wrap { caret_after_open } => wrap_caret(selection, start, caret_after_open),
+        pair::PairPlan::TypeOver => shift_offset(selection.head.0, prior).saturating_add(1),
+    };
+    Offset(at)
+}
+
+fn plain_caret(selection: Selection, text: &str, start: usize) -> usize {
+    if selection.anchor.0 <= selection.head.0 {
+        start.saturating_add(text.chars().count())
+    } else {
+        start
+    }
+}
+
+fn wrap_caret(selection: Selection, start: usize, caret_after_open: bool) -> usize {
+    if caret_after_open {
+        start.saturating_add(1)
+    } else {
+        let old_len = selection.max().0 - selection.min().0;
+        start.saturating_add(old_len.saturating_add(2))
+    }
+}
+
+fn delta_of(selection: Selection, text: &str, plan: pair::PairPlan) -> isize {
+    match plan {
+        pair::PairPlan::TypeOver => 0,
+        pair::PairPlan::Wrap { .. } => 2,
+        pair::PairPlan::Plain => {
+            let old_len = selection.max().0 - selection.min().0;
+            text.chars().count() as isize - old_len as isize
+        }
+    }
+}
+
+fn shift_offset(offset: usize, delta: isize) -> usize {
+    if delta > 0 {
+        offset.saturating_add(delta as usize)
+    } else if delta < 0 {
+        offset.saturating_sub(delta.unsigned_abs())
+    } else {
+        offset
+    }
+}
+
+fn primary_slot(sel: &Selections) -> usize {
+    let primary = sel.primary();
+    sel.iter()
+        .position(|selection| *selection == primary)
+        .unwrap_or(0)
 }
 
 /// Delete one grapheme before a caret, or delete a selection.
