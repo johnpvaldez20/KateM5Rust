@@ -103,6 +103,7 @@ mod tests {
             dynamic_wrap: false,
         };
         view.apply_indent_folds("a\n  b\n", 4);
-        assert_eq!(view.folds, vec![CharRange::new(Offset(0), Offset(6))]);
+        assert_eq!(view.folds, vec![CharRange::new(Offset(1), Offset(6))]);
+        assert!(!view.folds[0].contains(Offset(0)));
     }
 }
