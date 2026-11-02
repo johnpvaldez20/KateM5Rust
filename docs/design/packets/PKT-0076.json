@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 71,
     "branch": "pkt/PKT-0076-match-bracket",
     "base_sha": "cf151935ab0c73b8849c83263306415934691074"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/71"
   },
   "lane": {
     "runtime": "CLOUD",
