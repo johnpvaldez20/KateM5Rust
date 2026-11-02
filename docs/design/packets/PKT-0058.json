@@ -1,0 +1,128 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0058",
+  "title": "kate-text: scan brackets with chars_at",
+  "summary": "The bracket scan walks chars_at. The match results stay the same. Do not start until the PKT-0052 function is on main. This packet does not bind a key. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 42,
+    "branch": "pkt/PKT-0058-bracket-chars-at",
+    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/42"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust. It does not need a window or a review by the owner. Linux CI runs the tests. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/src/brackets.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/",
+      "apps/",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0052"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/brackets.rs",
+        "definition": "pub fn matching_bracket(buf: &crate::TextBuffer, at: crate::Offset) -> Option<crate::Offset>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Keep the signature and the match results from PKT-0052. The scan loop uses Rope::chars_at. It does not call Rope::char inside that loop. A caret on a in (a(b)c) still matches offset 6. A caret on b still matches offset 4. Do not edit lib.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "git grep -n chars_at crates/kate-text/src/brackets.rs",
+      "cargo test -p kate-text --locked brackets::",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo check -p kate-text --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "brackets::tests::chars_at_scan_matches_the_inner_pair",
+        "kind": "UNIT",
+        "asserts": "In (a(b)c) offset 0 matches 6 and offset 2 matches 4. Offset 3 matches 4. Offset 1 matches 6. The scan source contains chars_at."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

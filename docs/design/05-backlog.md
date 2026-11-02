@@ -112,6 +112,24 @@ Titles only; JSON payloads are written when each issue opens.
 PKT-0002 through PKT-0013 depend on PKT-0043. They edit the same source
 files. The license headers land first.
 
+## Wave PKT-0053
+
+These packets are cloud lanes.
+They do not edit `kate-ui` or `apps`.
+Their files do not overlap.
+The index is `docs/design/WAVE-0053.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0053 | `kate-core`: unindent the other indent style | CLOUD | 0018 |
+| PKT-0054 | `kate-core`: reject a replacement encoding label | CLOUD | 0016 |
+| PKT-0055 | `kate-core`: reload reapplies the file mode | CLOUD | 0017, 0018 |
+| PKT-0056 | `kate-core`: skip a bad `.editorconfig` file | CLOUD | 0017 |
+| PKT-0057 | `kate-fileio`: encoding label lookup | CLOUD | 0005, 0006 |
+| PKT-0058 | `kate-text`: bracket scan uses `chars_at` | CLOUD | 0052 |
+| PKT-0059 | `kate-syntax`: cite the pinned syntax commit | CLOUD | 0008, 0044 |
+| PKT-0060 | `kate-core`: case-insensitive subsequence score | CLOUD | 0012, 0016 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

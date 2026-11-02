@@ -1,0 +1,130 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0057",
+  "title": "kate-fileio: look up an encoding label",
+  "summary": "encoding_for_label uses for_label_no_replacement. The label replacement returns None. utf-8 returns UTF-8. This packet does not edit kate-core. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:45:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 42,
+    "branch": "pkt/PKT-0057-encoding-label",
+    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/42"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust. It does not need a window or a review by the owner. Linux CI runs the tests. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-fileio/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-fileio/Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "apps/",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-fileio"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0005",
+      "PKT-0006",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/decode.rs",
+        "definition": "pub fn encoding_for_label(label: &str) -> Option<Encoding>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Call encoding_rs::Encoding::for_label_no_replacement. Do not call for_label. An empty label returns None. The label replacement returns None. lib.rs re-exports encoding_for_label. Do not edit kate-core. A new line in a Rust file keeps the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-fileio --locked decode::",
+      "cargo clippy -p kate-fileio --all-targets --locked -- -D warnings",
+      "cargo check -p kate-fileio --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "decode::tests::label_lookup_rejects_the_replacement_encoding",
+        "kind": "UNIT",
+        "asserts": "encoding_for_label of utf-8 is UTF-8. encoding_for_label of replacement is None. An empty label is None."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
