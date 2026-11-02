@@ -10,6 +10,7 @@
 //! The GUI renders this state. It does not change a buffer except through `execute`.
 
 mod command;
+mod config;
 mod document;
 mod fanout;
 mod movement;
@@ -19,6 +20,10 @@ mod view;
 mod workspace;
 
 pub use command::{Command, CommandError};
+pub use config::{
+    ConfigError, editor_config_from_toml, editor_config_to_toml, load_editor_config,
+    save_editor_config, user_config_path,
+};
 pub use document::{
     DiskChange, Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, TrailingSpaces,
 };
