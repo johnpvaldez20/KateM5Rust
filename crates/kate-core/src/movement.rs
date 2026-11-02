@@ -6,6 +6,7 @@
 //! Left and right step by extended grapheme cluster.
 //! Vertical movement uses logical lines and a tab column.
 //! Word movement follows Kate with camel-cursor off.
+//! `ToMatch` jumps to the bracket mate.
 
 use kate_text::{CharRange, LineCol, Offset, TextBuffer};
 use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
@@ -27,6 +28,7 @@ pub enum Movement {
     DocStart,
     DocEnd,
     Lines(i32),
+    ToMatch,
 }
 
 /// `Yes` keeps `anchor` and moves `head`. `No` makes a caret.
@@ -47,6 +49,7 @@ pub struct MoveContext {
 /// Move `s` by `m`.
 ///
 /// The move starts at `head`. A bad offset is clamped to the buffer.
+/// `ToMatch` calls `matching_bracket`. No mate leaves `s` unchanged.
 pub fn move_selection(
     buf: &TextBuffer,
     s: Selection,
@@ -54,6 +57,9 @@ pub fn move_selection(
     extend: Extend,
     ctx: &MoveContext,
 ) -> Selection {
+    if let Movement::ToMatch = m {
+        return move_to_match(buf, s, extend);
+    }
     let head = clamp_offset(buf, s.head);
     let place = place_head(buf, head, s.goal_col, m, ctx);
     match extend {
@@ -66,6 +72,32 @@ pub fn move_selection(
             anchor: place.offset,
             head: place.offset,
             goal_col: place.goal,
+        },
+    }
+}
+
+/// Move the head to the bracket mate.
+///
+/// The scan is `matching_bracket`.
+/// A mate moves `head` to that offset.
+/// `Extend::No` makes a caret there.
+/// `Extend::Yes` keeps the anchor.
+/// No mate returns `s` unchanged.
+fn move_to_match(buf: &TextBuffer, s: Selection, extend: Extend) -> Selection {
+    let head = clamp_offset(buf, s.head);
+    let Some(mate) = kate_text::matching_bracket(buf, head) else {
+        return s;
+    };
+    match extend {
+        Extend::Yes => Selection {
+            anchor: clamp_offset(buf, s.anchor),
+            head: mate,
+            goal_col: None,
+        },
+        Extend::No => Selection {
+            anchor: mate,
+            head: mate,
+            goal_col: None,
         },
     }
 }
