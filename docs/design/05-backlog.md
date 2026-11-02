@@ -194,6 +194,25 @@ The index is `docs/design/WAVE-0077.md`.
 | PKT-0083 | `kate-core`: pair a typed backtick | CLOUD | 0019 |
 | PKT-0084 | `kate-core`: indent a Python line that ends in a colon | CLOUD | 0018, 0053 |
 
+## Wave PKT-0085
+
+These packets leave `keys.rs` and `pair.rs` unchanged.
+PKT-0079 and PKT-0083 still own those files.
+The `gpui-tests` feature stays an owner Mac step.
+Their files do not overlap.
+The index is `docs/design/WAVE-0085.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0085 | `kate-syntax`: fallback selection color off the current line | CLOUD | 0072, 0077 |
+| PKT-0086 | `kate-core`: Python indent from the text before the caret | CLOUD | 0084 |
+| PKT-0087 | `kate-core`: indent fold range starts on the header line | CLOUD | 0073 |
+| PKT-0088 | `kate-ui`: paint the selection in the theme selection color | LOCAL | 0071 |
+| PKT-0089 | `kate-ui`: keep the sentence for a failed command | CLOUD | 0069 |
+| PKT-0090 | `kate-core`: one sentence for a reload choice | CLOUD | 0080 |
+| PKT-0091 | `kate-core`: reload prompt for one view | CLOUD | 0074, 0080 |
+| PKT-0092 | `kate-core`: export `ReloadChoice` | CLOUD | 0080 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
