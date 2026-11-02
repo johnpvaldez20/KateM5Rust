@@ -508,15 +508,34 @@ fn directory_of(start: &Path) -> Option<PathBuf> {
     }
 }
 
+fn read_capped(file: &mut std::fs::File) -> std::io::Result<Option<String>> {
+    use std::io::Read;
+
+    let meta = file.metadata()?;
+    if !meta.is_file() || meta.len() > MAX_EDITORCONFIG_BYTES {
+        return Ok(None);
+    }
+    let mut text = String::new();
+    file.take(MAX_EDITORCONFIG_BYTES + 1)
+        .read_to_string(&mut text)?;
+    if text.len() as u64 > MAX_EDITORCONFIG_BYTES {
+        return Ok(None);
+    }
+    Ok(Some(text))
+}
+
 fn push_layer(dir: &Path, file_name: &str, layers: &mut Vec<ModeOverride>) -> bool {
     let path = dir.join(".editorconfig");
     let Ok(meta) = std::fs::metadata(&path) else {
         return false;
     };
-    if !meta.is_file() || meta.len() > MAX_EDITORCONFIG_BYTES {
+    if !meta.is_file() {
         return false;
     }
-    let Ok(text) = std::fs::read_to_string(&path) else {
+    let Ok(mut file) = std::fs::File::open(&path) else {
+        return false;
+    };
+    let Ok(Some(text)) = read_capped(&mut file) else {
         return false;
     };
     let root = text_is_root(&text);
