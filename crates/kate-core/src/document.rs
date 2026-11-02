@@ -70,6 +70,18 @@ pub enum DiskChange {
     Created,
 }
 
+impl FileState {
+    /// Set `disk_change` from the file that is now on disk.
+    pub fn note_disk(&mut self, exists: bool, digest: [u8; 32]) {
+        self.disk_change = match exists {
+            false => Some(DiskChange::Deleted),
+            true if self.disk_change == Some(DiskChange::Deleted) => Some(DiskChange::Created),
+            true if digest != self.digest_on_disk => Some(DiskChange::Modified),
+            true => None,
+        };
+    }
+}
+
 /// A mark anchored at a line start.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Mark {
@@ -286,5 +298,32 @@ end_of_line = lf
         assert_eq!(saved.line_ending, LineEnding::CrLf);
         assert!(saved.bom);
         assert_eq!(doc.buffer.text().to_string(), text);
+    }
+
+    #[test]
+    fn note_disk_names_modified_deleted_and_created() {
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+        let stored = file.digest_on_disk;
+        file.note_disk(true, stored);
+        assert_eq!(file.disk_change, None);
+        assert_eq!(file.digest_on_disk, stored);
+
+        let mut other = stored;
+        other[0] = other[0].wrapping_add(1);
+        file.note_disk(true, other);
+        assert_eq!(file.disk_change, Some(DiskChange::Modified));
+        assert_eq!(file.digest_on_disk, stored);
+
+        file.note_disk(false, other);
+        assert_eq!(file.disk_change, Some(DiskChange::Deleted));
+        assert_eq!(file.digest_on_disk, stored);
+
+        file.note_disk(true, stored);
+        assert_eq!(file.disk_change, Some(DiskChange::Created));
+        assert_eq!(file.digest_on_disk, stored);
+
+        file.note_disk(true, stored);
+        assert_eq!(file.disk_change, None);
+        assert_eq!(file.digest_on_disk, stored);
     }
 }
