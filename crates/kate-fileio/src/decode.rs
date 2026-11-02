@@ -30,6 +30,13 @@ impl LineEnding {
 /// Alias so callers never spell the encoding_rs path.
 pub type Encoding = &'static encoding_rs::Encoding;
 
+/// Returns the encoding for `label`.
+/// An empty label returns `None`.
+/// The label `replacement` returns `None`.
+pub fn encoding_for_label(label: &str) -> Option<Encoding> {
+    encoding_rs::Encoding::for_label(label.as_bytes())
+}
+
 /// Limits and the encoding used when the bytes are not UTF-8 and have no BOM.
 #[derive(Clone, Debug)]
 pub struct DecodeOptions {
@@ -194,7 +201,7 @@ fn majority(counts: [usize; 3], first: [Option<usize>; 3]) -> LineEnding {
 
 #[cfg(test)]
 mod tests {
-    use super::{DecodeError, DecodeOptions, LineEnding, decode};
+    use super::{DecodeError, DecodeOptions, LineEnding, decode, encoding_for_label};
     use proptest::prelude::*;
     use proptest::test_runner::RngSeed;
 
@@ -208,6 +215,13 @@ mod tests {
             failure_persistence: None,
             ..ProptestConfig::default()
         }
+    }
+
+    #[test]
+    fn label_lookup_rejects_the_replacement_encoding() {
+        assert_eq!(encoding_for_label("utf-8"), Some(encoding_rs::UTF_8));
+        assert_eq!(encoding_for_label("replacement"), None);
+        assert_eq!(encoding_for_label(""), None);
     }
 
     #[test]
