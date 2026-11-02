@@ -10,7 +10,10 @@
 //!
 //! Specified in `docs/design/01-data-structures.md`, section "Search".
 //! Arrives with packet PKT-0010.
+//! [`FindBar`] builds a search query and replaces one hit or every hit.
+//! It arrives with packet PKT-0050.
 
+mod bar;
 mod escape;
 mod literal;
 mod regex_find;
@@ -18,6 +21,8 @@ mod replace;
 mod search;
 
 use kate_text::{CharRange, Offset, TextBuffer};
+
+pub use bar::{FindBar, FindMode};
 
 /// The text to find.
 ///
