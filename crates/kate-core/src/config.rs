@@ -252,10 +252,10 @@ fn encoding_value(value: &str) -> Result<Encoding, ConfigError> {
     encoding_for_label(label).ok_or_else(|| bad_value("fallback_encoding"))
 }
 
-/// `kate-fileio` exposes the encoding type. The label table is `for_label_no_replacement` on that type.
-fn encoding_for_label(label: &str) -> Option<Encoding> {
-    type Target = <Encoding as std::ops::Deref>::Target;
-    Target::for_label_no_replacement(label.as_bytes())
+/// kate-fileio owns the label table.
+/// This function calls kate_fileio::encoding_for_label.
+fn encoding_for_label(label: &str) -> Option<kate_fileio::Encoding> {
+    kate_fileio::encoding_for_label(label)
 }
 
 fn width_value(key: &str, value: &str) -> Result<u8, ConfigError> {
