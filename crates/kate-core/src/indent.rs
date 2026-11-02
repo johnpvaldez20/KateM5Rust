@@ -61,9 +61,16 @@ pub fn indent_lines(
     Transaction::new(edits)
 }
 
-/// Build one delete of one indent unit for each touched line.
+/// Build one delete of one indent step for each touched line.
 ///
-/// A line with no indent produces no edit. The result can be empty.
+/// A line that starts with the configured unit loses that unit.
+/// A leading tab in spaces mode loses that one tab.
+/// A leading space run loses up to one indent width.
+/// A width of 0 counts as 1.
+/// A shorter run is deleted in full.
+/// One step does not delete a tab and spaces together.
+/// A line with no indent produces no edit.
+/// The result can be empty.
 pub fn unindent_lines(
     buf: &TextBuffer,
     lines: &[u32],
@@ -131,13 +138,17 @@ fn remove_unit(body: &str, config: &DocumentConfig) -> String {
     if body.starts_with(&unit) {
         return unit;
     }
+    if config.indent_with_spaces && body.starts_with('\t') {
+        return "\t".to_string();
+    }
     short_spaces(body, config)
 }
 
+/// Return a leading space run, up to one indent width.
+///
+/// A width of 0 counts as 1.
+/// A shorter run is returned in full.
 fn short_spaces(body: &str, config: &DocumentConfig) -> String {
-    if !config.indent_with_spaces {
-        return String::new();
-    }
     let width = usize::from(config.indent_width.max(1));
     let count = body.chars().take(width).take_while(|ch| *ch == ' ').count();
     " ".repeat(count)
