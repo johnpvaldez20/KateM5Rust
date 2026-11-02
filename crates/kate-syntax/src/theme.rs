@@ -107,16 +107,38 @@ impl Theme {
     /// That color must differ from `BackgroundColor` and from `CurrentLine`.
     /// Return the fixed blue when `TextSelection` is absent.
     /// Return that same blue when `TextSelection` matches a set color.
+    /// When `BackgroundColor` is set and the chosen color matches it,
+    /// return `Rgba(0x00, 0x5F, 0xA8, 0xFF)`.
+    /// When that second color also matches, return white when white differs from the background.
+    /// Otherwise return black.
     pub fn selection_color(&self) -> Rgba {
-        const FALLBACK: Rgba = Rgba(0x94, 0xCA, 0xEF, 0xFF);
-        let Some(selection) = self.editor_color(EditorColor::TextSelection) else {
-            return FALLBACK;
+        const FIRST: Rgba = Rgba(0x94, 0xCA, 0xEF, 0xFF);
+        const NEXT: [Rgba; 3] = [
+            Rgba(0x00, 0x5F, 0xA8, 0xFF),
+            Rgba(0xFF, 0xFF, 0xFF, 0xFF),
+            Rgba(0x00, 0x00, 0x00, 0xFF),
+        ];
+        let chosen = match self.editor_color(EditorColor::TextSelection) {
+            Some(selection) if !self.color_matches_line(selection) => selection,
+            _ => FIRST,
         };
-        let clashes = [EditorColor::BackgroundColor, EditorColor::CurrentLine]
+        let Some(background) = self.editor_color(EditorColor::BackgroundColor) else {
+            return chosen;
+        };
+        if chosen != background {
+            return chosen;
+        }
+        NEXT.into_iter()
+            .find(|color| *color != background)
+            .unwrap_or(NEXT[2])
+    }
+
+    /// Return true when `color` matches a set background or current line.
+    fn color_matches_line(&self, color: Rgba) -> bool {
+        [EditorColor::BackgroundColor, EditorColor::CurrentLine]
             .into_iter()
             .filter_map(|role| self.editor_color(role))
-            .any(|color| color == selection);
-        if clashes { FALLBACK } else { selection }
+            .any(|set| set == color)
     }
 
     /// Resolve `format` for `definition`.
