@@ -48,7 +48,7 @@ pub(crate) fn visible_line_range(
 
 #[cfg(test)]
 mod tests {
-    use super::visible_line_range;
+    use super::{visible_line_range, visual_row_count};
     use crate::{ShapedLine, ShapedLineCache};
     use kate_core::Scroll;
     use kate_text::Revision;
@@ -137,6 +137,14 @@ mod tests {
         assert!(cache.get(2, revision).is_none());
         assert!(cache.get(3, revision).is_none());
         assert!(cache.get(2, Revision(4)).is_some());
+    }
+
+    #[test]
+    fn visual_row_count_splits_a_long_line() {
+        assert_eq!(visual_row_count("abcdef", 4), 2);
+        assert_eq!(visual_row_count("", 4), 1);
+        assert_eq!(visual_row_count("abcdef", 0), 1);
+        assert_eq!(visual_row_count("éééé", 4), 1);
     }
 
     fn shaped_line() -> ShapedLine {
