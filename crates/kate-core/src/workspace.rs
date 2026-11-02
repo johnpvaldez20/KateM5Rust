@@ -3022,6 +3022,24 @@ indent_size = 8
         );
     }
 
+    #[test]
+    fn complete_word_inserts_the_suffix() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view = add_view(&mut ws, doc);
+        ws.execute(view, Command::InsertText("alpha alphabet".into()))
+            .expect("seed");
+        set_caret(&mut ws, view, 4);
+        assert_eq!(
+            ws.views.get(view).expect("view").selections.primary().head,
+            Offset(4)
+        );
+        ws.execute(view, Command::CompleteWord).expect("complete");
+        assert_eq!(text_of(&ws, doc), "alphabet alphabet");
+        ws.execute(view, Command::Undo).expect("undo");
+        assert_eq!(text_of(&ws, doc), "alpha alphabet");
+    }
+
     fn arb_text() -> impl Strategy<Value = String> {
         prop::collection::vec(prop::sample::select(vec!['a', 'b', 'é', '\n', ' ']), 0..24)
             .prop_map(|chars| chars.into_iter().collect())
