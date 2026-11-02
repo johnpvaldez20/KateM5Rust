@@ -171,10 +171,13 @@ impl Workspace {
         Ok(self.insert_loaded(canonical, loaded))
     }
 
-    /// Add a view of `doc`. An unknown document returns a null id.
-    pub fn new_view(&mut self, doc: DocumentId) -> ViewId {
+    /// Add a view of `doc`.
+    ///
+    /// Returns `None` when `doc` is not in this workspace.
+    /// A missing document does not create a view.
+    pub fn new_view(&mut self, doc: DocumentId) -> Option<ViewId> {
         if !self.documents.contains_key(doc) {
-            return ViewId::default();
+            return None;
         }
         let id = self.views.insert(View {
             document: doc,
@@ -186,7 +189,7 @@ impl Workspace {
         let near = self.active_view;
         self.layout.insert_tab(id, near);
         self.active_view = Some(id);
-        id
+        Some(id)
     }
 
     /// Close `view`. The last view of a modified document stays open.
@@ -617,7 +620,8 @@ fn place_views(
 ///
 /// Carets and ranges each take one walk over the edits.
 /// An empty caret keeps both ends on the right side of inserted text.
-/// A range keeps the anchor on the left and the head on the right.
+/// A range grows on the left and on the right.
+/// A backward range keeps the same span as a forward range.
 fn transform_foreign(sel: &Selections, tx: &Transaction) -> Selections {
     if sel.iter().all(Selection::is_caret) {
         return collapse_carets(sel.transformed(tx));
@@ -980,7 +984,44 @@ fn save_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError> {
 
 fn save_as_cmd(ws: &mut Workspace, view: ViewId, path: PathBuf) -> Result<(), CommandError> {
     let doc_id = ws.doc_id(view)?;
+    if other_document_has_path(ws, doc_id, &path) {
+        return Err(CommandError::AlreadyOpen);
+    }
     write_file(ws, view, doc_id, &path, true)
+}
+
+/// True when a different open document already stores `path`.
+///
+/// The check uses the canonical path. A symlink and the real path are one file.
+/// The file is not written when this returns true.
+fn other_document_has_path(ws: &Workspace, doc_id: DocumentId, path: &Path) -> bool {
+    let target = canonical_save_path(path);
+    ws.documents.iter().any(|(id, doc)| {
+        id != doc_id
+            && doc
+                .file
+                .as_ref()
+                .is_some_and(|file| file.path == target || file.path == path)
+    })
+}
+
+fn canonical_save_path(path: &Path) -> PathBuf {
+    if let Ok(canon) = std::fs::canonicalize(path) {
+        return canon;
+    }
+    let Some(name) = path.file_name() else {
+        return path.to_path_buf();
+    };
+    let Some(parent) = path.parent() else {
+        return path.to_path_buf();
+    };
+    if parent.as_os_str().is_empty() {
+        return path.to_path_buf();
+    }
+    match std::fs::canonicalize(parent) {
+        Ok(parent) => parent.join(name),
+        Err(_) => path.to_path_buf(),
+    }
 }
 
 fn write_file(
@@ -1727,7 +1768,6 @@ mod tests {
     use crate::CloseResult;
     use crate::command::{Command, CommandError};
     use crate::document::{DocumentConfig, TrailingSpaces};
-    use crate::movement::{Extend, Movement};
     use crate::selection::{Selection, Selections};
     use crate::view::ViewId;
     use kate_syntax::{Repository, Theme};
@@ -1768,6 +1808,10 @@ mod tests {
             .to_string()
     }
 
+    fn add_view(ws: &mut Workspace, doc: crate::DocumentId) -> ViewId {
+        ws.new_view(doc).expect("the document is open")
+    }
+
     fn set_caret(ws: &mut Workspace, view: ViewId, at: usize) {
         let state = ws.views.get_mut(view).expect("view");
         state.selections = Selections::single(Selection::caret(Offset(at)));
@@ -1777,10 +1821,10 @@ mod tests {
     fn edit_in_one_view_moves_cursors_in_the_other() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view_a = ws.new_view(doc);
+        let view_a = add_view(&mut ws, doc);
         ws.execute(view_a, Command::InsertText("abcdef".into()))
             .expect("type the base text");
-        let view_b = ws.new_view(doc);
+        let view_b = add_view(&mut ws, doc);
         set_caret(&mut ws, view_a, 1);
         set_caret(&mut ws, view_b, 4);
         ws.execute(view_a, Command::InsertText("XYZ".into()))
@@ -1799,7 +1843,7 @@ mod tests {
         std::fs::write(&path, b"caf\xE9\r\n").expect("write seed file");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open windows-1252 file");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         assert_eq!(text_of(&ws, doc), "caf\u{e9}\n");
         assert_eq!(
             ws.documents
@@ -1834,7 +1878,7 @@ mod tests {
         std::fs::write(&path, b"hi\n").expect("write");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.execute(view, Command::InsertText("!".into()))
             .expect("modify");
         assert!(ws.documents.get(doc).expect("doc").history.is_modified());
@@ -1851,10 +1895,10 @@ mod tests {
     fn undo_of_coalesced_typing_restores_the_other_view() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view_a = ws.new_view(doc);
+        let view_a = add_view(&mut ws, doc);
         ws.execute(view_a, Command::InsertText("0123456789".into()))
             .expect("base");
-        let view_b = ws.new_view(doc);
+        let view_b = add_view(&mut ws, doc);
         set_caret(&mut ws, view_a, 2);
         set_caret(&mut ws, view_b, 8);
         for ch in ["a", "b", "c"] {
@@ -1881,7 +1925,7 @@ mod tests {
     fn one_undo_reverts_a_group() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.execute(view, Command::BeginUndoGroup).expect("begin");
         ws.execute(view, Command::InsertText("a".into()))
             .expect("a");
@@ -1902,7 +1946,7 @@ mod tests {
     fn insert_does_not_split_a_combining_mark_or_crlf() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.execute(view, Command::InsertText("e\u{301}x".into()))
             .expect("seed");
         set_caret(&mut ws, view, 1);
@@ -1914,7 +1958,7 @@ mod tests {
 
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.execute(view, Command::InsertText("a\r\nb".into()))
             .expect("seed crlf");
         set_caret(&mut ws, view, 2);
@@ -1929,7 +1973,7 @@ mod tests {
     fn backspace_deletes_a_whole_crlf_pair() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.execute(view, Command::InsertText("a\r\nb".into()))
             .expect("seed");
         set_caret(&mut ws, view, 3);
@@ -1951,13 +1995,13 @@ mod tests {
             .open(Path::new("/no/such/pkt-0012-file"))
             .expect_err("missing");
         assert!(matches!(err, super::OpenError::Load(_)));
-        let bogus = ws.new_view(crate::DocumentId::default());
-        assert!(
-            ws.execute(bogus, Command::Move(Movement::Left, Extend::No))
-                .is_err()
-        );
+        assert!(ws.new_view(crate::DocumentId::default()).is_none());
+        let closed = ws.new_document();
+        let closed_view = add_view(&mut ws, closed);
+        assert_eq!(ws.close_view(closed_view), CloseResult::Closed);
+        assert!(ws.new_view(closed).is_none());
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         assert!(matches!(
             ws.execute(view, Command::Save),
             Err(CommandError::NoFile)
@@ -1989,10 +2033,79 @@ mod tests {
     }
 
     #[test]
+    fn save_as_rejects_a_path_open_in_another_document() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let first_path = dir.path().join("one.txt");
+        let second_path = dir.path().join("two.txt");
+        std::fs::write(&first_path, b"one\n").expect("write one");
+        std::fs::write(&second_path, b"two\n").expect("write two");
+        let mut ws = workspace();
+        let first = ws.open(&first_path).expect("open one");
+        let second = ws.open(&second_path).expect("open two");
+        let view = add_view(&mut ws, second);
+        let err = ws
+            .execute(view, Command::SaveAs(first_path.clone()))
+            .expect_err("the path is already open");
+        assert!(matches!(err, CommandError::AlreadyOpen));
+        assert_eq!(std::fs::read(&first_path).expect("bytes"), b"one\n");
+        assert_eq!(ws.documents.len(), 2);
+        let stored = ws
+            .documents
+            .get(second)
+            .expect("second")
+            .file
+            .as_ref()
+            .expect("file")
+            .path
+            .clone();
+        assert_eq!(stored, std::fs::canonicalize(&second_path).expect("canon"));
+        ws.execute(view, Command::SaveAs(second_path.clone()))
+            .expect("save as the same path");
+        let fresh = dir.path().join("three.txt");
+        ws.execute(view, Command::SaveAs(fresh.clone()))
+            .expect("save as a new path");
+        assert_eq!(std::fs::read(&fresh).expect("bytes"), b"two\n");
+        let again = ws.open(&fresh).expect("open the new path");
+        assert_eq!(again, second);
+        assert_ne!(again, first);
+        ws.execute(view, Command::Save).expect("save the owner");
+    }
+
+    #[test]
+    fn save_as_rejects_a_symlink_to_an_open_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let real_dir = dir.path().join("real");
+        std::fs::create_dir(&real_dir).expect("dir");
+        let real = real_dir.join("a.txt");
+        std::fs::write(&real, b"real\n").expect("write");
+        let link_dir = dir.path().join("link");
+        std::os::unix::fs::symlink(&real_dir, &link_dir).expect("symlink");
+        let mut ws = workspace();
+        let opened = ws.open(&real).expect("open");
+        let other = ws.new_document();
+        let view = add_view(&mut ws, other);
+        ws.execute(view, Command::InsertText("new".into()))
+            .expect("type");
+        let err = ws
+            .execute(view, Command::SaveAs(link_dir.join("a.txt")))
+            .expect_err("the canonical path is already open");
+        assert!(matches!(err, CommandError::AlreadyOpen));
+        assert_eq!(std::fs::read(&real).expect("bytes"), b"real\n");
+        assert!(ws.documents.get(other).expect("other").file.is_none());
+        std::fs::remove_file(&real).expect("remove");
+        let err = ws
+            .execute(view, Command::SaveAs(link_dir.join("a.txt")))
+            .expect_err("the parent canonical path is already open");
+        assert!(matches!(err, CommandError::AlreadyOpen));
+        assert!(ws.documents.get(opened).expect("opened").file.is_some());
+        assert!(ws.documents.get(other).expect("other").file.is_none());
+    }
+
+    #[test]
     fn scroll_clamps_to_the_buffer() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.execute(view, Command::InsertText("a\nb\nc\n".into()))
             .expect("lines");
         ws.execute(view, Command::Scroll(100)).expect("scroll");
@@ -2009,7 +2122,7 @@ mod tests {
     fn add_cursor_below_uses_the_next_line() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.execute(view, Command::InsertText("ab\ncd".into()))
             .expect("lines");
         set_caret(&mut ws, view, 0);
@@ -2027,7 +2140,7 @@ mod tests {
         std::fs::write(&path, b"a \nb \n").expect("write");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.documents
             .get_mut(doc)
             .expect("doc")
@@ -2048,7 +2161,7 @@ mod tests {
         std::fs::write(&path, b"top\ntail  ").expect("write");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.documents
             .get_mut(doc)
             .expect("doc")
@@ -2073,7 +2186,7 @@ mod tests {
         std::fs::write(&path, b"abc").expect("write");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.documents
             .get_mut(doc)
             .expect("doc")
@@ -2090,7 +2203,7 @@ mod tests {
         const COUNT: usize = 20_000;
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         let text = "a".repeat(COUNT * 2);
         ws.execute(view, Command::InsertText(text)).expect("seed");
         let ranges: Vec<Selection> = (0..COUNT)
@@ -2116,13 +2229,13 @@ mod tests {
         const VIEWS: usize = 1_000;
         let mut ws = workspace();
         let doc = ws.new_document();
-        let first = ws.new_view(doc);
+        let first = add_view(&mut ws, doc);
         ws.execute(first, Command::InsertText("a".repeat(4_000)))
             .expect("seed");
         let mut ids = Vec::with_capacity(VIEWS);
         ids.push(first);
         for index in 1..VIEWS {
-            let view = ws.new_view(doc);
+            let view = add_view(&mut ws, doc);
             set_caret(&mut ws, view, 10 + index);
             ids.push(view);
         }
@@ -2160,7 +2273,7 @@ mod tests {
         ws.syntax.link().expect("link");
         let id = ws.syntax.by_name("Rust").expect("Rust");
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         let mut seed = String::with_capacity(LINES * 8);
         for index in 0..LINES {
             if index > 0 {
@@ -2191,10 +2304,10 @@ mod tests {
     fn other_view_caret_moves_past_an_insert() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view_a = ws.new_view(doc);
+        let view_a = add_view(&mut ws, doc);
         ws.execute(view_a, Command::InsertText("hello world".into()))
             .expect("seed");
-        let view_b = ws.new_view(doc);
+        let view_b = add_view(&mut ws, doc);
         set_caret(&mut ws, view_a, 5);
         set_caret(&mut ws, view_b, 5);
         ws.execute(view_a, Command::InsertText(",".into()))
@@ -2238,10 +2351,10 @@ mod tests {
     fn other_view_mixed_set_keeps_a_caret_past_an_insert() {
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view_a = ws.new_view(doc);
+        let view_a = add_view(&mut ws, doc);
         ws.execute(view_a, Command::InsertText("hello world".into()))
             .expect("seed");
-        let view_b = ws.new_view(doc);
+        let view_b = add_view(&mut ws, doc);
         set_caret(&mut ws, view_a, 5);
         ws.views.get_mut(view_b).expect("b").selections = Selections::new(
             vec![
@@ -2273,6 +2386,167 @@ mod tests {
     }
 
     #[test]
+    fn mixed_set_keeps_a_primary_range_that_is_not_first() {
+        let primary = Selection {
+            anchor: Offset(10),
+            head: Offset(14),
+            goal_col: Some(4),
+        };
+        let sel = Selections::new(
+            vec![
+                Selection::caret(Offset(1)),
+                Selection {
+                    anchor: Offset(4),
+                    head: Offset(6),
+                    goal_col: Some(1),
+                },
+                primary,
+                Selection::caret(Offset(20)),
+            ],
+            2,
+        );
+        let tx = Transaction::single(Edit::insert(Offset(0), "é"));
+        let after = super::transform_foreign(&sel, &tx);
+        assert_eq!(after.len(), 4);
+        assert!(!after.primary().is_caret());
+        assert_eq!(after.primary().anchor, Offset(11));
+        assert_eq!(after.primary().head, Offset(15));
+        assert_eq!(after.primary().goal_col, Some(4));
+        let first_range = after.iter().find(|item| !item.is_caret()).expect("range");
+        assert_eq!(first_range.goal_col, Some(1));
+        assert_ne!(after.primary().goal_col, first_range.goal_col);
+    }
+
+    #[test]
+    fn mixed_set_keeps_a_primary_caret_that_is_not_first() {
+        let sel = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(1),
+                    head: Offset(1),
+                    goal_col: Some(2),
+                },
+                Selection {
+                    anchor: Offset(4),
+                    head: Offset(8),
+                    goal_col: Some(3),
+                },
+                Selection {
+                    anchor: Offset(12),
+                    head: Offset(12),
+                    goal_col: Some(7),
+                },
+            ],
+            2,
+        );
+        let tx = Transaction::single(Edit::insert(Offset(12), "你"));
+        let after = super::transform_foreign(&sel, &tx);
+        assert_eq!(after.len(), 3);
+        assert!(after.primary().is_caret());
+        assert_eq!(after.primary().anchor, Offset(13));
+        assert_eq!(after.primary().head, Offset(13));
+        assert_eq!(after.primary().goal_col, Some(7));
+        let first_caret = after.iter().find(|item| item.is_caret()).expect("caret");
+        assert_eq!(first_caret.goal_col, Some(2));
+        assert_ne!(after.primary().goal_col, first_caret.goal_col);
+    }
+
+    #[test]
+    fn backward_range_in_the_other_view_grows_at_both_ends() {
+        let forward = Selections::single(Selection {
+            anchor: Offset(2),
+            head: Offset(6),
+            goal_col: Some(3),
+        });
+        let backward = Selections::single(Selection {
+            anchor: Offset(6),
+            head: Offset(2),
+            goal_col: Some(9),
+        });
+        let tx = Transaction::new(vec![
+            Edit::insert(Offset(2), "é"),
+            Edit::insert(Offset(6), "XY"),
+        ])
+        .expect("the two inserts do not overlap");
+        let forward_after = super::transform_foreign(&forward, &tx).primary();
+        let backward_after = super::transform_foreign(&backward, &tx).primary();
+        assert_eq!(forward_after.min(), Offset(2));
+        assert_eq!(forward_after.max(), Offset(9));
+        assert_eq!(backward_after.min(), forward_after.min());
+        assert_eq!(backward_after.max(), forward_after.max());
+        assert!(forward_after.anchor <= forward_after.head);
+        assert!(backward_after.head < backward_after.anchor);
+        assert_eq!(backward_after.goal_col, Some(9));
+    }
+
+    #[test]
+    fn other_view_keeps_the_primary_of_a_mixed_set() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view_a = add_view(&mut ws, doc);
+        ws.execute(
+            view_a,
+            Command::InsertText("abcdefghijklmnopqrstuvwxyz".into()),
+        )
+        .expect("seed");
+        let view_b = add_view(&mut ws, doc);
+        ws.views.get_mut(view_b).expect("b").selections = Selections::new(
+            vec![
+                Selection::caret(Offset(1)),
+                Selection {
+                    anchor: Offset(4),
+                    head: Offset(6),
+                    goal_col: Some(1),
+                },
+                Selection {
+                    anchor: Offset(10),
+                    head: Offset(14),
+                    goal_col: Some(4),
+                },
+            ],
+            2,
+        );
+        set_caret(&mut ws, view_a, 0);
+        ws.execute(view_a, Command::InsertText("é".into()))
+            .expect("insert one scalar");
+        let other = &ws.views.get(view_b).expect("b").selections;
+        assert_eq!(other.len(), 3);
+        assert!(!other.primary().is_caret());
+        assert_eq!(other.primary().anchor, Offset(11));
+        assert_eq!(other.primary().head, Offset(15));
+        assert_eq!(other.primary().goal_col, Some(4));
+        ws.views.get_mut(view_b).expect("b").selections = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(2),
+                    head: Offset(2),
+                    goal_col: Some(2),
+                },
+                Selection {
+                    anchor: Offset(6),
+                    head: Offset(9),
+                    goal_col: None,
+                },
+                Selection {
+                    anchor: Offset(16),
+                    head: Offset(16),
+                    goal_col: Some(7),
+                },
+            ],
+            2,
+        );
+        set_caret(&mut ws, view_a, 16);
+        ws.execute(view_a, Command::InsertText("你".into()))
+            .expect("insert at the later caret");
+        let other = &ws.views.get(view_b).expect("b").selections;
+        assert!(other.primary().is_caret());
+        assert_eq!(other.primary().head, Offset(17));
+        assert_eq!(other.primary().goal_col, Some(7));
+        let first = other.iter().find(|item| item.is_caret()).expect("caret");
+        assert_eq!(first.goal_col, Some(2));
+    }
+
+    #[test]
     fn selection_end_inside_a_grapheme_snaps_up() {
         let buf = kate_text::TextBuffer::from_str("e\u{301}x");
         let mut sel = Selections::single(Selection {
@@ -2293,7 +2567,7 @@ mod tests {
         std::fs::write(&path, b"ab\t").expect("write");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         {
             let config = &mut ws.documents.get_mut(doc).expect("doc").config;
             config.remove_trailing_spaces = TrailingSpaces::All;
@@ -2310,7 +2584,7 @@ mod tests {
         std::fs::write(&path, b"abc\t \n  ").expect("write");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         {
             let config = &mut ws.documents.get_mut(doc).expect("doc").config;
             config.remove_trailing_spaces = TrailingSpaces::All;
@@ -2328,7 +2602,7 @@ mod tests {
         std::fs::write(&path, b"").expect("write");
         let mut ws = workspace();
         let doc = ws.open(&path).expect("open");
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         ws.documents
             .get_mut(doc)
             .expect("doc")
@@ -2343,7 +2617,7 @@ mod tests {
         const COUNT: usize = 20_000;
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view = ws.new_view(doc);
+        let view = add_view(&mut ws, doc);
         let mut seed = String::with_capacity(COUNT * 2);
         for index in 0..COUNT {
             if index > 0 {
@@ -2384,7 +2658,7 @@ mod tests {
         const COUNT: usize = 20_000;
         let mut ws = workspace();
         let doc = ws.new_document();
-        let view_a = ws.new_view(doc);
+        let view_a = add_view(&mut ws, doc);
         let mut seed = String::with_capacity(COUNT * 3);
         for index in 0..COUNT {
             if index > 0 {
@@ -2394,7 +2668,7 @@ mod tests {
         }
         ws.execute(view_a, Command::InsertText(seed.clone()))
             .expect("seed");
-        let view_b = ws.new_view(doc);
+        let view_b = add_view(&mut ws, doc);
         let carets: Vec<Selection> = (0..COUNT)
             .map(|index| Selection::caret(Offset(index * 3)))
             .collect();
@@ -2421,6 +2695,7 @@ mod tests {
         let typed = started.elapsed();
         let other = &ws.views.get(view_b).expect("b").selections;
         assert_eq!(other.len(), COUNT);
+        assert!(!other.primary().is_caret());
         assert!(other.iter().enumerate().all(|(index, selection)| {
             if index % 2 == 0 {
                 selection.is_caret()
@@ -2434,6 +2709,7 @@ mod tests {
         assert_eq!(text_of(&ws, doc), seed);
         let other = &ws.views.get(view_b).expect("b").selections;
         assert_eq!(other.len(), COUNT);
+        assert!(!other.primary().is_caret());
         assert!(other.iter().enumerate().all(|(index, selection)| {
             if index % 2 == 0 {
                 selection.is_caret()
@@ -2492,11 +2768,11 @@ mod tests {
         ) {
             let mut ws = workspace();
             let doc = ws.new_document();
-            let view_a = ws.new_view(doc);
+            let view_a = add_view(&mut ws, doc);
             if !text.is_empty() {
                 ws.execute(view_a, Command::InsertText(text.clone())).expect("seed");
             }
-            let view_b = ws.new_view(doc);
+            let view_b = add_view(&mut ws, doc);
             let len = text.chars().count();
             set_caret(&mut ws, view_a, at.min(len));
             set_caret(&mut ws, view_b, other.min(len));

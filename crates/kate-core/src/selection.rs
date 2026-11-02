@@ -126,8 +126,9 @@ impl Selections {
     /// Map every end through `tx`. Then normalize.
     ///
     /// The walk is one sorted pass over the selections and the edits.
-    /// An offset inside an edit uses the same bias rule as `transform_offset`.
-    /// `anchor` is left. `head` is right.
+    /// The minimum end uses [`Bias::Left`]. The maximum end uses [`Bias::Right`].
+    /// A forward range and a backward range keep the same span.
+    /// The direction of the selection stays as it was.
     /// When one edit covers a selection exactly, that edit is the only bias source.
     /// Earlier edits then add one running delta. `goal_col` stays as it is.
     pub fn transformed(&self, tx: &Transaction) -> Selections {
@@ -206,8 +207,8 @@ impl<'a> EditWalk<'a> {
         if let Some(cover) = self.exact_cover_at(min, max) {
             return map_exact(selection, &self.edits[cover], self.prepared.prefix[cover]);
         }
-        let at_min = self.map_point(min, bias_for_min(selection));
-        let at_max = self.map_point(max, bias_for_max(selection));
+        let at_min = self.map_point(min, Bias::Left);
+        let at_max = self.map_point(max, Bias::Right);
         if selection.anchor.0 <= selection.head.0 {
             Selection {
                 anchor: at_min,
@@ -299,31 +300,25 @@ fn contains_offset(edit: &Edit, offset: usize) -> bool {
 }
 
 fn map_exact(selection: &Selection, edit: &Edit, delta: isize) -> Selection {
-    Selection {
-        anchor: shift_point(transform_offset(selection.anchor, Bias::Left, edit), delta),
-        head: shift_point(transform_offset(selection.head, Bias::Right, edit), delta),
-        goal_col: selection.goal_col,
+    let start = shift_point(transform_offset(selection.min(), Bias::Left, edit), delta);
+    let end = shift_point(transform_offset(selection.max(), Bias::Right, edit), delta);
+    if selection.anchor <= selection.head {
+        Selection {
+            anchor: start,
+            head: end,
+            goal_col: selection.goal_col,
+        }
+    } else {
+        Selection {
+            anchor: end,
+            head: start,
+            goal_col: selection.goal_col,
+        }
     }
 }
 
 fn exact_cover(edit: &Edit, min: usize, max: usize) -> bool {
     edit.start.0 == min && edit.old_end().0 == max
-}
-
-fn bias_for_min(selection: &Selection) -> Bias {
-    if selection.anchor.0 <= selection.head.0 {
-        Bias::Left
-    } else {
-        Bias::Right
-    }
-}
-
-fn bias_for_max(selection: &Selection) -> Bias {
-    if selection.anchor.0 <= selection.head.0 {
-        Bias::Right
-    } else {
-        Bias::Left
-    }
 }
 
 fn add_delta(delta: isize, extra: isize) -> isize {
@@ -652,6 +647,63 @@ mod tests {
     }
 
     #[test]
+    fn insert_at_both_ends_grows_forward_and_backward_ranges() {
+        let tx = Transaction::new(vec![
+            Edit::insert(Offset(2), "é"),
+            Edit::insert(Offset(6), "XY"),
+        ])
+        .expect("the two inserts do not overlap");
+        let forward = Selection {
+            anchor: Offset(2),
+            head: Offset(6),
+            goal_col: Some(3),
+        };
+        let backward = Selection {
+            anchor: Offset(6),
+            head: Offset(2),
+            goal_col: Some(9),
+        };
+        let grown_forward = Selections::single(forward).transformed(&tx).primary();
+        let grown_backward = Selections::single(backward).transformed(&tx).primary();
+        assert_eq!(grown_forward.min(), Offset(2));
+        assert_eq!(grown_forward.max(), Offset(9));
+        assert_eq!(grown_backward.min(), grown_forward.min());
+        assert_eq!(grown_backward.max(), grown_forward.max());
+        assert!(grown_forward.anchor <= grown_forward.head);
+        assert!(grown_backward.head < grown_backward.anchor);
+        assert_eq!(grown_forward.goal_col, Some(3));
+        assert_eq!(grown_backward.goal_col, Some(9));
+    }
+
+    #[test]
+    fn exact_cover_keeps_the_same_span_in_both_directions() {
+        let edit = Edit {
+            start: Offset(2),
+            old: "abcd".to_string(),
+            new: "é".to_string(),
+        };
+        let tx = Transaction::single(edit);
+        let forward = Selection {
+            anchor: Offset(2),
+            head: Offset(6),
+            goal_col: Some(1),
+        };
+        let backward = Selection {
+            anchor: Offset(6),
+            head: Offset(2),
+            goal_col: Some(2),
+        };
+        let forward_after = Selections::single(forward).transformed(&tx).primary();
+        let backward_after = Selections::single(backward).transformed(&tx).primary();
+        assert_eq!(forward_after.min(), Offset(2));
+        assert_eq!(forward_after.max(), Offset(3));
+        assert_eq!(backward_after.min(), forward_after.min());
+        assert_eq!(backward_after.max(), forward_after.max());
+        assert!(forward_after.anchor <= forward_after.head);
+        assert!(backward_after.head < backward_after.anchor);
+    }
+
+    #[test]
     fn transformed_uses_left_anchor_and_right_head() {
         let sel = Selections::single(Selection::caret(Offset(1)));
         let tx = Transaction::single(Edit::insert(Offset(1), "XY"));
@@ -660,6 +712,17 @@ mod tests {
         assert_eq!(after.primary().anchor, Offset(1));
         assert_eq!(after.primary().head, Offset(3));
         assert!(!after.primary().is_caret());
+    }
+
+    /// Left bias on the minimum end. Right bias on the maximum end.
+    ///
+    /// A forward range and a backward range use the same span rule.
+    fn end_bias(selection: &Selection) -> (Bias, Bias) {
+        if selection.anchor.0 <= selection.head.0 {
+            (Bias::Left, Bias::Right)
+        } else {
+            (Bias::Right, Bias::Left)
+        }
     }
 
     fn oracle_point(offset: Offset, bias: Bias, tx: &Transaction) -> Offset {
@@ -778,9 +841,54 @@ mod tests {
                     continue;
                 }
                 let got = Selections::single(*selection).transformed(&tx).primary();
-                prop_assert_eq!(got.anchor, oracle_point(selection.anchor, Bias::Left, &tx));
-                prop_assert_eq!(got.head, oracle_point(selection.head, Bias::Right, &tx));
+                let (anchor_bias, head_bias) = end_bias(selection);
+                prop_assert_eq!(got.anchor, oracle_point(selection.anchor, anchor_bias, &tx));
+                prop_assert_eq!(got.head, oracle_point(selection.head, head_bias, &tx));
                 prop_assert_eq!(got.goal_col, selection.goal_col);
+            }
+        }
+
+        #[test]
+        fn forward_and_backward_ranges_keep_one_span(
+            start in 0usize..24,
+            len in 1usize..12,
+            parts in prop::collection::vec((0usize..4, 0usize..4, 0usize..3), 0..5),
+            left in prop::sample::select(vec!["é", "你", "Q", ""]),
+            right in prop::sample::select(vec!["XY", "é", "a", ""]),
+        ) {
+            let end = start + len;
+            let mut edits = disjoint_edits(parts).edits().to_vec();
+            if !left.is_empty() {
+                edits.push(Edit::insert(Offset(start), left));
+            }
+            if !right.is_empty() {
+                edits.push(Edit::insert(Offset(end), right));
+            }
+            let Ok(tx) = Transaction::new(edits) else {
+                return Ok(());
+            };
+            let forward = Selection {
+                anchor: Offset(start),
+                head: Offset(end),
+                goal_col: Some(1),
+            };
+            let backward = Selection {
+                anchor: Offset(end),
+                head: Offset(start),
+                goal_col: Some(2),
+            };
+            let forward_after = Selections::single(forward).transformed(&tx).primary();
+            let backward_after = Selections::single(backward).transformed(&tx).primary();
+            prop_assert_eq!(forward_after.min(), backward_after.min());
+            prop_assert_eq!(forward_after.max(), backward_after.max());
+            prop_assert_eq!(forward_after.goal_col, Some(1));
+            prop_assert_eq!(backward_after.goal_col, Some(2));
+            if forward_after.min() == forward_after.max() {
+                prop_assert!(forward_after.is_caret());
+                prop_assert!(backward_after.is_caret());
+            } else {
+                prop_assert!(forward_after.anchor <= forward_after.head);
+                prop_assert!(backward_after.head < backward_after.anchor);
             }
         }
     }
