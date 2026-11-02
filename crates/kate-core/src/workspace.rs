@@ -21,6 +21,7 @@ use kate_text::{
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::command::{Command, CommandError};
+use crate::completion::word_completions;
 use crate::document::{
     Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, TrailingSpaces,
 };
@@ -408,6 +409,7 @@ fn is_empty_leaf(tree: &SplitTree) -> bool {
 fn run_text(ws: &mut Workspace, view: ViewId, cmd: &Command) -> Result<bool, CommandError> {
     match cmd {
         Command::InsertText(text) => insert_cmd(ws, view, text)?,
+        Command::CompleteWord => complete_word(ws, view)?,
         Command::Newline => newline_cmd(ws, view)?,
         Command::DeleteBackward => delete_cmd(ws, view, false)?,
         Command::DeleteForward => delete_cmd(ws, view, true)?,
@@ -452,6 +454,83 @@ fn run_file(ws: &mut Workspace, view: ViewId, cmd: Command) -> Result<(), Comman
         Command::ToggleMark(kind, line) => toggle_mark(ws, view, kind, line),
         _ => Ok(()),
     }
+}
+
+/// Insert the suffix of the next buffer word at the primary caret.
+///
+/// The suffix replaces the word characters after that caret.
+/// An empty completion list leaves the buffer unchanged.
+fn complete_word(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError> {
+    let doc_id = ws.doc_id(view)?;
+    let sel = snapped_selections(ws, view, doc_id)?;
+    let caret = sel.primary().head;
+    let plan = {
+        let doc = doc_ref(ws, doc_id, view)?;
+        completion_span(&doc.buffer, caret)
+    };
+    let Some((suffix, tail)) = plan else {
+        return Ok(());
+    };
+    let span = Selections::single(Selection {
+        anchor: caret,
+        head: Offset(tail),
+        goal_col: None,
+    });
+    let (tx, inserted) = {
+        let doc = doc_ref(ws, doc_id, view)?;
+        insert_text(&doc.buffer, &span, &suffix).map_err(CommandError::Transaction)?
+    };
+    if tx.is_empty() {
+        return Ok(());
+    }
+    let after = retarget_primary(&sel, &tx, inserted.primary());
+    let kind = insert_kind_of(&tx, &suffix);
+    apply_change(ws, view, tx, Some(after), kind)
+}
+
+fn completion_span(buf: &TextBuffer, caret: Offset) -> Option<(String, usize)> {
+    let word = word_completions(buf, caret, 1).into_iter().next()?;
+    let prefix = word_prefix(buf, caret);
+    let suffix = word.strip_prefix(&prefix).filter(|text| !text.is_empty())?;
+    Some((suffix.to_string(), word_tail_end(buf, caret)))
+}
+
+fn word_prefix(buf: &TextBuffer, at: Offset) -> String {
+    let text = buf.text();
+    let len = text.len_chars();
+    let at = at.0.min(len);
+    let mut index = at;
+    while index > 0 && completion_word_char(text.char(index - 1)) {
+        index -= 1;
+    }
+    text.slice(index..at).to_string()
+}
+
+fn word_tail_end(buf: &TextBuffer, at: Offset) -> usize {
+    let text = buf.text();
+    let len = text.len_chars();
+    let mut index = at.0.min(len);
+    while index < len && completion_word_char(text.char(index)) {
+        index += 1;
+    }
+    index
+}
+
+fn completion_word_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_'
+}
+
+fn retarget_primary(sel: &Selections, tx: &Transaction, primary: Selection) -> Selections {
+    let mut after = sel.transformed(tx);
+    let mapped = after.primary();
+    after.map(|selection| {
+        if selection == mapped {
+            primary
+        } else {
+            selection
+        }
+    });
+    after
 }
 
 fn insert_cmd(ws: &mut Workspace, view: ViewId, text: &str) -> Result<(), CommandError> {
@@ -3020,6 +3099,24 @@ indent_size = 8
             undone < Duration::from_secs(3),
             "mixed foreign undo at {COUNT} took {undone:?}"
         );
+    }
+
+    #[test]
+    fn complete_word_inserts_the_suffix() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view = add_view(&mut ws, doc);
+        ws.execute(view, Command::InsertText("alpha alphabet".into()))
+            .expect("seed");
+        set_caret(&mut ws, view, 4);
+        assert_eq!(
+            ws.views.get(view).expect("view").selections.primary().head,
+            Offset(4)
+        );
+        ws.execute(view, Command::CompleteWord).expect("complete");
+        assert_eq!(text_of(&ws, doc), "alphabet alphabet");
+        ws.execute(view, Command::Undo).expect("undo");
+        assert_eq!(text_of(&ws, doc), "alpha alphabet");
     }
 
     fn arb_text() -> impl Strategy<Value = String> {
