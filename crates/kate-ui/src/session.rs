@@ -16,15 +16,16 @@ use std::sync::OnceLock;
 
 use gpui::{
     App as GpuiApp, Application, Bounds, Context, EntityInputHandler, FocusHandle, Focusable,
-    KeyBinding, KeyDownEvent, Menu, MenuItem, Pixels, Point, Render, ScrollWheelEvent,
-    TitlebarOptions, UTF16Selection, Window, WindowBounds, WindowOptions, div, prelude::*, px,
-    size,
+    KeyBinding, KeyDownEvent, Menu, MenuItem, PathPromptOptions, Pixels, Point, Render,
+    ScrollWheelEvent, TitlebarOptions, UTF16Selection, Window, WindowBounds, WindowOptions, div,
+    prelude::*, px, size,
 };
 use kate_core::{Command, DocumentId, EditorConfig, OpenError, Scroll, ViewId, Workspace};
 use kate_syntax::{DefId, Highlighter, LineHighlight, Repository, Theme};
 use kate_text::Revision;
 
 use crate::cache::KeyedCache;
+use crate::files::{FileEffect, FileRequest, apply_file_request};
 use crate::highlight::{
     CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, PAINT_LINE_BUDGET, highlight_step,
 };
@@ -33,6 +34,11 @@ use crate::paint::{
     self, Colors, DrawnFrame, EditorSurface, byte_at_char, line_text, runs_for_line,
 };
 use crate::{App, EditorElement, ShapedLine, ShapedLineCache, profile};
+
+gpui::actions!(
+    kate_ui,
+    [NewFile, OpenFile, SaveFile, SaveFileAs, CloseFile]
+);
 
 const LINE_HEIGHT: f32 = 20.0;
 const SAMPLE: &str = "\
@@ -89,11 +95,30 @@ pub(crate) struct WindowRoot {
 pub(crate) fn launch(path: Option<PathBuf>) {
     Application::new().run(move |cx| {
         cx.on_action(|_: &crate::Quit, cx| cx.quit());
-        cx.bind_keys([KeyBinding::new("cmd-q", crate::Quit, None)]);
-        cx.set_menus(vec![Menu {
-            name: "KateM5Rust".into(),
-            items: vec![MenuItem::action("Quit", crate::Quit)],
-        }]);
+        cx.bind_keys([
+            KeyBinding::new("cmd-q", crate::Quit, None),
+            KeyBinding::new("cmd-n", NewFile, None),
+            KeyBinding::new("cmd-o", OpenFile, None),
+            KeyBinding::new("cmd-s", SaveFile, None),
+            KeyBinding::new("cmd-shift-s", SaveFileAs, None),
+            KeyBinding::new("cmd-w", CloseFile, None),
+        ]);
+        cx.set_menus(vec![
+            Menu {
+                name: "KateM5Rust".into(),
+                items: vec![MenuItem::action("Quit", crate::Quit)],
+            },
+            Menu {
+                name: "File".into(),
+                items: vec![
+                    MenuItem::action("New", NewFile),
+                    MenuItem::action("Open", OpenFile),
+                    MenuItem::action("Save", SaveFile),
+                    MenuItem::action("Save As", SaveFileAs),
+                    MenuItem::action("Close", CloseFile),
+                ],
+            },
+        ]);
         cx.on_window_closed(|cx| {
             if cx.windows().is_empty() {
                 cx.quit();
@@ -572,6 +597,10 @@ impl WindowRoot {
     }
 
     fn run_command(&mut self, command: Command, window: &mut Window, cx: &mut Context<Self>) {
+        if matches!(command, Command::Save) {
+            self.save_active(window, cx);
+            return;
+        }
         let view = self.view;
         let model = self.model.clone();
         with_app(&model, cx, |app| {
@@ -579,6 +608,174 @@ impl WindowRoot {
         });
         self.reveal_caret(window, cx);
         cx.notify();
+    }
+
+    fn on_new_file(&mut self, _: &NewFile, window: &mut Window, cx: &mut Context<Self>) {
+        self.apply_request(FileRequest::New, window, cx);
+    }
+
+    fn on_open_file(&mut self, _: &OpenFile, window: &mut Window, cx: &mut Context<Self>) {
+        self.ask_for_open_path(window, cx);
+    }
+
+    fn on_save_file(&mut self, _: &SaveFile, window: &mut Window, cx: &mut Context<Self>) {
+        self.run_command(Command::Save, window, cx);
+    }
+
+    fn on_save_file_as(&mut self, _: &SaveFileAs, window: &mut Window, cx: &mut Context<Self>) {
+        self.ask_for_save_path(window, cx);
+    }
+
+    fn on_close_file(&mut self, _: &CloseFile, window: &mut Window, cx: &mut Context<Self>) {
+        let view = self.view;
+        let model = self.model.clone();
+        let effect = with_app(&model, cx, |app| {
+            apply_file_request(&mut app.workspace, view, FileRequest::Close)
+        });
+        // A modified document stays open. Do not show a sheet.
+        if matches!(effect, FileEffect::RefusedModified(_)) {
+            cx.notify();
+            return;
+        }
+        self.finish_file(window, cx);
+    }
+
+    fn save_active(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let view = self.view;
+        let model = self.model.clone();
+        let effect = with_app(&model, cx, |app| {
+            apply_file_request(&mut app.workspace, view, FileRequest::Save)
+        });
+        if effect == FileEffect::NeedsPath {
+            self.ask_for_save_path(window, cx);
+            return;
+        }
+        self.finish_file(window, cx);
+    }
+
+    fn apply_request(&mut self, request: FileRequest, window: &mut Window, cx: &mut Context<Self>) {
+        let view = self.view;
+        let model = self.model.clone();
+        with_app(&model, cx, |app| {
+            let _ = apply_file_request(&mut app.workspace, view, request);
+        });
+        self.finish_file(window, cx);
+    }
+
+    fn ask_for_open_path(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let rx = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: None,
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let path = match rx.await {
+                Ok(Ok(Some(paths))) => paths.into_iter().next(),
+                _ => None,
+            };
+            let Some(path) = path else {
+                return;
+            };
+            this.update_in(cx, |this, window, cx| {
+                this.apply_request(FileRequest::OpenPath(path), window, cx);
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    fn ask_for_save_path(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let directory = self.prompt_directory(cx);
+        let name = self.suggested_name(cx);
+        let rx = cx.prompt_for_new_path(&directory, Some(&name));
+        cx.spawn_in(window, async move |this, cx| {
+            let path = match rx.await {
+                Ok(Ok(Some(path))) => path,
+                _ => return,
+            };
+            this.update_in(cx, |this, window, cx| {
+                this.apply_request(FileRequest::SaveAsPath(path), window, cx);
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    fn prompt_directory(&self, cx: &Context<Self>) -> PathBuf {
+        let model = self.model.read(cx);
+        let Some(document) = model.workspace.documents.get(self.doc) else {
+            return std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        };
+        if let Some(parent) = document
+            .file
+            .as_ref()
+            .and_then(|file| file.path.parent())
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            return parent.to_path_buf();
+        }
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    }
+
+    fn suggested_name(&self, cx: &Context<Self>) -> String {
+        let model = self.model.read(cx);
+        let Some(document) = model.workspace.documents.get(self.doc) else {
+            return "Untitled".to_string();
+        };
+        document
+            .file
+            .as_ref()
+            .and_then(|file| file.path.file_name())
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| document.name.clone())
+    }
+
+    fn finish_file(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.follow_active(cx);
+        if self.view_is_open(cx) {
+            self.reveal_caret(window, cx);
+        }
+        cx.notify();
+    }
+
+    fn view_is_open(&self, cx: &Context<Self>) -> bool {
+        self.model.read(cx).workspace.views.contains_key(self.view)
+    }
+
+    fn follow_active(&mut self, cx: &mut Context<Self>) {
+        let next = with_app(&self.model, cx, |app| app.workspace.active_view);
+        let Some(next) = next else {
+            return;
+        };
+        if next == self.view {
+            return;
+        }
+        self.show_view(next, cx);
+    }
+
+    fn show_view(&mut self, view: ViewId, cx: &mut Context<Self>) {
+        let found = with_app(&self.model, cx, |app| view_parts(app, view));
+        let Some((doc, scroll, definition)) = found else {
+            return;
+        };
+        let hl = with_app(&self.model, cx, |app| {
+            highlighter_for(&app.workspace, definition)
+        });
+        self.doc = doc;
+        self.view = view;
+        self.editor = EditorElement::new(view, px(LINE_HEIGHT));
+        self.hl = hl;
+        let column = f32::from(self.column_width).max(1.0);
+        self.scroll_y = scroll.first_line as f32 * f32::from(self.editor.line_height());
+        self.scroll_x = scroll.first_col as f32 * column;
+        self.ime_text.clear();
+        self.selected_utf8 = 0..0;
+        self.marked_utf8 = None;
+        self.caret_bounds = None;
+        self.shaped = ShapedLineCache::default();
+        self.gutter = KeyedCache::default();
+        self.gate = ColorGate::default();
     }
 
     fn reveal_caret(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -616,6 +813,11 @@ impl Render for WindowRoot {
             .track_focus(&focus)
             .on_scroll_wheel(cx.listener(Self::on_scroll))
             .on_key_down(cx.listener(Self::on_key_down))
+            .on_action(cx.listener(Self::on_new_file))
+            .on_action(cx.listener(Self::on_open_file))
+            .on_action(cx.listener(Self::on_save_file))
+            .on_action(cx.listener(Self::on_save_file_as))
+            .on_action(cx.listener(Self::on_close_file))
             .child(EditorSurface { root: cx.entity() })
     }
 }
@@ -878,6 +1080,19 @@ fn push_plain(
             revision,
         });
     }
+}
+
+fn view_parts(app: &App, view: ViewId) -> Option<(DocumentId, Scroll, Option<DefId>)> {
+    let (doc, scroll) = {
+        let state = app.workspace.views.get(view)?;
+        (state.document, state.scroll)
+    };
+    let definition = app
+        .workspace
+        .documents
+        .get(doc)
+        .and_then(|document| document.syntax.definition);
+    Some((doc, scroll, definition))
 }
 
 fn caret_and_spans(model: &App, doc: DocumentId, view: ViewId) -> (Vec<CaretMark>, Vec<SelSpan>) {
