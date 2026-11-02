@@ -5,6 +5,7 @@
 //!
 //! A newline copies the indent of the caret line.
 //! When cstyle is on, a line that ends in `{`, `(`, or `[` adds one unit.
+//! A Python newline adds one unit when the line ends in `:`.
 
 use std::collections::BTreeSet;
 
@@ -40,6 +41,23 @@ pub fn newline_insertion(
     let mut text = String::from("\n");
     text.push_str(leading_indent(&body));
     if cstyle && ends_with_opener(&body) {
+        text.push_str(&indent_unit(config));
+    }
+    text
+}
+
+/// Return the text a Python newline inserts at `at`.
+///
+/// The result starts with a newline.
+/// It copies the leading spaces and tabs on that line.
+/// When the last scalar that is not a space or a tab is a colon, the result adds one unit.
+/// A width of 0 counts as 1.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> String {
+    let body = line_body(buf, buf.line_col(at).line);
+    let mut text = String::from("\n");
+    text.push_str(leading_indent(&body));
+    if ends_with_colon(&body) {
         text.push_str(&indent_unit(config));
     }
     text
@@ -133,6 +151,13 @@ fn ends_with_opener(body: &str) -> bool {
     )
 }
 
+fn ends_with_colon(body: &str) -> bool {
+    matches!(
+        body.trim_end_matches([' ', '\t']).chars().next_back(),
+        Some(':')
+    )
+}
+
 fn remove_unit(body: &str, config: &DocumentConfig) -> String {
     let unit = indent_unit(config);
     if body.starts_with(&unit) {
@@ -156,13 +181,18 @@ fn short_spaces(body: &str, config: &DocumentConfig) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{indent_lines, newline_insertion, unindent_lines};
+    use super::{indent_lines, newline_insertion, python_newline, unindent_lines};
     use crate::DocumentConfig;
     use kate_text::{Edit, Offset, TextBuffer, Transaction};
 
     fn inserted(text: &str, config: &DocumentConfig, cstyle: bool) -> String {
         let buf = TextBuffer::from_str(text);
         newline_insertion(&buf, buf.len(), config, cstyle)
+    }
+
+    fn python_inserted(text: &str, config: &DocumentConfig) -> String {
+        let buf = TextBuffer::from_str(text);
+        python_newline(&buf, buf.len(), config)
     }
 
     #[test]
@@ -207,6 +237,34 @@ mod tests {
             ..DocumentConfig::default()
         };
         assert_eq!(inserted("    foo{", &narrow, true), "\n     ");
+    }
+
+    #[test]
+    fn python_newline_adds_a_unit_after_a_colon() {
+        let config = DocumentConfig::default();
+        assert_eq!(python_inserted("def f():", &config), "\n    ");
+        assert_eq!(python_inserted("def f()", &config), "\n");
+        assert_eq!(python_inserted("    def f():", &config), "\n        ");
+        assert_eq!(python_inserted("    def f()", &config), "\n    ");
+        assert_eq!(python_inserted("\tdef f():", &config), "\n\t    ");
+        assert_eq!(python_inserted("def f():  ", &config), "\n    ");
+        assert_eq!(python_inserted("def f():\t", &config), "\n    ");
+        assert_eq!(python_inserted("def f(): pass", &config), "\n");
+        assert_eq!(python_inserted("def f():\r", &config), "\n    ");
+
+        let tabs = DocumentConfig {
+            indent_with_spaces: false,
+            ..DocumentConfig::default()
+        };
+        assert_eq!(python_inserted("def f():", &tabs), "\n\t");
+        assert_eq!(python_inserted("    def f():", &tabs), "\n    \t");
+
+        let narrow = DocumentConfig {
+            indent_width: 0,
+            ..DocumentConfig::default()
+        };
+        assert_eq!(python_inserted("def f():", &narrow), "\n ");
+        assert_eq!(python_inserted("def f()", &narrow), "\n");
     }
 
     #[test]
