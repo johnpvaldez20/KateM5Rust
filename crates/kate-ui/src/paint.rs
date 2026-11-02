@@ -387,21 +387,23 @@ fn draw_editor(
         }
         if let Some(line) = shaped.get(index, snap.revision) {
             let origin = point(text_left - px(snap.scroll_x), y);
+            let draw = LineDraw {
+                origin,
+                line,
+                index,
+                top: y,
+                line_height,
+                column_width,
+                text_left,
+                font_size,
+            };
+            paint_line_selections(window, &draw, &snap.selection_spans, snap.colors.marked);
             if !line.text.is_empty() {
                 let _ = line.paint_background(origin, line_height, window, cx);
                 let _ = line.paint(origin, line_height, window, cx);
             }
-            if index == snap.caret_line {
-                let caret_x = origin.x + line.x_for_index(snap.caret_byte);
-                caret_bounds = Some(paint_caret_and_ime(
-                    window,
-                    cx,
-                    caret_x.max(text_left),
-                    y,
-                    line_height,
-                    &snap,
-                    font_size,
-                ));
+            if let Some(bounds) = paint_line_carets(window, cx, &draw, &snap) {
+                caret_bounds = Some(bounds);
             }
         }
         painted += 1;
@@ -536,6 +538,89 @@ fn paint_line_number(
     let x = label.left + label.gutter - px(8.0) - shaped.width;
     let _ = shaped.paint(point(x, label.y), label.line_height, window, cx);
     (shape_micros, micros(draw_started.elapsed()))
+}
+
+struct LineDraw<'a> {
+    origin: gpui::Point<Pixels>,
+    line: &'a ShapedLine,
+    index: u32,
+    top: Pixels,
+    line_height: Pixels,
+    column_width: Pixels,
+    text_left: Pixels,
+    font_size: Pixels,
+}
+
+fn paint_line_selections(
+    window: &mut Window,
+    draw: &LineDraw<'_>,
+    spans: &[crate::keys::SelSpan],
+    color: Hsla,
+) {
+    for span in spans.iter().filter(|span| span.line == draw.index) {
+        paint_one_span(window, draw, span, color);
+    }
+}
+
+fn paint_one_span(
+    window: &mut Window,
+    draw: &LineDraw<'_>,
+    span: &crate::keys::SelSpan,
+    color: Hsla,
+) {
+    let text_len = draw.line.text.len();
+    let start = span.start_byte.min(text_len);
+    let end = span.end_byte.min(text_len);
+    let x0 = draw.origin.x + draw.line.x_for_index(start);
+    let mut x1 = draw.origin.x + draw.line.x_for_index(end);
+    if span.end_byte > text_len {
+        x1 += draw.column_width.max(px(1.0));
+    }
+    if x1 <= x0 {
+        x1 = x0 + draw.column_width.max(px(1.0));
+    }
+    let left = x0.max(draw.text_left);
+    let right = x1.max(left);
+    let width = right - left;
+    if width <= px(0.0) {
+        return;
+    }
+    window.paint_quad(fill(
+        Bounds::new(point(left, draw.origin.y), size(width, draw.line_height)),
+        color,
+    ));
+}
+
+fn paint_line_carets(
+    window: &mut Window,
+    cx: &mut gpui::App,
+    draw: &LineDraw<'_>,
+    snap: &crate::session::ViewSnap,
+) -> Option<Bounds<Pixels>> {
+    let mut primary = None;
+    for mark in snap
+        .caret_marks
+        .iter()
+        .filter(|mark| mark.line == draw.index)
+    {
+        let caret_x = (draw.origin.x + draw.line.x_for_index(mark.byte)).max(draw.text_left);
+        let is_primary = mark.line == snap.caret_line && mark.byte == snap.caret_byte;
+        if is_primary && primary.is_none() {
+            primary = Some(paint_caret_and_ime(
+                window,
+                cx,
+                caret_x,
+                draw.top,
+                draw.line_height,
+                snap,
+                draw.font_size,
+            ));
+        } else if !is_primary {
+            let caret = Bounds::new(point(caret_x, draw.top), size(px(1.5), draw.line_height));
+            window.paint_quad(fill(caret, snap.colors.foreground));
+        }
+    }
+    primary
 }
 
 fn paint_caret_and_ime(
