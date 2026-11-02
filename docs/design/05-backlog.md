@@ -175,6 +175,25 @@ The index is `docs/design/WAVE-0069.md`.
 | PKT-0075 | `kate-core`: classify a change on disk | CLOUD | 0012, 0017 |
 | PKT-0076 | `kate-core`: move to the matching bracket | CLOUD | 0011, 0052 |
 
+## Wave PKT-0077
+
+These packets leave the open PKT-0069, PKT-0071, PKT-0073, and PKT-0074 files unchanged.
+The selection-span call and `selection_color` stay out of `paint.rs` until PKT-0071 lands.
+The `gpui-tests` feature stays an owner Mac step.
+Their files do not overlap.
+The index is `docs/design/WAVE-0077.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0077 | `kate-syntax`: fallback selection color off the background | CLOUD | 0009, 0072 |
+| PKT-0078 | `kate-ui`: `OpenFailed` when a new view is missing | CLOUD | 0051 |
+| PKT-0079 | `kate-ui`: bind match-bracket and word completion | CLOUD | 0070, 0074, 0076 |
+| PKT-0080 | `kate-core`: reload prompt from the disk change | CLOUD | 0075 |
+| PKT-0081 | `kate-fileio`: open a regular file before reading it | CLOUD | 0005 |
+| PKT-0082 | `kate-core`: complete words from earlier in the buffer | CLOUD | 0066 |
+| PKT-0083 | `kate-core`: pair a typed backtick | CLOUD | 0019 |
+| PKT-0084 | `kate-core`: indent a Python line that ends in a colon | CLOUD | 0018, 0053 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

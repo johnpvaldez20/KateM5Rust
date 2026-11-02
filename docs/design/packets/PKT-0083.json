@@ -1,0 +1,134 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0083",
+  "title": "kate-core: pair a typed backtick",
+  "summary": "A typed backtick follows the quote rules. A caret wraps it. A letter before it stays plain. A matching closer types over. Linux CI runs the test.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T22:50:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 80,
+    "branch": "pkt/PKT-0083-pair-backtick",
+    "base_sha": "c0fc9c3ae6a04934327979fb2734c0ef249458c2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/80"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust in kate-core. Linux CI runs the test. It does not add a key binding.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/pair.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-ui/src/keys.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0019"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/pair.rs",
+        "definition": "pub fn plan_pair(\n    buf: &kate_text::TextBuffer,\n    selection: crate::Selection,\n    typed: &str,\n) -> PairPlan"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Treat backtick as a quote, an opener, and a closer. closer_for maps backtick to backtick. A caret with no neighbor returns Wrap with caret_after_open true. A backtick after an ASCII letter, digit, or underscore stays Plain. A caret on an existing backtick returns TypeOver. The parenthesis, bracket, brace, and quote tests stay green. Leave fanout.rs unchanged. This packet adds no key binding. Leave layout.rs and notice.rs unchanged. PKT-0069 owns those files. Leave paint.rs unchanged. PKT-0071 owns that file. Leave fold.rs and view.rs unchanged. PKT-0073 owns those files. Leave command.rs and workspace.rs unchanged. PKT-0074 owns those files. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked pair::tests::a_backtick_wraps_a_caret",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "pair::tests::a_backtick_wraps_a_caret",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. plan_pair exists, and a backtick is Plain today. An empty buffer and a caret at offset 0 with a typed backtick returns Wrap with caret_after_open true."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
