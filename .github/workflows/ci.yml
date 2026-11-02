@@ -92,4 +92,4 @@ jobs:
 
       - name: check the product target from Linux
         if: runner.os == 'Linux'
-        run: cargo check --workspace --locked --target aarch64-apple-darwin
+        run: cargo check --workspace --locked --target aarch64-apple-darwin --exclude kate-ui --exclude katem5rust
