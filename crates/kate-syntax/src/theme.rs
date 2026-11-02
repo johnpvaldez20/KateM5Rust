@@ -101,6 +101,24 @@ impl Theme {
         self.editor_colors.get(&color).copied()
     }
 
+    /// Return the selection color.
+    ///
+    /// Use `TextSelection` when the file sets that color.
+    /// That color must differ from `BackgroundColor` and from `CurrentLine`.
+    /// Return the fixed blue when `TextSelection` is absent.
+    /// Return that same blue when `TextSelection` matches a set color.
+    pub fn selection_color(&self) -> Rgba {
+        const FALLBACK: Rgba = Rgba(0x94, 0xCA, 0xEF, 0xFF);
+        let Some(selection) = self.editor_color(EditorColor::TextSelection) else {
+            return FALLBACK;
+        };
+        let clashes = [EditorColor::BackgroundColor, EditorColor::CurrentLine]
+            .into_iter()
+            .filter_map(|role| self.editor_color(role))
+            .any(|color| color == selection);
+        if clashes { FALLBACK } else { selection }
+    }
+
     /// Resolve `format` for `definition`.
     ///
     /// A per-definition custom style overrides the format. The format
@@ -603,6 +621,26 @@ mod tests {
     const BREEZE_LIGHT: &str = include_str!("../themes/breeze-light.theme");
     const BREEZE_DARK: &str = include_str!("../themes/breeze-dark.theme");
 
+    fn editor_color_theme(pairs: &[(&str, &str)]) -> Theme {
+        let colors = pairs
+            .iter()
+            .map(|(name, value)| format!("\"{name}\": \"{value}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let json = format!(
+            r#"{{
+                "metadata": {{
+                    "name": "Fixture",
+                    "revision": 1,
+                    "license": "SPDX-License-Identifier: MIT"
+                }},
+                "text-styles": {{}},
+                "editor-colors": {{ {colors} }}
+            }}"#
+        );
+        Theme::from_json(&json).expect("fixture parses")
+    }
+
     fn keyword_format(
         name: &str,
         color: Option<Rgb>,
@@ -739,5 +777,56 @@ mod tests {
             Err(other) => panic!("expected BadColor, got {other}"),
             Ok(_) => panic!("bad color returned a theme"),
         }
+    }
+
+    #[test]
+    fn selection_color_differs_from_the_line_background() {
+        let fallback = Rgba(0x94, 0xCA, 0xEF, 0xFF);
+        let light = Theme::from_json(BREEZE_LIGHT).expect("breeze light parses");
+        assert_eq!(light.selection_color(), fallback);
+
+        let clash = editor_color_theme(&[
+            ("BackgroundColor", "#112233"),
+            ("CurrentLine", "#445566"),
+            ("TextSelection", "#112233"),
+        ]);
+        let background = clash
+            .editor_color(EditorColor::BackgroundColor)
+            .expect("background");
+        let current_line = clash
+            .editor_color(EditorColor::CurrentLine)
+            .expect("current line");
+        assert_eq!(
+            clash.editor_color(EditorColor::TextSelection),
+            Some(background)
+        );
+        assert_eq!(clash.selection_color(), fallback);
+        assert_ne!(fallback, background);
+        assert_ne!(fallback, current_line);
+
+        let line_clash = editor_color_theme(&[
+            ("BackgroundColor", "#112233"),
+            ("CurrentLine", "#445566"),
+            ("TextSelection", "#445566"),
+        ]);
+        assert_eq!(line_clash.selection_color(), fallback);
+
+        let distinct = editor_color_theme(&[
+            ("BackgroundColor", "#112233"),
+            ("CurrentLine", "#445566"),
+            ("TextSelection", "#abcdef"),
+        ]);
+        assert_eq!(distinct.selection_color(), Rgba(0xab, 0xcd, 0xef, 0xff));
+
+        let absent =
+            editor_color_theme(&[("BackgroundColor", "#112233"), ("CurrentLine", "#445566")]);
+        assert_eq!(absent.selection_color(), fallback);
+
+        let selection_without_current_line =
+            editor_color_theme(&[("BackgroundColor", "#112233"), ("TextSelection", "#abcdef")]);
+        assert_eq!(
+            selection_without_current_line.selection_color(),
+            Rgba(0xab, 0xcd, 0xef, 0xff)
+        );
     }
 }
