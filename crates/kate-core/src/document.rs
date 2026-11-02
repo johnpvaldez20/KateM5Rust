@@ -70,6 +70,17 @@ pub enum DiskChange {
     Created,
 }
 
+/// The reload prompt for one disk change.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReloadChoice {
+    /// The file on disk matches the last read.
+    Quiet,
+    /// The buffer is clean. Reload the file.
+    Reload,
+    /// Ask before a reload.
+    Ask,
+}
+
 impl FileState {
     /// Set `disk_change` from the file that is now on disk.
     pub fn note_disk(&mut self, exists: bool, digest: [u8; 32]) {
@@ -79,6 +90,16 @@ impl FileState {
             true if digest != self.digest_on_disk => Some(DiskChange::Modified),
             true => None,
         };
+    }
+
+    /// Choose a reload prompt from `disk_change` and `dirty`.
+    pub fn reload_choice(&self, dirty: bool) -> ReloadChoice {
+        match (self.disk_change, dirty) {
+            (None, _) => ReloadChoice::Quiet,
+            (Some(DiskChange::Deleted), _) => ReloadChoice::Ask,
+            (Some(DiskChange::Modified | DiskChange::Created), false) => ReloadChoice::Reload,
+            (Some(DiskChange::Modified | DiskChange::Created), true) => ReloadChoice::Ask,
+        }
     }
 }
 
