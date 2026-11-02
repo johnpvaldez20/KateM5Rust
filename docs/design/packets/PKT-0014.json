@@ -5,7 +5,7 @@
   "summary": "The Linux job still type-checks every other crate for aarch64-apple-darwin. It excludes kate-ui and katem5rust. GPUI compiles Metal shaders on a macOS host, so that step cannot build those crates from Linux. This packet does not change the editor.",
   "provenance": {
     "schema_version": "2.0.0",
-    "produced_at": "2026-11-02T01:40:00Z",
+    "produced_at": "2026-11-02T01:32:10Z",
     "author": {
       "agent_id": "owner-johnpvaldez20",
       "role": "OWNER",
@@ -65,7 +65,8 @@
   "verdict": "PASS",
   "subsystem_scope": {
     "allowed_files": [
-      ".github/workflows/ci.yml"
+      ".github/workflows/ci.yml",
+      "docs/design/packets/PKT-0014.json"
     ],
     "forbidden_paths": [
       "upstream/"
@@ -89,19 +90,13 @@
       }
     ],
     "public_api_change": "NONE",
-    "schema_diff_summary": "The Linux product-target check excludes kate-ui and katem5rust. Every other workspace crate stays in that check."
+    "schema_diff_summary": "The Linux product-target check excludes kate-ui and katem5rust. Every other workspace crate stays in that check. There is no Rust test named ci::linux_product_target_excludes_ui_crates. The check is the Linux step in .github/workflows/ci.yml. The old git grep command treats kate-ui as a revision and exits 128. The commit also adds this packet file. That file is the Gate 1 record."
   },
   "verification_plan": {
     "commands": [
-      "git grep -n -- --exclude kate-ui .github/workflows/ci.yml"
+      "git grep -n -e '--exclude kate-ui --exclude katem5rust' -- .github/workflows/ci.yml"
     ],
-    "regression_tests": [
-      {
-        "name": "ci::linux_product_target_excludes_ui_crates",
-        "kind": "INTEGRATION",
-        "asserts": "The Linux aarch64-apple-darwin check command contains --exclude kate-ui and --exclude katem5rust, and still starts with cargo check --workspace."
-      }
-    ],
+    "regression_tests": [],
     "deterministic": true
   },
   "abstraction_audit": {

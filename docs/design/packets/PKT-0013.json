@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0013",
   "title": "kate-ui: GPUI spike, read-only rendering of a Document with syntax colors, scroll benchmark",
-  "summary": "The toolkit decision gate. Create crates/kate-ui on GPUI, open one window, render a kate-core Document read-only with themed spans, line numbers and smooth scrolling. Measure: open a 100,000-line file and scroll it; frame time must stay under 8 ms at 120 Hz on the owner's M-series machine, IME marked text must display, and Cmd-Q must quit cleanly. If GPUI fails any of these, this packet is rejected at Gate 3 and the fallback (objc2 + AppKit + Core Text) gets its own spike packet. kate-core is untouched either way.",
+  "summary": "The toolkit spike uses GPUI in crates/kate-ui. One window renders a read-only document with theme colors, line numbers, and scrolling. Marked text is drawn and is not inserted. Cmd-Q quits. Issue 38 records the scroll times and the open follow-ups. This packet does not change kate-core.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-11-02T02:57:37Z",
@@ -89,6 +89,7 @@
     "crates_touched": [
       "kate-ui",
       "katem5rust",
+      "gatecheck",
       "workspace"
     ],
     "is_atomic": true,
@@ -105,16 +106,21 @@
       {
         "language": "RUST",
         "path": "crates/kate-ui/src/lib.rs",
-        "definition": "/// The one GPUI entity that owns the editor model. Everything on screen is a function of this.\npub struct App { pub workspace: kate_core::Workspace }\n\n/// GPUI element that paints one View of one Document. Holds only layout caches, never model state.\npub struct EditorElement { view: kate_core::ViewId, line_height: gpui::Pixels, glyph_cache: ShapedLineCache }\n\n/// Shaped text per visible logical line, keyed by (line index, buffer revision, theme revision).\npub struct ShapedLineCache { lines: std::collections::HashMap<(u32, kate_text::Revision), gpui::ShapedLine> }\n\n/// Frame-time telemetry written to stderr as JSON lines when KATEM5_PROFILE=1. This is the spike's deliverable.\n#[derive(serde::Serialize)]\npub struct FrameSample { pub frame: u64, pub paint_micros: u64, pub first_line: u32, pub lines_painted: u32 }\n\npub fn run(path: Option<std::path::PathBuf>) -> !; // opens the window, blocks until quit"
+        "definition": "/// The one GPUI entity that owns the editor model. Everything on screen is a function of this.\npub struct App { pub workspace: kate_core::Workspace }\n\n/// GPUI element that paints one view. macOS only. The shape cache lives on the window root.\n#[cfg(target_os = \"macos\")]\npub struct EditorElement { view: kate_core::ViewId, line_height: gpui::Pixels }\n\n/// Shaped lines keyed by line index and buffer revision. The key has no theme revision.\n/// On macOS the value is gpui::ShapedLine. On other targets it is a local stub.\npub struct ShapedLineCache { lines: std::collections::HashMap<(u32, kate_text::Revision), ShapedLine> }\n\n/// Frame-time telemetry written to stderr as JSON lines when KATEM5_PROFILE=1.\n#[derive(serde::Serialize)]\npub struct FrameSample {\n    pub frame: u64,\n    pub paint_micros: u64,\n    pub first_line: u32,\n    pub lines_painted: u32,\n    pub highlight_micros: u64,\n    pub shape_micros: u64,\n    pub draw_micros: u64,\n}\n\n/// Open one window and block until quit. On a host that is not macOS, print an error and exit 1.\npub fn run(path: Option<std::path::PathBuf>) -> !;\n\n/// Write a 100,000-line Rust file to `path`.\npub fn write_rust_fixture(path: &std::path::Path) -> std::io::Result<()>;"
       },
       {
         "language": "TOML",
         "path": "Cargo.toml",
         "definition": "[workspace.dependencies]\nkate-ui = { path = \"crates/kate-ui\" }\n# apps/katem5rust/Cargo.toml: kate-ui = { workspace = true }"
+      },
+      {
+        "language": "TOML",
+        "path": "crates/kate-ui/Cargo.toml",
+        "definition": "license = \"GPL-3.0-or-later\"\n\n[dependencies]\nkate-core = { workspace = true }\nkate-text = { workspace = true }\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\n\n[target.'cfg(target_os = \"macos\")'.dependencies]\nkate-syntax = { workspace = true }\ngpui = { version = \"=0.2.2\", default-features = false, features = [\"font-kit\"] }"
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output). gpui is a macOS-only dependency. On any other target, run() prints an error and exits. The Linux product-target exclude is a separate packet."
+    "schema_diff_summary": "Pull request 34 was squash-merged as cbb65c2e36a3148c5cb649d693011423ef4032c2. The crate kate-ui and the binary main are new. The license of kate-ui is GPL-3.0-or-later. gpui 0.2.2 is Apache-2.0. The pin is =0.2.2 with default features off and the font-kit feature on. gpui supplies the Metal window, Core Text shaping, menus, and NSTextInputClient. gpui and kate-syntax link only on macOS. serde 1.0.229 provides Serialize for FrameSample. serde_json 1.0.154 writes one JSON line. Serialize does not write those bytes. On a host that is not macOS, run prints an error and exits with status 1. The error text is kate-ui requires macOS. Packet PKT-0014 excludes the UI crates from the Linux product-target check. The window shows one read-only document. Spans use the theme colors. The view shows line numbers. Scroll keeps Scroll.first_line in the model. Marked text is drawn at the caret. Marked text is not inserted into the document. Cmd-Q and the Quit menu call quit. The last window close also quits. new_view returns Option. Each call site expects the document to be open. A failed open shows the error in a new document. No path argument opens an untitled document and inserts sample text. katem5rust --generate-fixture writes the 100,000-line file. The default path is scroll_100k.rs. KATEM5_PROFILE=1 writes one JSON line to stderr. paint_micros is the wall time of one paint. The line also has highlight_micros, shape_micros, and draw_micros. EditorElement does not own the shape cache. The cache sits on the window root. The line cache key is the line index and the buffer revision. The ShapedLineCache comment names a theme revision. The map key does not. The gutter cache key is the line number and the theme color. That cache keeps at most 4096 entries. A paint does not highlight a skipped gap. Catch-up covers at most 512 lines on the next frame. A recolor covers at most 12 lines. Coloring that remains asks for another frame. The paint highlight budget is 128 lines. retain_near drops lines more than 400 lines from the viewport. It also drops a line from an older revision. Issue 38 records a manual run of 249 frames. The median paint time is 3532 microseconds. The p95 paint time is 4036 microseconds. The first paint is 15818 microseconds. The p95 is under 8000 microseconds. The first paint is over that budget. No test calls request_animation_frame. Tests read the gate flag only. Issue 38 says coloring can restart from the top line after a plain draw. The note says the coloring still finishes. paint.rs restores the shape cache with catch_unwind. Issue 38 says that path loses the WindowRoot lease. The author of commit e7c8cc0a02e77d38796e0a454cc343e6d2b7dd1d is Cursor Agent. write_rust_fixture uses File::create and no BufWriter. Issue 38 records warnings for block 0.1.6 and proc-macro-error2. The owner checks for marked text, CJK text, and Cmd-Q are marked done in issue 38. The issue stays open for the other notes. The session tests compile only on macOS. tools/gatecheck maps crates/kate-ui/ to GPL-3.0-or-later."
   },
   "verification_plan": {
     "commands": [
@@ -136,7 +142,47 @@
       {
         "name": "spike::scroll_100k_lines_under_8ms",
         "kind": "BENCH",
-        "asserts": "Manual, recorded in the PR as the KATEM5_PROFILE JSON lines from the owner's machine: p95 paint_micros < 8000 while scrolling a 100,000-line generated Rust file. The gatekeeper reads the numbers; the owner watches the screen. CI builds the crate but cannot run this."
+        "asserts": "This name is not a Rust test. Issue 38 records 249 frames on a 100,000-line file. The median is 3532 microseconds. The p95 is 4036 microseconds. The first paint is 15818 microseconds. CI cannot run this check."
+      },
+      {
+        "name": "session::tests::open_and_catch_up_colors_the_visible_lines",
+        "kind": "UNIT",
+        "asserts": "After open and catch-up, the visible lines have theme spans. This test compiles only on macOS."
+      },
+      {
+        "name": "session::tests::scroll_back_recolors_lines_outside_the_retain_window",
+        "kind": "UNIT",
+        "asserts": "A scroll back draws plain text, then colors lines that the shape cache dropped."
+      },
+      {
+        "name": "session::tests::scroll_back_requests_a_redraw_before_any_recolor",
+        "kind": "UNIT",
+        "asserts": "A scroll back sets the redraw flag before any recolor."
+      },
+      {
+        "name": "session::tests::one_catch_up_step_stops_at_the_budget",
+        "kind": "UNIT",
+        "asserts": "One catch-up step stops at line 511. The next step stops at line 1023."
+      },
+      {
+        "name": "highlight::tests::highlight_step_does_not_walk_a_short_gap",
+        "kind": "UNIT",
+        "asserts": "A viewport that starts after the checkpoint is drawn plain. Paint does not walk the gap."
+      },
+      {
+        "name": "cache::tests::gutter_cache_drops_the_previous_theme",
+        "kind": "UNIT",
+        "asserts": "A new theme color drops the gutter entries for the previous theme."
+      },
+      {
+        "name": "cache::tests::gutter_cache_caps_the_number_of_line_numbers",
+        "kind": "UNIT",
+        "asserts": "A new line number past 4096 entries clears the old gutter numbers."
+      },
+      {
+        "name": "profile::tests::frame_sample_json_uses_field_names",
+        "kind": "UNIT",
+        "asserts": "The JSON line names paint_micros, highlight_micros, shape_micros, and draw_micros."
       }
     ],
     "deterministic": true
