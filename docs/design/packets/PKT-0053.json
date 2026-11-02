@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 51,
     "branch": "pkt/PKT-0053-unindent-other-style",
-    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
   },
   "handoff_artifact": {
     "kind": "ISSUE",

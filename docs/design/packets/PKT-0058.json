@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0058",
   "title": "kate-text: scan brackets with chars_at",
-  "summary": "The bracket scan walks chars_at. The match results stay the same. Do not start until the PKT-0052 function is on main. This packet does not bind a key. It does not add a dependency. Linux CI runs the tests.",
+  "summary": "The bracket scan walks chars_at. The match results stay the same. PKT-0052 is already on main. This packet does not bind a key. It does not add a dependency. Linux CI runs the tests.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-11-02T18:45:00Z",
@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 51,
     "branch": "pkt/PKT-0058-bracket-chars-at",
-    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -101,7 +101,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "Keep the signature and the match results from PKT-0052. The scan loop uses Rope::chars_at. It does not call Rope::char inside that loop. A caret on a in (a(b)c) still matches offset 6. A caret on b still matches offset 4. Do not edit lib.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "Keep the signature and the match results from PKT-0052. The scan loop uses Rope::chars_at. It does not call Rope::char inside that loop. A caret on a in (a(b)c) still matches offset 6. A caret on b still matches offset 4. Do not edit lib.rs. git grep checks for chars_at. The unit test does not search the source. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -115,7 +115,7 @@
       {
         "name": "brackets::tests::chars_at_scan_matches_the_inner_pair",
         "kind": "UNIT",
-        "asserts": "In (a(b)c) offset 0 matches 6 and offset 2 matches 4. Offset 3 matches 4. Offset 1 matches 6. The scan source contains chars_at."
+        "asserts": "In (a(b)c) offset 0 matches 6 and offset 2 matches 4. Offset 3 matches 4. Offset 1 matches 6."
       }
     ],
     "deterministic": true

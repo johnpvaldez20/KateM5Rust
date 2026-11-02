@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0055",
   "title": "kate-core: reload reapplies the file mode",
-  "summary": "Reload applies .editorconfig and then the kate modeline. The modeline wins. Each workspace test that opens a temp file writes root = true first. A parent .editorconfig cannot change that file. This packet does not edit modeline.rs. It does not add a dependency. Linux CI runs the tests.",
+  "summary": "Reload rebuilds config through Document::from_loaded. Per-document edits since open are dropped. Each workspace test that opens a temp file writes root = true first. A parent .editorconfig cannot change that file. This packet does not edit modeline.rs. Linux CI runs the tests.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-11-02T18:45:00Z",
@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 51,
     "branch": "pkt/PKT-0055-reload-modeline",
-    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -101,11 +101,11 @@
       {
         "language": "RUST",
         "path": "crates/kate-core/src/workspace.rs",
-        "definition": "fn reload_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError>\n\nfn pin_editorconfig(dir: &std::path::Path)"
+        "definition": "fn reload_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError>\n\nfn pin_editorconfig(dir: &std::path::Path)\n\nfn from_loaded(\n    name: String,\n    config: DocumentConfig,\n    text: &str,\n    file: FileState,\n    definition: Option<kate_syntax::DefId>,\n) -> Document"
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "After the reload copies the disk text and file fields, start from default_document. Apply read_editorconfig, then modeline_overrides, then apply_mode. The modeline wins. pin_editorconfig writes a file named .editorconfig whose text is root = true. Call it before open in every workspace test that uses a temp directory. Do not weaken an existing assertion. Do not edit modeline.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "Rebuild config and file through Document::from_loaded(name, ws.config.default_document.clone(), &new_text, file_state, None). Copy its config onto the reloaded document. Copy its file encoding onto the reloaded document. Do not call modeline functions directly. Reload restarts from default_document plus .editorconfig and the modeline. Per-document config changes made since open are dropped. pin_editorconfig writes a file named .editorconfig whose text is root = true. Call it before open in every workspace test that uses a temp directory. Do not weaken an existing assertion. Do not edit modeline.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -118,7 +118,7 @@
       {
         "name": "workspace::tests::reload_reapplies_the_modeline_over_editorconfig",
         "kind": "UNIT",
-        "asserts": "A temp .editorconfig sets indent_size to 8 and root = true. The file modeline sets indent-width 2. After Reload, indent_width is 2."
+        "asserts": "A temp .editorconfig sets indent_size 8 and root = true. Open a file with no modeline. indent_width is 8. Rewrite the file on disk with a modeline that sets indent-width 2. After Reload, indent_width is 2. Rewrite it again without the modeline. After Reload, indent_width is 8."
       },
       {
         "name": "workspace::tests::open_ignores_a_parent_editorconfig",

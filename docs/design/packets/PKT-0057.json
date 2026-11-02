@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 51,
     "branch": "pkt/PKT-0057-encoding-label",
-    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -104,7 +104,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "Call encoding_rs::Encoding::for_label_no_replacement. Do not call for_label. An empty label returns None. The label replacement returns None. lib.rs re-exports encoding_for_label. Do not edit kate-core. A new line in a Rust file keeps the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "Call encoding_rs::Encoding::for_label_no_replacement. Do not call for_label. An empty label returns None. The label replacement returns None. lib.rs re-exports encoding_for_label. Do not edit kate-core. Existing SPDX headers stay as they are. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [

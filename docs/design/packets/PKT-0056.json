@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 51,
     "branch": "pkt/PKT-0056-editorconfig-guard",
-    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -102,7 +102,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "Before read_to_string, require is_file. If the length is greater than MAX_EDITORCONFIG_BYTES, do not read the bytes. A directory named .editorconfig is skipped. An oversized file is skipped. Neither one stops the parent walk as root. Do not edit workspace.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "Before read_to_string, require is_file. If the length is greater than MAX_EDITORCONFIG_BYTES, do not read the bytes. A directory named .editorconfig is skipped. An oversized file is skipped. Neither one stops the parent walk as root. The oversized-file test is the regression. The directory test already passes on main. Keep that test. Do not edit workspace.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -113,14 +113,14 @@
     ],
     "regression_tests": [
       {
-        "name": "modeline::tests::a_directory_named_editorconfig_is_skipped",
-        "kind": "UNIT",
-        "asserts": "A directory named .editorconfig does not change the override. The walk still reads a higher file when root is not set."
-      },
-      {
         "name": "modeline::tests::an_oversized_editorconfig_is_skipped",
         "kind": "UNIT",
-        "asserts": "A file one byte over MAX_EDITORCONFIG_BYTES is not applied. Its root = true does not stop the walk."
+        "asserts": "This is the regression test. It fails on main. A file one byte over MAX_EDITORCONFIG_BYTES is not applied. Its root = true does not stop the walk."
+      },
+      {
+        "name": "modeline::tests::a_directory_named_editorconfig_is_skipped",
+        "kind": "UNIT",
+        "asserts": "This check already passes on main. Keep it. A directory named .editorconfig does not change the override. The walk still reads a higher file when root is not set."
       }
     ],
     "deterministic": true
