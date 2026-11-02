@@ -70,6 +70,17 @@ pub enum DiskChange {
     Created,
 }
 
+/// The reload prompt for one disk change.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReloadChoice {
+    /// The file on disk matches the last read.
+    Quiet,
+    /// The buffer is clean. Reload the file.
+    Reload,
+    /// Ask before a reload.
+    Ask,
+}
+
 impl FileState {
     /// Set `disk_change` from the file that is now on disk.
     pub fn note_disk(&mut self, exists: bool, digest: [u8; 32]) {
@@ -79,6 +90,16 @@ impl FileState {
             true if digest != self.digest_on_disk => Some(DiskChange::Modified),
             true => None,
         };
+    }
+
+    /// Choose a reload prompt from `disk_change` and `dirty`.
+    pub fn reload_choice(&self, dirty: bool) -> ReloadChoice {
+        match (self.disk_change, dirty) {
+            (None, _) => ReloadChoice::Quiet,
+            (Some(DiskChange::Deleted), _) => ReloadChoice::Ask,
+            (Some(DiskChange::Modified | DiskChange::Created), false) => ReloadChoice::Reload,
+            (Some(DiskChange::Modified | DiskChange::Created), true) => ReloadChoice::Ask,
+        }
     }
 }
 
@@ -198,7 +219,7 @@ mod tests {
 
     use kate_fileio::{DecodeOptions, LineEnding};
 
-    use super::{DiskChange, Document, DocumentConfig, FileState, TrailingSpaces};
+    use super::{DiskChange, Document, DocumentConfig, FileState, ReloadChoice, TrailingSpaces};
 
     fn file_state(path: PathBuf, ending: LineEnding) -> FileState {
         FileState {
@@ -325,5 +346,26 @@ end_of_line = lf
         file.note_disk(true, stored);
         assert_eq!(file.disk_change, None);
         assert_eq!(file.digest_on_disk, stored);
+    }
+
+    #[test]
+    fn reload_choice_asks_when_the_buffer_is_dirty() {
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+
+        file.disk_change = None;
+        assert_eq!(file.reload_choice(false), ReloadChoice::Quiet);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Quiet);
+
+        file.disk_change = Some(DiskChange::Modified);
+        assert_eq!(file.reload_choice(false), ReloadChoice::Reload);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
+
+        file.disk_change = Some(DiskChange::Created);
+        assert_eq!(file.reload_choice(false), ReloadChoice::Reload);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
+
+        file.disk_change = Some(DiskChange::Deleted);
+        assert_eq!(file.reload_choice(false), ReloadChoice::Ask);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
     }
 }
