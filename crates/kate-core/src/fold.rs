@@ -22,6 +22,8 @@ pub struct FoldSpan {
 /// A tab counts as `tab_width`.
 /// A width of 0 counts as 1.
 /// A blank line stays inside the current fold.
+/// An empty text has one line.
+/// A trailing newline adds one blank line.
 /// `end` is the first later non-blank line at an equal or smaller indent.
 /// When no such line exists, `end` is the line count.
 /// Spans are sorted by start line.
@@ -55,9 +57,17 @@ struct LineIndent {
 }
 
 fn line_indents(text: &str, tab_width: u8) -> Vec<LineIndent> {
-    text.lines()
+    let mut lines: Vec<LineIndent> = text
+        .lines()
         .map(|line| line_indent(line, tab_width))
-        .collect()
+        .collect();
+    if text.is_empty() || text.ends_with('\n') {
+        lines.push(LineIndent {
+            blank: true,
+            indent: 0,
+        });
+    }
+    lines
 }
 
 fn line_indent(line: &str, tab_width: u8) -> LineIndent {
