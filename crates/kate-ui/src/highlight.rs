@@ -39,6 +39,13 @@ pub(crate) fn highlight_step(checkpoint: u32, first: u32, last: u32, budget: u32
             plain_from: None,
         };
     }
+    // Any line before `first` was skipped. Do not walk it inside paint.
+    if first > checkpoint {
+        return HighlightStep {
+            ensure_through: None,
+            plain_from: Some(first),
+        };
+    }
     let budget_end = checkpoint.saturating_add(budget.saturating_sub(1));
     if first > budget_end {
         return HighlightStep {
@@ -74,6 +81,13 @@ mod tests {
         let step = highlight_step(0, 90_000, 90_040, PAINT_LINE_BUDGET);
         assert_eq!(step.ensure_through, None);
         assert_eq!(step.plain_from, Some(90_000));
+    }
+
+    #[test]
+    fn highlight_step_does_not_walk_a_short_gap() {
+        let step = highlight_step(100, 168, 208, PAINT_LINE_BUDGET);
+        assert_eq!(step.ensure_through, None);
+        assert_eq!(step.plain_from, Some(168));
     }
 
     #[test]

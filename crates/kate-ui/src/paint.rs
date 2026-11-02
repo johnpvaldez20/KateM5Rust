@@ -202,19 +202,44 @@ impl Element for EditorSurface {
         window: &mut Window,
         cx: &mut gpui::App,
     ) {
-        let (mut shaped, mut gutter) = self.root.update(cx, |root, _| {
-            (
-                std::mem::take(&mut root.shaped),
-                std::mem::take(&mut root.gutter),
-            )
+        let mut loan = self.root.update(cx, |root, _| CacheLoan {
+            shaped: std::mem::take(&mut root.shaped),
+            gutter: std::mem::take(&mut root.gutter),
         });
-        let drawn = draw_editor(&mut shaped, &mut gutter, &self.root, bounds, window, cx);
+        let drawn = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            draw_editor(
+                &mut loan.shaped,
+                &mut loan.gutter,
+                &self.root,
+                bounds,
+                window,
+                cx,
+            )
+        }));
+        let drawn = match drawn {
+            Ok(drawn) => drawn,
+            Err(payload) => {
+                self.root.update(cx, |root, _| {
+                    root.shaped = std::mem::take(&mut loan.shaped);
+                    root.gutter = std::mem::take(&mut loan.gutter);
+                });
+                std::panic::resume_unwind(payload);
+            }
+        };
         self.root.update(cx, |root, cx| {
-            root.shaped = shaped;
-            root.gutter = gutter;
+            root.shaped = std::mem::take(&mut loan.shaped);
+            root.gutter = std::mem::take(&mut loan.gutter);
             root.apply_frame(drawn, window, cx);
         });
     }
+}
+
+/// Caches borrowed from the window for one paint.
+///
+/// `paint` puts them back on both the normal path and a panic path.
+struct CacheLoan {
+    shaped: ShapedLineCache,
+    gutter: KeyedCache<ShapedLine>,
 }
 
 pub(crate) struct DrawnFrame {

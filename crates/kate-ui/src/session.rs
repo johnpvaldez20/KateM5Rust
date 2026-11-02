@@ -81,6 +81,12 @@ pub(crate) struct WindowRoot {
     catch_up_queued: bool,
     visible_first: u32,
     visible_last: u32,
+    /// Bumps on every scroll event.
+    scroll_gen: u64,
+    /// `scroll_gen` observed by the latest paint.
+    paint_scroll_gen: u64,
+    /// The next paint may syntax-color cache misses in the viewport.
+    colorize_visible: bool,
 }
 
 pub(crate) fn launch(path: Option<PathBuf>) {
@@ -161,6 +167,9 @@ impl WindowRoot {
             catch_up_queued: false,
             visible_first: 0,
             visible_last: 0,
+            scroll_gen: 0,
+            paint_scroll_gen: 0,
+            colorize_visible: false,
         }
     }
 
@@ -205,6 +214,12 @@ impl WindowRoot {
         }
         self.visible_first = first;
         self.visible_last = last.saturating_add(1);
+        let scrolling = self.scroll_gen != self.paint_scroll_gen;
+        self.paint_scroll_gen = self.scroll_gen;
+        let colorize = self.colorize_visible && !scrolling;
+        if colorize {
+            self.colorize_visible = false;
+        }
         if self.hl.is_none() {
             self.checkpoint = last.saturating_add(1);
             return HighlightPrep {
@@ -214,20 +229,25 @@ impl WindowRoot {
                 want_catch_up: false,
             };
         }
+        // Syntax `ensure` stays off this path. Catch-up resumes from `checkpoint`.
         let step = highlight_step(self.checkpoint, first, last, PAINT_LINE_BUDGET);
-        let drop_from = self.checkpoint;
-        if let Some(through) = step.ensure_through {
-            self.ensure_syntax(through, cx);
-            self.checkpoint = through.saturating_add(1);
-        }
+        let plain_from = if !colorize {
+            Some(first)
+        } else {
+            match step.ensure_through {
+                Some(through) if through >= last => None,
+                Some(through) => Some(through.saturating_add(1).max(first)),
+                None => step.plain_from.or(Some(first)),
+            }
+        };
         let want_catch_up = self.checkpoint <= last;
         if want_catch_up {
             self.catch_up_to = last;
         }
         HighlightPrep {
-            drop_from,
-            drop_to: self.checkpoint,
-            plain_from: step.plain_from,
+            drop_from: 0,
+            drop_to: 0,
+            plain_from,
             want_catch_up,
         }
     }
@@ -316,13 +336,16 @@ impl WindowRoot {
             .min(self.catch_up_to);
         self.ensure_syntax(through, cx);
         self.checkpoint = through.saturating_add(1);
-        self.shaped
-            .invalidate_range(from, self.checkpoint, revision);
-        let overlaps = from < self.visible_last && self.checkpoint > self.visible_first;
-        let more = self.checkpoint <= self.catch_up_to;
-        if overlaps {
+        let idle = self.scroll_gen == self.paint_scroll_gen;
+        let covered =
+            self.checkpoint >= self.visible_last && self.visible_last > self.visible_first;
+        if idle && covered {
+            self.shaped
+                .invalidate_range(self.visible_first, self.visible_last, revision);
+            self.colorize_visible = true;
             cx.notify();
         }
+        let more = self.checkpoint <= self.catch_up_to;
         if more {
             cx.defer_in(window, |this, window, cx| {
                 this.run_catch_up(window, cx);
@@ -360,6 +383,7 @@ impl WindowRoot {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.scroll_gen = self.scroll_gen.saturating_add(1);
         let line_height = f32::from(self.editor.line_height()).max(1.0);
         let delta = event.delta.pixel_delta(self.editor.line_height());
         // A positive wheel delta moves the document toward line 0.

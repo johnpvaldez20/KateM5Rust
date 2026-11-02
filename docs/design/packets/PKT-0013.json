@@ -28,8 +28,8 @@
       }
     },
     "worker": {
-      "agent_id": "overseer-linus-v1",
-      "role": "GATEKEEPER",
+      "agent_id": "cursor-local-grok-4.7",
+      "role": "CODER",
       "runtime": "LOCAL",
       "host": {
         "kind": "OWNER_MACBOOK",
@@ -53,7 +53,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 33,
     "branch": "pkt/PKT-0013-ui-gpui-spike",
-    "base_sha": "be82f302a77e11df558f8790fbb849f2faad219b"
+    "base_sha": "9c47cc94c3afb4c89f566493e113ad42347f11ff"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -76,7 +76,6 @@
       "apps/katem5rust/",
       "Cargo.toml",
       "Cargo.lock",
-      ".github/workflows/",
       "tools/gatecheck/src/spdx.rs"
     ],
     "forbidden_paths": [
@@ -114,7 +113,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output). gpui is a macOS-only dependency. On any other target, run() prints an error and exits. The Linux product-target check excludes kate-ui and katem5rust so that check does not run the Metal build script."
+    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output). gpui is a macOS-only dependency. On any other target, run() prints an error and exits. The Linux product-target exclude is a separate packet."
   },
   "verification_plan": {
     "commands": [
