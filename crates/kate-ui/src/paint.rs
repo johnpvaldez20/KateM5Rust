@@ -376,35 +376,23 @@ fn draw_editor(
                 fraction,
                 line_height,
             ));
-        if index == snap.caret_line {
-            window.paint_quad(fill(
-                Bounds::new(
-                    point(bounds.left(), y),
-                    size(bounds.size.width, line_height),
-                ),
-                snap.colors.current_line,
-            ));
-        }
-        if let Some(line) = shaped.get(index, snap.revision) {
-            let origin = point(text_left - px(snap.scroll_x), y);
-            let draw = LineDraw {
-                origin,
-                line,
+        if let Some(caret) = paint_visible_line(
+            window,
+            cx,
+            shaped,
+            &snap,
+            VisibleLine {
                 index,
                 top: y,
+                left: bounds.left(),
+                width: bounds.size.width,
+                text_left,
                 line_height,
                 column_width,
-                text_left,
                 font_size,
-            };
-            paint_line_selections(window, &draw, &snap.selection_spans, snap.colors.marked);
-            if !line.text.is_empty() {
-                let _ = line.paint_background(origin, line_height, window, cx);
-                let _ = line.paint(origin, line_height, window, cx);
-            }
-            if let Some(bounds) = paint_line_carets(window, cx, &draw, &snap) {
-                caret_bounds = Some(bounds);
-            }
+            },
+        ) {
+            caret_bounds = Some(caret);
         }
         painted += 1;
     }
@@ -538,6 +526,141 @@ fn paint_line_number(
     let x = label.left + label.gutter - px(8.0) - shaped.width;
     let _ = shaped.paint(point(x, label.y), label.line_height, window, cx);
     (shape_micros, micros(draw_started.elapsed()))
+}
+
+/// Steps that paint one visible line.
+///
+/// `CurrentLine` is first. `Caret` is last.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LinePaintStep {
+    CurrentLine,
+    TextBackground,
+    Selection,
+    Text,
+    Caret,
+}
+
+/// Return the paint order for one visible line.
+pub(crate) fn line_paint_steps() -> &'static [LinePaintStep] {
+    &[
+        LinePaintStep::CurrentLine,
+        LinePaintStep::TextBackground,
+        LinePaintStep::Selection,
+        LinePaintStep::Text,
+        LinePaintStep::Caret,
+    ]
+}
+
+#[derive(Clone, Copy)]
+struct VisibleLine {
+    index: u32,
+    top: Pixels,
+    left: Pixels,
+    width: Pixels,
+    text_left: Pixels,
+    line_height: Pixels,
+    column_width: Pixels,
+    font_size: Pixels,
+}
+
+fn paint_visible_line(
+    window: &mut Window,
+    cx: &mut gpui::Context<WindowRoot>,
+    shaped: &ShapedLineCache,
+    snap: &crate::session::ViewSnap,
+    place: VisibleLine,
+) -> Option<Bounds<Pixels>> {
+    let draw = shaped.get(place.index, snap.revision).map(|line| LineDraw {
+        origin: point(place.text_left - px(snap.scroll_x), place.top),
+        line,
+        index: place.index,
+        top: place.top,
+        line_height: place.line_height,
+        column_width: place.column_width,
+        text_left: place.text_left,
+        font_size: place.font_size,
+    });
+    let mut caret_bounds = None;
+    for step in line_paint_steps().iter().copied() {
+        match step {
+            LinePaintStep::CurrentLine => paint_current_line_quad(window, snap, &place),
+            LinePaintStep::TextBackground => paint_line_background(window, cx, draw.as_ref()),
+            LinePaintStep::Selection => paint_selection_quads(window, snap, draw.as_ref()),
+            LinePaintStep::Text => paint_line_glyphs(window, cx, draw.as_ref()),
+            LinePaintStep::Caret => {
+                caret_bounds = paint_line_caret_step(window, cx, snap, draw.as_ref());
+            }
+        }
+    }
+    caret_bounds
+}
+
+fn paint_current_line_quad(
+    window: &mut Window,
+    snap: &crate::session::ViewSnap,
+    place: &VisibleLine,
+) {
+    if place.index != snap.caret_line {
+        return;
+    }
+    window.paint_quad(fill(
+        Bounds::new(
+            point(place.left, place.top),
+            size(place.width, place.line_height),
+        ),
+        snap.colors.current_line,
+    ));
+}
+
+fn paint_line_background(
+    window: &mut Window,
+    cx: &mut gpui::Context<WindowRoot>,
+    draw: Option<&LineDraw<'_>>,
+) {
+    let Some(draw) = draw else {
+        return;
+    };
+    if draw.line.text.is_empty() {
+        return;
+    }
+    let _ = draw
+        .line
+        .paint_background(draw.origin, draw.line_height, window, cx);
+}
+
+fn paint_selection_quads(
+    window: &mut Window,
+    snap: &crate::session::ViewSnap,
+    draw: Option<&LineDraw<'_>>,
+) {
+    let Some(draw) = draw else {
+        return;
+    };
+    paint_line_selections(window, draw, &snap.selection_spans, snap.colors.marked);
+}
+
+fn paint_line_glyphs(
+    window: &mut Window,
+    cx: &mut gpui::Context<WindowRoot>,
+    draw: Option<&LineDraw<'_>>,
+) {
+    let Some(draw) = draw else {
+        return;
+    };
+    if draw.line.text.is_empty() {
+        return;
+    }
+    let _ = draw.line.paint(draw.origin, draw.line_height, window, cx);
+}
+
+fn paint_line_caret_step(
+    window: &mut Window,
+    cx: &mut gpui::Context<WindowRoot>,
+    snap: &crate::session::ViewSnap,
+    draw: Option<&LineDraw<'_>>,
+) -> Option<Bounds<Pixels>> {
+    let draw = draw?;
+    paint_line_carets(window, cx, draw, snap)
 }
 
 struct LineDraw<'a> {
