@@ -101,6 +101,43 @@ mod tests {
         ));
     }
 
+    #[test]
+    #[cfg(unix)]
+    fn a_fifo_returns_promptly() {
+        use std::os::unix::fs::FileTypeExt;
+
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        enum Seen {
+            Io,
+            Other,
+        }
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let fifo = dir.path().join("pipe");
+        let made = std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .expect("mkfifo");
+        assert!(made.success());
+        let meta = std::fs::metadata(&fifo).expect("fifo meta");
+        assert!(meta.file_type().is_fifo());
+        assert!(!meta.is_file());
+        let (send, recv) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let result = load(&fifo, &DecodeOptions::default());
+            let seen = match result {
+                Err(super::LoadError::Io(_)) => Seen::Io,
+                _ => Seen::Other,
+            };
+            let _ = send.send(seen);
+        });
+        let seen = recv
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("load returns");
+        worker.join().expect("worker");
+        assert_eq!(seen, Seen::Io);
+    }
+
     fn sha256(bytes: &[u8]) -> [u8; 32] {
         let digest = Sha256::digest(bytes);
         let mut out = [0u8; 32];
