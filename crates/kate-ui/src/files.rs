@@ -57,10 +57,19 @@ pub fn apply_file_request(
     }
 }
 
+/// Map a new view to a file effect.
+///
+/// `None` means the view is missing. The caller keeps the document.
+fn effect_for_new_view(view: Option<kate_core::ViewId>) -> FileEffect {
+    match view {
+        None => FileEffect::OpenFailed,
+        Some(_) => FileEffect::Ready,
+    }
+}
+
 fn make_new(ws: &mut kate_core::Workspace) -> FileEffect {
     let doc = ws.new_document();
-    ws.new_view(doc).expect("the document is open");
-    FileEffect::Ready
+    effect_for_new_view(ws.new_view(doc))
 }
 
 fn open_path(ws: &mut kate_core::Workspace, path: &Path) -> FileEffect {
@@ -232,5 +241,20 @@ mod tests {
         let effect = apply_file_request(&mut ws, view, FileRequest::OpenPath(missing));
         assert_eq!(effect, FileEffect::OpenFailed);
         assert_eq!(ws.documents.len(), before);
+    }
+}
+
+/// The helper has no workspace. Linux CI can build this module.
+#[cfg(test)]
+mod effect_tests {
+    use super::{FileEffect, effect_for_new_view};
+
+    #[test]
+    fn a_missing_view_is_open_failed() {
+        assert_eq!(effect_for_new_view(None), FileEffect::OpenFailed);
+        assert_eq!(
+            effect_for_new_view(Some(kate_core::ViewId::default())),
+            FileEffect::Ready
+        );
     }
 }
