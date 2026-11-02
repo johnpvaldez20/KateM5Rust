@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 42,
+    "issue_number": 61,
     "branch": "pkt/PKT-0067-find-bar-wrap",
     "base_sha": "8606152f18099210068407e9228d3822220cd077"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/42"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/61"
   },
   "lane": {
     "runtime": "CLOUD",
