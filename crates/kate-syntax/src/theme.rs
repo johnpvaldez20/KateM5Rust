@@ -101,6 +101,24 @@ impl Theme {
         self.editor_colors.get(&color).copied()
     }
 
+    /// Return the selection color.
+    ///
+    /// Use `TextSelection` when the file sets that color.
+    /// That color must differ from `BackgroundColor` and from `CurrentLine`.
+    /// Return the fixed blue when `TextSelection` is absent.
+    /// Return that same blue when `TextSelection` matches a set color.
+    pub fn selection_color(&self) -> Rgba {
+        const FALLBACK: Rgba = Rgba(0x94, 0xCA, 0xEF, 0xFF);
+        let Some(selection) = self.editor_color(EditorColor::TextSelection) else {
+            return FALLBACK;
+        };
+        let clashes = [EditorColor::BackgroundColor, EditorColor::CurrentLine]
+            .into_iter()
+            .filter_map(|role| self.editor_color(role))
+            .any(|color| color == selection);
+        if clashes { FALLBACK } else { selection }
+    }
+
     /// Resolve `format` for `definition`.
     ///
     /// A per-definition custom style overrides the format. The format
@@ -804,9 +822,10 @@ mod tests {
             editor_color_theme(&[("BackgroundColor", "#112233"), ("CurrentLine", "#445566")]);
         assert_eq!(absent.selection_color(), fallback);
 
-        let selection_only = editor_color_theme(&[("TextSelection", "#abcdef")]);
+        let selection_without_current_line =
+            editor_color_theme(&[("BackgroundColor", "#112233"), ("TextSelection", "#abcdef")]);
         assert_eq!(
-            selection_only.selection_color(),
+            selection_without_current_line.selection_color(),
             Rgba(0xab, 0xcd, 0xef, 0xff)
         );
     }
