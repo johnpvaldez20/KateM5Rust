@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2026 John Valdez
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! GPUI shell for one read-only document.
+//! GPUI shell for one document.
 
 mod cache;
 mod fixture;
 mod highlight;
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+mod keys;
 mod layout;
 mod profile;
 
