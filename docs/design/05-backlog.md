@@ -130,6 +130,30 @@ The index is `docs/design/WAVE-0053.md`.
 | PKT-0059 | `kate-syntax`: cite the pinned syntax commit | CLOUD | 0008, 0044 |
 | PKT-0060 | `kate-core`: case-insensitive subsequence score | CLOUD | 0012, 0016 |
 
+## Wave PKT-0061
+
+These packets are cloud lanes.
+They do not edit the kate-ui files PKT-0015 is changing.
+They do not edit `indent.rs`.
+PKT-0053 is on main.
+Their files do not overlap.
+The index is `docs/design/WAVE-0061.md`.
+
+Reload still drops per-document config edits made after open.
+PKT-0055 states that behavior.
+This wave does not add a packet to keep those edits.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0061 | `kate-core`: read `.editorconfig` from one file handle | CLOUD | 0056 |
+| PKT-0062 | `kate-core`: saturate the fuzzy gap score | CLOUD | 0060 |
+| PKT-0063 | `kate-core`: return reloaded text once | CLOUD | 0055 |
+| PKT-0064 | `kate-core`: call `kate_fileio::encoding_for_label` | CLOUD | 0054, 0057 |
+| PKT-0065 | `kate-core`: folds from line indent | CLOUD | 0012 |
+| PKT-0066 | `kate-core`: word completions from the buffer | CLOUD | 0060 |
+| PKT-0067 | `kate-search`: wrap flag on `FindBar` | CLOUD | 0050 |
+| PKT-0068 | `kate-ui` layout: visual row count. Not session or paint. | CLOUD | 0013 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
