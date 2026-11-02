@@ -1173,7 +1173,34 @@ fn reload_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError> {
             "probably binary",
         ))));
     }
-    replace_from_load(ws, view, doc_id, loaded)
+    let new_text = loaded.decoded.text.to_string();
+    replace_from_load(ws, view, doc_id, loaded)?;
+    copy_reloaded_mode(ws, view, doc_id, &new_text)
+}
+
+fn copy_reloaded_mode(
+    ws: &mut Workspace,
+    view: ViewId,
+    doc_id: DocumentId,
+    new_text: &str,
+) -> Result<(), CommandError> {
+    let (name, file_state) = {
+        let doc = doc_ref(ws, doc_id, view)?;
+        let file = doc.file.clone().ok_or(CommandError::NoFile)?;
+        (doc.name.clone(), file)
+    };
+    let built = Document::from_loaded(
+        name,
+        ws.config.default_document.clone(),
+        new_text,
+        file_state,
+        None,
+    );
+    let encoding = built.file.ok_or(CommandError::NoFile)?.encoding;
+    let doc = doc_mut(ws, doc_id, view)?;
+    doc.config = built.config;
+    doc.file.as_mut().ok_or(CommandError::NoFile)?.encoding = encoding;
+    Ok(())
 }
 
 fn replace_from_load(
