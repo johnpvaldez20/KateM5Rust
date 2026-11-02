@@ -1,0 +1,112 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0014",
+  "title": "CI: exclude kate-ui from the Linux product-target check",
+  "summary": "The Linux job still type-checks every other crate for aarch64-apple-darwin. It excludes kate-ui and katem5rust. GPUI compiles Metal shaders on a macOS host, so that step cannot build those crates from Linux. This packet does not change the editor.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T01:40:00Z",
+    "author": {
+      "agent_id": "owner-johnpvaldez20",
+      "role": "OWNER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "HUMAN",
+        "name": "owner-johnpvaldez20",
+        "settings": {}
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    },
+    "worker": {
+      "agent_id": "owner-johnpvaldez20",
+      "role": "OWNER",
+      "runtime": "LOCAL",
+      "host": {
+        "kind": "OWNER_MACBOOK",
+        "name": "Johns-MacBook-Pro",
+        "os": "macOS 27.0.1 (Darwin 27.0.0)",
+        "arch": "aarch64"
+      },
+      "model": {
+        "provider": "HUMAN",
+        "name": "owner-johnpvaldez20",
+        "settings": {}
+      },
+      "tool": {
+        "name": "CURSOR_IDE"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 36,
+    "branch": "pkt/PKT-0014-ci-exclude-ui",
+    "base_sha": "9c47cc94c3afb4c89f566493e113ad42347f11ff"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/36"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "The change is one CI line under .github/. Only the owner may hold that path. The check still runs on GitHub-hosted Linux.",
+    "requires": [
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      ".github/workflows/ci.yml"
+    ],
+    "forbidden_paths": [
+      "upstream/"
+    ],
+    "crates_touched": [
+      "workspace"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "YAML",
+        "path": ".github/workflows/ci.yml",
+        "definition": "cargo check --workspace --locked --target aarch64-apple-darwin --exclude kate-ui --exclude katem5rust"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "The Linux product-target check excludes kate-ui and katem5rust. Every other workspace crate stays in that check."
+  },
+  "verification_plan": {
+    "commands": [
+      "git grep -n -- --exclude kate-ui .github/workflows/ci.yml"
+    ],
+    "regression_tests": [
+      {
+        "name": "ci::linux_product_target_excludes_ui_crates",
+        "kind": "INTEGRATION",
+        "asserts": "The Linux aarch64-apple-darwin check command contains --exclude kate-ui and --exclude katem5rust, and still starts with cargo check --workspace."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
