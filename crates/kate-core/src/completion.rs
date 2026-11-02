@@ -91,4 +91,11 @@ mod tests {
         let got = word_completions(&buf, Offset(4), 8);
         assert_eq!(got, vec!["alphabet".to_string()]);
     }
+
+    #[test]
+    fn an_earlier_word_completes_when_nothing_follows() {
+        let buf = TextBuffer::from_str("alphabet alpha");
+        let got = word_completions(&buf, Offset(13), 8);
+        assert_eq!(got, vec!["alphabet".to_string()]);
+    }
 }
