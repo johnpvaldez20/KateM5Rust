@@ -29,8 +29,16 @@ pub enum LoadError {
 }
 
 /// Reads `path` and decodes the bytes with `opts`.
+/// The path must be a regular file.
 /// The read stops one byte past `max_bytes`.
 pub fn load(path: &Path, opts: &DecodeOptions) -> Result<Loaded, LoadError> {
+    let path_meta = std::fs::metadata(path).map_err(LoadError::Io)?;
+    if !path_meta.is_file() {
+        return Err(LoadError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "not a regular file",
+        )));
+    }
     let file = File::open(path).map_err(LoadError::Io)?;
     let meta = file.metadata().map_err(LoadError::Io)?;
     let mtime = meta.modified().ok();
