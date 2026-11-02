@@ -42,3 +42,26 @@ pub struct Scroll {
     /// First visible column.
     pub first_col: u32,
 }
+
+#[cfg(test)]
+mod tests {
+    use kate_text::{CharRange, Offset};
+
+    use crate::document::DocumentId;
+    use crate::selection::{Selection, Selections};
+
+    use super::{Scroll, View};
+
+    #[test]
+    fn apply_indent_folds_stores_char_ranges() {
+        let mut view = View {
+            document: DocumentId::default(),
+            selections: Selections::single(Selection::caret(Offset(0))),
+            scroll: Scroll::default(),
+            folds: Vec::new(),
+            dynamic_wrap: false,
+        };
+        view.apply_indent_folds("a\n  b\n", 4);
+        assert_eq!(view.folds, vec![CharRange::new(Offset(0), Offset(6))]);
+    }
+}

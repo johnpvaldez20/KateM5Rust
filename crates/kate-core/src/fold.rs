@@ -182,4 +182,12 @@ mod tests {
             vec![FoldSpan { start: 0, end: 2 }]
         );
     }
+
+    #[test]
+    fn a_trailing_newline_counts_as_a_line() {
+        assert_eq!(
+            indent_folds("a\n  b\n", 4),
+            vec![FoldSpan { start: 0, end: 3 }]
+        );
+    }
 }
