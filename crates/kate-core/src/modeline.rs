@@ -569,7 +569,7 @@ mod tests {
 
     use super::{
         DocumentConfig, FileState, MAX_EDITORCONFIG_BYTES, TrailingSpaces, apply_mode,
-        editorconfig_overrides, modeline_overrides, read_editorconfig,
+        editorconfig_overrides, modeline_overrides, read_capped, read_editorconfig,
     };
 
     /// One byte past [`MAX_EDITORCONFIG_BYTES`].
@@ -826,5 +826,61 @@ indent_size = 3
         let over = read_editorconfig(&child.join("lib.rs"));
         assert_eq!(over.indent_width, Some(8));
         assert_eq!(over.tab_width, Some(4));
+    }
+
+    #[test]
+    fn read_capped_stops_past_the_cap() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let small_path = root.path().join("small");
+        let text = "root = true\n";
+        std::fs::write(&small_path, text).expect("small");
+        let mut small = std::fs::File::open(&small_path).expect("open small");
+        let got = read_capped(&mut small).expect("read small");
+        assert_eq!(got.as_deref(), Some(text));
+
+        let big_path = root.path().join("big");
+        std::fs::write(&big_path, oversized_editorconfig_body()).expect("big");
+        let len = std::fs::metadata(&big_path).expect("meta").len();
+        assert!(len > MAX_EDITORCONFIG_BYTES);
+        let mut big = std::fs::File::open(&big_path).expect("open big");
+        let got = read_capped(&mut big).expect("read big");
+        assert_eq!(got, None);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_fifo_editorconfig_returns_promptly() {
+        use std::os::unix::fs::FileTypeExt;
+
+        let root = tempfile::tempdir().expect("tempdir");
+        let parent = root.path().join("parent");
+        let child = parent.join("child");
+        std::fs::create_dir_all(&child).expect("mkdir");
+        std::fs::write(
+            parent.join(".editorconfig"),
+            "root = true\n[*]\nindent_size = 8\n",
+        )
+        .expect("parent config");
+        let fifo = child.join(".editorconfig");
+        let made = std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .expect("mkfifo");
+        assert!(made.success());
+        let meta = std::fs::metadata(&fifo).expect("fifo meta");
+        assert!(meta.file_type().is_fifo());
+        assert!(!meta.is_file());
+        let start = child.join("lib.rs");
+        let (send, recv) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let over = read_editorconfig(&start);
+            let _ = send.send(over);
+        });
+        let over = recv
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("read_editorconfig returns");
+        worker.join().expect("worker");
+        assert_eq!(over.indent_width, Some(8));
+        assert_eq!(over.tab_width, None);
     }
 }
