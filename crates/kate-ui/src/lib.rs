@@ -37,6 +37,8 @@ pub struct App {
 /// The shape cache lives on the window root. This value does not own it.
 #[cfg(target_os = "macos")]
 pub struct EditorElement {
+    /// Kept so a later packet can paint this view without a second lookup.
+    #[allow(dead_code)]
     view: kate_core::ViewId,
     line_height: gpui::Pixels,
 }
@@ -98,10 +100,6 @@ impl ShapedLineCache {
 impl EditorElement {
     pub(crate) fn new(view: kate_core::ViewId, line_height: gpui::Pixels) -> Self {
         Self { view, line_height }
-    }
-
-    pub(crate) fn view(&self) -> kate_core::ViewId {
-        self.view
     }
 
     pub(crate) fn line_height(&self) -> gpui::Pixels {

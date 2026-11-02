@@ -646,7 +646,7 @@ fn document_view(
 fn open_document(workspace: &mut Workspace, path: Option<PathBuf>) -> (DocumentId, ViewId) {
     let Some(path) = path else {
         let doc = workspace.new_document();
-        let view = workspace.new_view(doc);
+        let view = workspace.new_view(doc).expect("the document is open");
         let _ = workspace.execute(view, Command::InsertText(SAMPLE.into()));
         if let Some(id) = workspace.syntax.by_name("Rust") {
             let _ = workspace.execute(view, Command::SetSyntax(Some(id)));
@@ -654,10 +654,13 @@ fn open_document(workspace: &mut Workspace, path: Option<PathBuf>) -> (DocumentI
         return (doc, view);
     };
     match workspace.open(&path) {
-        Ok(doc) => (doc, workspace.new_view(doc)),
+        Ok(doc) => {
+            let view = workspace.new_view(doc).expect("the document is open");
+            (doc, view)
+        }
         Err(err) => {
             let doc = workspace.new_document();
-            let view = workspace.new_view(doc);
+            let view = workspace.new_view(doc).expect("the document is open");
             let _ = workspace.execute(view, Command::InsertText(open_error(&path, &err)));
             (doc, view)
         }
