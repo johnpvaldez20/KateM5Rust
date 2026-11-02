@@ -97,11 +97,11 @@
       {
         "language": "RUST",
         "path": "crates/kate-ui/src/layout.rs",
-        "definition": "fn visual_row_count(line: &str, columns: u32) -> u32"
+        "definition": "#[cfg_attr(not(test), allow(dead_code))]\nfn visual_row_count(line: &str, columns: u32) -> u32"
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "The function is pub(crate). Count Unicode scalars. Each scalar has width 1. An empty line returns 1. A columns value of 0 returns 1. Otherwise return the smallest row count that holds the scalars, and at least 1. Do not call this from session.rs. The existing viewport tests stay green. The SPDX header on layout.rs stays as it is. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "The function is pub(crate). It uses cfg_attr(not(test), allow(dead_code)), as layout.rs line 15 does. Count Unicode scalars. Each scalar has width 1. An empty line returns 1. A columns value of 0 returns 1. Otherwise return the smallest row count that holds the scalars, and at least 1. Do not call this from session.rs. The existing viewport tests stay green. The SPDX header on layout.rs stays as it is. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [

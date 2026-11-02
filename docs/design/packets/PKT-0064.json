@@ -103,11 +103,11 @@
       {
         "language": "RUST",
         "path": "crates/kate-core/src/config.rs",
-        "definition": "fn encoding_for_label(label: &str) -> Option<kate_fileio::Encoding>"
+        "definition": "/// kate-fileio owns the label table.\n/// This function calls kate_fileio::encoding_for_label.\nfn encoding_for_label(label: &str) -> Option<kate_fileio::Encoding>"
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "The function body is kate_fileio::encoding_for_label(label). Delete the Deref target and for_label_no_replacement call from this file. Do not change kate-fileio. Do not derive PartialEq. Existing utf-8 and replacement tests stay green. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "Replace the doc comment above encoding_for_label. The old comment says the label table is for_label_no_replacement on that type. The new comment says kate-fileio owns the label table. It also says this function calls kate_fileio::encoding_for_label. The function body is that call. Delete the Deref target from this file. Do not change kate-fileio. Do not derive PartialEq. config::tests::replacement_label_is_rejected must still pass. That test accepts utf-8 and rejects replacement. Gate 1 does not require a new regression test for this delegation. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -116,13 +116,7 @@
       "cargo check -p kate-core --target aarch64-apple-darwin --locked",
       "cargo fmt --all --check"
     ],
-    "regression_tests": [
-      {
-        "name": "config::tests::encoding_lookup_calls_kate_fileio",
-        "kind": "UNIT",
-        "asserts": "This test fails on main. config.rs contains kate_fileio::encoding_for_label. It does not contain for_label_no_replacement."
-      }
-    ],
+    "regression_tests": [],
     "deterministic": true
   },
   "abstraction_audit": {

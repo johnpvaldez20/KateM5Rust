@@ -120,7 +120,7 @@
       {
         "name": "workspace::tests::replace_from_load_returns_the_new_text",
         "kind": "UNIT",
-        "asserts": "This test does not compile on main because replace_from_load returns unit. After the change, Ok holds the loaded text and the buffer equals that text."
+        "asserts": "This test does not compile on main because replace_from_load returns unit. Build a real Loaded from a temp file. Call pin_editorconfig on that directory. After the change, Ok holds the loaded text and the buffer equals that text."
       }
     ],
     "deterministic": true

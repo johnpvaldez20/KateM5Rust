@@ -109,7 +109,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "A word is a run of ASCII letters, digits, and underscore. The prefix is the word chars immediately before at. An empty prefix returns an empty vec. A limit of 0 returns an empty vec. Skip the word that contains at. Matching is case sensitive. lib.rs adds mod completion and re-exports word_completions. Do not edit kate-ui. A new Rust file starts with the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "A word is a run of ASCII letters, digits, and underscore. The prefix is the word chars immediately before at. An empty prefix returns an empty vec. A limit of 0 returns an empty vec. Skip the word that contains at. Remove duplicate words. Matching is case sensitive. lib.rs adds mod completion and re-exports word_completions. Do not edit kate-ui. A new Rust file starts with the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -122,7 +122,7 @@
       {
         "name": "completion::tests::prefix_lists_later_words_once",
         "kind": "UNIT",
-        "asserts": "This test fails on main because word_completions does not exist. In alpha alphabet, a caret after alph returns only alphabet."
+        "asserts": "This test fails on main because word_completions does not exist. The caret is Offset(4). In alpha alphabet, the prefix at that caret is alph. The result is only alphabet. A repeated word is returned once."
       }
     ],
     "deterministic": true

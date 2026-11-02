@@ -105,7 +105,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "Add wrap to every existing FindBar value in this file. Set those existing values to false. Do not change their assertions. find_from passes self.wrap instead of false. Do not edit lib.rs. Do not edit kate-ui. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "Law 1: wrap is a new public field on the public struct FindBar. No in-repo struct literal exists. There is no literal in this repo to migrate. find_from passes self.wrap instead of false. Do not edit lib.rs. Do not edit kate-ui. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
