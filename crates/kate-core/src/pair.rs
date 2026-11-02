@@ -122,6 +122,7 @@ fn is_ascii_word(ch: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::super::insert_text;
+    use super::{PairPlan, plan_pair};
     use crate::selection::{Selection, Selections};
     use kate_text::{Offset, TextBuffer};
 
@@ -252,5 +253,37 @@ mod tests {
         let heads: Vec<Offset> = after.iter().map(|selection| selection.head).collect();
         assert_eq!(heads, vec![Offset(5), Offset(7)]);
         assert_eq!(after.primary().head, Offset(5));
+    }
+
+    #[test]
+    fn a_backtick_wraps_a_caret() {
+        let buf = TextBuffer::from_str("");
+        let selection = Selection::caret(Offset(0));
+        assert_eq!(
+            plan_pair(&buf, selection, "`"),
+            PairPlan::Wrap {
+                caret_after_open: true,
+            }
+        );
+    }
+
+    #[test]
+    fn a_backtick_after_a_word_stays_plain() {
+        for text in ["a", "9", "_"] {
+            let buf = TextBuffer::from_str(text);
+            let selection = Selection::caret(Offset(buf.len().0));
+            assert_eq!(plan_pair(&buf, selection, "`"), PairPlan::Plain);
+        }
+    }
+
+    #[test]
+    fn a_caret_on_a_backtick_types_over() {
+        let buf = TextBuffer::from_str("`");
+        let selection = Selection::caret(Offset(0));
+        assert_eq!(plan_pair(&buf, selection, "`"), PairPlan::TypeOver);
+
+        let buf = TextBuffer::from_str("a`");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(plan_pair(&buf, selection, "`"), PairPlan::TypeOver);
     }
 }
