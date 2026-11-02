@@ -1,0 +1,179 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0045",
+  "title": "kate-ui: sound paint recovery, resume color, buffer the fixture",
+  "summary": "Sound paint recovery for the GPUI spike. A panic inside entity update keeps the window root and its caches. The window itself is still dropped by GPUI. A color cursor outside the viewport resumes at the first visible line. The fixture writer is buffered. The editor font loads before the first timed paint. The gpui-tests feature stays off by default because test-support adds about 1254 Cargo.lock lines.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T16:54:51Z",
+    "author": {
+      "agent_id": "bc-74e21f53-b53c-5cc6-bf7c-55416ded32ce",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "bc-74e21f53-b53c-5cc6-bf7c-55416ded32ce",
+      "role": "CODER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 38,
+    "branch": "pkt/PKT-0045-gpui-paint-followups",
+    "base_sha": "bbe53dcb5f7abddad16f6a93604ec18dffae4bfc"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/38"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The change is Rust in kate-ui. This VM cannot link GPUI. The macos-15 job builds the crate and runs the tests.",
+    "requires": ["NONE"]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "Cargo.lock",
+      "crates/kate-ui/Cargo.toml",
+      "crates/kate-ui/src/fixture.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/session.rs",
+      "docs/design/packets/PKT-0045.json"
+    ],
+    "forbidden_paths": [
+      "upstream/",
+      ".github/",
+      "docs/governance/",
+      "apps/katem5rust/",
+      "crates/kate-core/",
+      "crates/kate-text/",
+      "crates/kate-syntax/"
+    ],
+    "crates_touched": ["kate-ui"],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0012",
+      "PKT-0013",
+      "PKT-0016",
+      "PKT-0017",
+      "PKT-0018",
+      "PKT-0019",
+      "PKT-0043",
+      "PKT-0050",
+      "PKT-0052"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/highlight.rs",
+        "definition": "fn resume_color_line(color_at: u32, visible_first: u32, visible_last: u32, plain_line: u32) -> u32"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/paint.rs",
+        "definition": "fn paint_with_loan<R>(root: &mut WindowRoot, paint: impl FnOnce(&mut ShapedLineCache, &mut KeyedCache<ShapedLine>, &mut WindowRoot) -> R) -> Result<R, Box<dyn std::any::Any + Send>>\n\nfn warm_editor_font(window: &mut Window)"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "fn note_plain_draw(&mut self, first_plain: Option<u32>);\n\nfn request_color_frame(window: &Window);"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/fixture.rs",
+        "definition": "fn write_buffered(out: impl Write, count: u32) -> io::Result<()>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "No public editor signature change. Paint catches a panic inside the entity update. A color cursor outside the viewport resumes at the first visible line. The fixture writer is a BufWriter. kate-ui gains an opt-in gpui-tests feature."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-ui --locked --lib",
+      "cargo fmt --all --check",
+      "cargo clippy --workspace --all-targets --locked -- -D warnings"
+    ],
+    "regression_tests": [
+      {
+        "name": "highlight::tests::resume_color_line_starts_at_the_first_line_when_the_cursor_is_outside",
+        "kind": "UNIT",
+        "asserts": "A color cursor outside the viewport resumes at the first visible line, even when the plain miss is later."
+      },
+      {
+        "name": "highlight::tests::resume_color_line_keeps_the_cursor_when_the_plain_line_is_later",
+        "kind": "UNIT",
+        "asserts": "A plain line at or after an in-viewport color cursor does not move the cursor back to the first visible line."
+      },
+      {
+        "name": "session::tests::scroll_ten_lines_then_idle_colors_every_visible_line",
+        "kind": "UNIT",
+        "asserts": "After a plain viewport, a 10-line scroll, and idle coloring, every visible line has theme spans."
+      },
+      {
+        "name": "fixture::tests::fixture_writer_buffers_many_small_line_writes",
+        "kind": "UNIT",
+        "asserts": "Two thousand fixture lines produce fewer write calls than lines, and the bytes match the unbuffered generator."
+      },
+      {
+        "name": "session::tests::panic_inside_model_update_keeps_the_window_root_and_the_caches",
+        "kind": "INTEGRATION",
+        "asserts": "A panic inside the model update during paint still propagates, and the window root plus its shape cache remain usable."
+      },
+      {
+        "name": "session::tests::apply_frame_requests_an_animation_frame_while_coloring_is_pending",
+        "kind": "INTEGRATION",
+        "asserts": "apply_frame calls request_animation_frame on a partial color pass and does not call it on a plain paint."
+      },
+      {
+        "name": "session::tests::plain_tail_does_not_restart_coloring_at_the_first_line",
+        "kind": "UNIT",
+        "asserts": "After a plain cache miss in the tail, the next color pass replans from the color cursor, not from line 0."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

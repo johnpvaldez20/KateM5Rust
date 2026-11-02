@@ -7,6 +7,8 @@
 //!
 //! The document stays read-only. Marked text is drawn on top of the caret.
 
+#[cfg(test)]
+use std::cell::Cell;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -108,6 +110,7 @@ pub(crate) fn launch(path: Option<PathBuf>) {
             },
             |window, cx| {
                 cx.activate(true);
+                paint::warm_editor_font(window);
                 cx.new(|cx| {
                     let focus = cx.focus_handle();
                     focus.focus(window);
@@ -184,12 +187,25 @@ impl ColorGate {
     }
 
     /// A cache miss was drawn with no theme spans, and syntax already covers it.
-    fn note_plain_draw(&mut self, drew_plain: bool) {
+    ///
+    /// `first_plain` is the first such line.
+    /// An in-viewport cursor keeps its place for a tail and moves back for a hole.
+    /// A cursor outside the viewport resumes at the first visible line.
+    fn note_plain_draw(&mut self, first_plain: Option<u32>) {
+        let Some(line) = first_plain else {
+            return;
+        };
         let last = self.visible_last.saturating_sub(1);
-        if drew_plain && self.checkpoint > last {
-            self.colorize_visible = true;
-            self.color_at = self.visible_first;
+        if self.checkpoint <= last {
+            return;
         }
+        self.colorize_visible = true;
+        self.color_at = crate::highlight::resume_color_line(
+            self.color_at,
+            self.visible_first,
+            self.visible_last,
+            line,
+        );
     }
 
     /// Record that this paint still has theme spans to draw.
@@ -377,8 +393,8 @@ impl WindowRoot {
     /// Highlight only a short span from the checkpoint.
     ///
     /// A viewport past that span is left plain. Catch-up runs after paint.
-    pub(crate) fn note_plain_draw(&mut self, drew_plain: bool) {
-        self.gate.note_plain_draw(drew_plain);
+    pub(crate) fn note_plain_draw(&mut self, first_plain: Option<u32>) {
+        self.gate.note_plain_draw(first_plain);
     }
 
     pub(crate) fn prepare_highlight(
@@ -402,12 +418,6 @@ impl WindowRoot {
         let doc = self.doc;
         let font = self.font.clone();
         let foreground = self.colors.foreground;
-        if self.hl.is_none() {
-            model.update(cx, |app, _| {
-                push_plain(&mut plans, &app.workspace, doc, lines, &font, foreground);
-            });
-            return plans;
-        }
         let syntax: Vec<u32> = lines
             .iter()
             .copied()
@@ -419,7 +429,7 @@ impl WindowRoot {
             .filter(|line| plain_from.is_some_and(|start| *line >= start))
             .collect();
         if let Some(hl) = self.hl.as_mut() {
-            model.update(cx, |app, _| {
+            with_app(&model, cx, |app| {
                 push_plans(
                     &mut plans,
                     &app.workspace,
@@ -430,6 +440,10 @@ impl WindowRoot {
                     foreground,
                 );
                 push_plain(&mut plans, &app.workspace, doc, &plain, &font, foreground);
+            });
+        } else {
+            with_app(&model, cx, |app| {
+                push_plain(&mut plans, &app.workspace, doc, lines, &font, foreground);
             });
         }
         plans
@@ -455,7 +469,7 @@ impl WindowRoot {
         profile::write_sample(&drawn.sample);
         // Coloring that remains must schedule a frame. Notify during paint does not.
         if self.gate.end_paint() {
-            window.request_animation_frame();
+            request_color_frame(window);
         }
     }
 
@@ -483,7 +497,7 @@ impl WindowRoot {
         let model = self.model.clone();
         let doc = self.doc;
         if let Some(hl) = self.hl.as_mut() {
-            model.update(cx, |app, _| {
+            with_app(&model, cx, |app| {
                 if let Some(document) = app.workspace.documents.get_mut(doc) {
                     document.syntax.ensure(&document.buffer, hl, through);
                 }
@@ -513,10 +527,11 @@ impl WindowRoot {
         // A positive wheel delta moves the document toward line 0.
         self.scroll_y = (self.scroll_y - f32::from(delta.y)).max(0.0);
         self.scroll_x = (self.scroll_x - f32::from(delta.x)).clamp(0.0, 20_000.0);
-        let line_count = self.model.update(cx, |app, _| {
+        let doc = self.doc;
+        let line_count = with_app(&self.model, cx, |app| {
             app.workspace
                 .documents
-                .get(self.doc)
+                .get(doc)
                 .map(|document| document.buffer.line_count())
                 .unwrap_or(1)
         });
@@ -529,7 +544,7 @@ impl WindowRoot {
         let column = f32::from(self.column_width).max(1.0);
         let first_col = (self.scroll_x / column).floor() as u32;
         let view = self.view;
-        self.model.update(cx, |app, _| {
+        with_app(&self.model, cx, |app| {
             let _ = app.workspace.execute(view, Command::ScrollTo(first_line));
             if let Some(state) = app.workspace.views.get_mut(view) {
                 state.scroll.first_col = first_col;
@@ -685,6 +700,43 @@ pub(crate) struct HighlightPrep {
     pub want_catch_up: bool,
     /// Half-open line span to drop from the shape cache before planning.
     pub rebuild: Range<u32>,
+}
+
+#[cfg(test)]
+thread_local! {
+    static ANIMATION_FRAMES: Cell<u32> = const { Cell::new(0) };
+    static PANIC_IN_MODEL: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Ask GPUI for one more frame after this paint returns.
+fn request_color_frame(window: &Window) {
+    window.request_animation_frame();
+    #[cfg(test)]
+    ANIMATION_FRAMES.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// Update the model. A panic in `f` does not drop the model entity.
+///
+/// `Entity::update` removes the entity until `end_lease`. A panic skips
+/// `end_lease`. The catch stays inside the update. Then the panic resumes.
+fn with_app<R>(
+    model: &gpui::Entity<App>,
+    cx: &mut Context<WindowRoot>,
+    f: impl FnOnce(&mut App) -> R,
+) -> R {
+    let result = model.update(cx, |app, _| {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            #[cfg(test)]
+            if PANIC_IN_MODEL.with(|flag| flag.replace(false)) {
+                panic!("model update");
+            }
+            f(app)
+        }))
+    });
+    match result {
+        Ok(value) => value,
+        Err(payload) => std::panic::resume_unwind(payload),
+    }
 }
 
 fn push_plans(
@@ -1005,10 +1057,14 @@ fn paint_viewport(view: &mut Viewport<'_>, first: u32, last: u32) -> Vec<paint::
         view.shaped
             .insert(plan.index, plan.revision, crate::ShapedLine::default());
     }
-    let drew_plain = prep
-        .plain_from
-        .is_some_and(|start| plans.iter().any(|plan| plan.index >= start));
-    view.gate.note_plain_draw(drew_plain);
+    let first_plain = prep.plain_from.and_then(|start| {
+        plans
+            .iter()
+            .filter(|plan| plan.index >= start)
+            .map(|plan| plan.index)
+            .min()
+    });
+    view.gate.note_plain_draw(first_plain);
     let _ = view.gate.end_paint();
     plans
 }
@@ -1038,9 +1094,11 @@ fn open_viewport<'a>(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "gpui-tests")]
+    use super::{ANIMATION_FRAMES, PANIC_IN_MODEL};
     use super::{
-        CATCH_UP_LINE_BUDGET, ColorGate, Viewport, catch_up_viewport, open_viewport,
-        paint_viewport, rust_buffer,
+        CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, ColorGate, Viewport, catch_up_viewport,
+        open_viewport, paint_viewport, rust_buffer,
     };
     use kate_text::Revision;
     use std::collections::HashMap;
@@ -1189,6 +1247,168 @@ mod tests {
         let step = gate.step_catch_up(revision).expect("more");
         assert_eq!(step.through, CATCH_UP_LINE_BUDGET * 2 - 1);
         assert_eq!(gate.checkpoint(), CATCH_UP_LINE_BUDGET * 2);
+    }
+
+    #[test]
+    fn plain_tail_does_not_restart_coloring_at_the_first_line() {
+        let (mut workspace, doc, mut hl) = rust_buffer(80);
+        let mut gate = ColorGate::default();
+        let mut shaped = crate::ShapedLineCache::default();
+        let font = crate::paint::editor_font();
+        let foreground = crate::paint::colors_from_theme(&workspace.theme).foreground;
+        let mut view = open_viewport(
+            &mut workspace,
+            doc,
+            &mut hl,
+            &mut gate,
+            &mut shaped,
+            &font,
+            foreground,
+        );
+        let _ = paint_viewport(&mut view, 0, 39);
+        catch_up_viewport(&mut view);
+        let _ = paint_viewport(&mut view, 0, 39);
+        view.shaped.invalidate_range(30, 40, view.revision);
+        let _ = paint_viewport(&mut view, 0, 39);
+        let next = paint_viewport(&mut view, 0, 39);
+        let resume_at = COLOR_LINE_BUDGET * 2;
+        assert!(
+            next.iter().all(|plan| plan.index >= resume_at),
+            "coloring restarted below line {resume_at}"
+        );
+        assert_eq!(next.iter().map(|plan| plan.index).min(), Some(resume_at));
+    }
+
+    #[test]
+    fn scroll_ten_lines_then_idle_colors_every_visible_line() {
+        let (mut workspace, doc, mut hl) = rust_buffer(120);
+        let mut gate = ColorGate::default();
+        let mut shaped = crate::ShapedLineCache::default();
+        let font = crate::paint::editor_font();
+        let foreground = crate::paint::colors_from_theme(&workspace.theme).foreground;
+        let mut view = open_viewport(
+            &mut workspace,
+            doc,
+            &mut hl,
+            &mut gate,
+            &mut shaped,
+            &font,
+            foreground,
+        );
+        // Syntax already covers the later viewport. The checkpoint stays ahead of it.
+        let _ = paint_viewport(&mut view, 90, 119);
+        catch_up_viewport(&mut view);
+        view.gate.note_scroll();
+        let _ = paint_viewport(&mut view, 0, 39);
+        view.gate.note_scroll();
+        let _ = paint_viewport(&mut view, 10, 49);
+        finish_colors(&mut view, 10, 49);
+    }
+
+    /// `gpui-tests` turns on `gpui` `test-support`.
+    /// That feature adds about 1,254 lines to `Cargo.lock`.
+    /// Default `cargo test` leaves it off.
+    /// On a Mac, run `cargo test -p kate-ui --locked --features gpui-tests`.
+    #[cfg(feature = "gpui-tests")]
+    #[test]
+    fn apply_frame_requests_an_animation_frame_while_coloring_is_pending() {
+        let (root, mut cx) = open_long_root(80);
+        reset_animation_frames();
+        cx.update(|window, app| {
+            window.draw(app).clear();
+        });
+        assert_eq!(animation_frames(), 0, "a plain paint requests no frame");
+        catch_up_until_color(&root, &mut cx);
+        reset_animation_frames();
+        cx.update(|window, app| {
+            window.draw(app).clear();
+        });
+        assert_eq!(
+            animation_frames(),
+            1,
+            "a partial color pass must call request_animation_frame"
+        );
+        cx.quit();
+    }
+
+    #[cfg(feature = "gpui-tests")]
+    #[test]
+    fn panic_inside_model_update_keeps_the_window_root_and_the_caches() {
+        let (root, mut cx) = open_long_root(40);
+        let revision = kate_text::Revision(7);
+        root.update(&mut cx, |this, _| {
+            this.shaped.insert(9, revision, gpui::ShapedLine::default());
+        });
+        PANIC_IN_MODEL.with(|flag| flag.set(true));
+        let drawn = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            cx.update(|window, app| {
+                window.draw(app).clear();
+            });
+        }));
+        PANIC_IN_MODEL.with(|flag| flag.set(false));
+        assert!(drawn.is_err(), "the paint panic still propagates");
+        root.update(&mut cx, |this, cx| {
+            assert!(
+                this.shaped.get(9, revision).is_some(),
+                "the shape cache returns after the panic"
+            );
+            let _ = this.model.read(cx);
+        });
+        cx.quit();
+    }
+
+    #[cfg(feature = "gpui-tests")]
+    fn open_long_root(lines: u32) -> (gpui::Entity<super::WindowRoot>, gpui::VisualTestContext) {
+        let path =
+            std::env::temp_dir().join(format!("katem5-pkt0045-{}-{lines}.rs", std::process::id()));
+        let mut body = String::new();
+        for index in 0..lines {
+            body.push_str(&format!("fn item_{index:06}() {{}}\n"));
+        }
+        std::fs::write(&path, body).expect("fixture");
+        let mut app = gpui::TestAppContext::single();
+        let window = app.add_window(|window, cx| {
+            let focus = cx.focus_handle();
+            focus.focus(window);
+            super::WindowRoot::open(cx, Some(path.clone()), focus)
+        });
+        let root = window.root(&mut app).expect("window root");
+        let mut cx = gpui::VisualTestContext::from_window(window.into(), &app);
+        cx.run_until_parked();
+        let path_for_quit = path;
+        cx.on_quit(move || {
+            let _ = std::fs::remove_file(path_for_quit);
+        });
+        (root, cx)
+    }
+
+    #[cfg(feature = "gpui-tests")]
+    fn catch_up_until_color(
+        root: &gpui::Entity<super::WindowRoot>,
+        cx: &mut gpui::VisualTestContext,
+    ) {
+        for _ in 0..8 {
+            let ready = cx.update(|window, app| {
+                root.update(app, |this, cx| {
+                    this.run_catch_up(window, cx);
+                    this.gate.colorize_visible()
+                })
+            });
+            if ready {
+                return;
+            }
+        }
+        panic!("catch-up did not leave coloring pending");
+    }
+
+    #[cfg(feature = "gpui-tests")]
+    fn reset_animation_frames() {
+        ANIMATION_FRAMES.with(|count| count.set(0));
+    }
+
+    #[cfg(feature = "gpui-tests")]
+    fn animation_frames() -> u32 {
+        ANIMATION_FRAMES.with(|count| count.get())
     }
 
     fn finish_colors(view: &mut Viewport<'_>, first: u32, last: u32) {

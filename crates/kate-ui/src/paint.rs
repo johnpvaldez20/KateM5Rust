@@ -46,6 +46,25 @@ pub(crate) struct EditorSurface {
     pub root: Entity<WindowRoot>,
 }
 
+/// Resolve the editor font before the first timed paint.
+///
+/// The first `shape_line` loads Menlo and the fallback list.
+/// That load used to sit inside the first paint. Later frames reuse the font.
+pub(crate) fn warm_editor_font(window: &mut Window) {
+    let sample = "0日本語😀";
+    let run = TextRun {
+        len: sample.len(),
+        font: editor_font(),
+        color: gpui::rgb(0x00D4_D4D4).into(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let _shaped = window
+        .text_system()
+        .shape_line(sample.into(), px(FONT_SIZE), &[run], None);
+}
+
 pub(crate) fn editor_font() -> Font {
     let mut font = gpui::font("Menlo");
     font.fallbacks = Some(FontFallbacks::from_fonts(vec![
@@ -202,41 +221,61 @@ impl Element for EditorSurface {
         window: &mut Window,
         cx: &mut gpui::App,
     ) {
-        let mut loan = self.root.update(cx, |root, _| CacheLoan {
-            shaped: std::mem::take(&mut root.shaped),
-            gutter: std::mem::take(&mut root.gutter),
+        // The catch stays inside `Entity::update`. A panic that leaves `update`
+        // skips `end_lease`, and the window root entity is dropped.
+        // This keeps the root entity and the caches. It does not keep the
+        // `Window`. `App::update_window_id` takes the window out of the map.
+        // A panic drops that window. An `extern "C"` frame callback then aborts.
+        let root_entity = self.root.clone();
+        let payload = self.root.update(cx, |root, cx| {
+            finish_paint(root, &root_entity, bounds, window, cx)
         });
-        let drawn = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            draw_editor(
-                &mut loan.shaped,
-                &mut loan.gutter,
-                &self.root,
-                bounds,
-                window,
-                cx,
-            )
-        }));
-        let drawn = match drawn {
-            Ok(drawn) => drawn,
-            Err(payload) => {
-                self.root.update(cx, |root, _| {
-                    root.shaped = std::mem::take(&mut loan.shaped);
-                    root.gutter = std::mem::take(&mut loan.gutter);
-                });
-                std::panic::resume_unwind(payload);
-            }
-        };
-        self.root.update(cx, |root, cx| {
-            root.shaped = std::mem::take(&mut loan.shaped);
-            root.gutter = std::mem::take(&mut loan.gutter);
-            root.apply_frame(drawn, window, cx);
-        });
+        if let Some(payload) = payload {
+            std::panic::resume_unwind(payload);
+        }
     }
+}
+
+fn finish_paint(
+    root: &mut WindowRoot,
+    root_entity: &Entity<WindowRoot>,
+    bounds: Bounds<Pixels>,
+    window: &mut Window,
+    cx: &mut gpui::Context<WindowRoot>,
+) -> Option<Box<dyn std::any::Any + Send>> {
+    match paint_with_loan(root, |shaped, gutter, root| {
+        draw_editor(shaped, gutter, root, root_entity, bounds, window, cx)
+    }) {
+        Ok(frame) => std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            root.apply_frame(frame, window, cx);
+        }))
+        .err(),
+        Err(payload) => Some(payload),
+    }
+}
+
+/// Paint while the shape caches sit on the stack.
+///
+/// Both paths put the caches back. Call this from inside `Entity::update`.
+pub(crate) fn paint_with_loan<R>(
+    root: &mut WindowRoot,
+    paint: impl FnOnce(&mut ShapedLineCache, &mut KeyedCache<ShapedLine>, &mut WindowRoot) -> R,
+) -> Result<R, Box<dyn std::any::Any + Send>> {
+    let mut loan = CacheLoan {
+        shaped: std::mem::take(&mut root.shaped),
+        gutter: std::mem::take(&mut root.gutter),
+    };
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        paint(&mut loan.shaped, &mut loan.gutter, root)
+    }));
+    root.shaped = std::mem::take(&mut loan.shaped);
+    root.gutter = std::mem::take(&mut loan.gutter);
+    result
 }
 
 /// Caches borrowed from the window for one paint.
 ///
-/// `paint` puts them back on both the normal path and a panic path.
+/// `paint_with_loan` puts them back on both paths.
 struct CacheLoan {
     shaped: ShapedLineCache,
     gutter: KeyedCache<ShapedLine>,
@@ -252,16 +291,17 @@ pub(crate) struct DrawnFrame {
 fn draw_editor(
     shaped: &mut ShapedLineCache,
     gutter_cache: &mut KeyedCache<ShapedLine>,
-    root: &Entity<WindowRoot>,
+    root: &mut WindowRoot,
+    root_entity: &Entity<WindowRoot>,
     mut bounds: Bounds<Pixels>,
     window: &mut Window,
-    cx: &mut gpui::App,
+    cx: &mut gpui::Context<WindowRoot>,
 ) -> DrawnFrame {
     if f32::from(bounds.size.height) < 1.0 {
         bounds = Bounds::new(point(px(0.0), px(0.0)), window.viewport_size());
     }
     let started = Instant::now();
-    let snap = root.read_with(cx, |root, app| root.snapshot(app));
+    let snap = root.snapshot(cx);
     let line_height = snap.line_height;
     let fraction =
         (snap.scroll_y - f32::from(line_height) * snap.scroll.first_line as f32).max(0.0);
@@ -276,7 +316,7 @@ fn draw_editor(
         None
     } else {
         let last = range.end - 1;
-        Some(root.update(cx, |root, cx| root.prepare_highlight(range.start, last, cx)))
+        Some(root.prepare_highlight(range.start, last, cx))
     };
     if let Some(prep) = prep.as_ref() {
         shaped.invalidate_range(prep.rebuild.start, prep.rebuild.end, snap.revision);
@@ -287,9 +327,15 @@ fn draw_editor(
         .clone()
         .filter(|line| shaped.get(*line, snap.revision).is_none())
         .collect();
-    let plans = root.update(cx, |root, cx| root.plans_for(&misses, plain_from, cx));
-    let drew_plain = plain_from.is_some_and(|start| plans.iter().any(|plan| plan.index >= start));
-    root.update(cx, |root, _| root.note_plain_draw(drew_plain));
+    let plans = root.plans_for(&misses, plain_from, cx);
+    let first_plain = plain_from.and_then(|start| {
+        plans
+            .iter()
+            .filter(|plan| plan.index >= start)
+            .map(|plan| plan.index)
+            .min()
+    });
+    root.note_plain_draw(first_plain);
     let highlight_micros = micros(highlight_started.elapsed());
     let font_size = px(FONT_SIZE);
     let mut shape_micros = 0u64;
@@ -316,7 +362,7 @@ fn draw_editor(
     let draw_started = Instant::now();
     window.handle_input(
         &snap.focus,
-        gpui::ElementInputHandler::new(bounds, root.clone()),
+        gpui::ElementInputHandler::new(bounds, root_entity.clone()),
         cx,
     );
     let mut caret_bounds = None;
