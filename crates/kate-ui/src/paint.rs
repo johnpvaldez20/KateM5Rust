@@ -279,9 +279,9 @@ fn draw_editor(
         Some(root.update(cx, |root, cx| root.prepare_highlight(range.start, last, cx)))
     };
     if let Some(prep) = prep.as_ref()
-        && prep.drop_from < prep.drop_to
+        && prep.invalidate
     {
-        shaped.invalidate_range(prep.drop_from, prep.drop_to, snap.revision);
+        shaped.invalidate_range(range.start, range.end, snap.revision);
     }
     let plain_from = prep.as_ref().and_then(|prep| prep.plain_from);
     let want_catch_up = prep.as_ref().is_some_and(|prep| prep.want_catch_up);

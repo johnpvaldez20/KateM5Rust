@@ -7,16 +7,21 @@
 
 use std::collections::HashMap;
 
+/// Line numbers kept for one theme. A theme change drops the previous theme.
+const GUTTER_CACHE_CAP: usize = 4_096;
+
 /// Shaped values kept by display number and theme color.
 #[derive(Clone, Debug)]
 pub(crate) struct KeyedCache<T> {
     slots: HashMap<(u32, u32), T>,
+    theme: Option<u32>,
 }
 
 impl<T> Default for KeyedCache<T> {
     fn default() -> Self {
         Self {
             slots: HashMap::new(),
+            theme: None,
         }
     }
 }
@@ -27,7 +32,15 @@ impl<T> KeyedCache<T> {
     }
 
     pub(crate) fn insert(&mut self, number: u32, theme: u32, value: T) {
-        self.slots.insert((number, theme), value);
+        if self.theme.is_some_and(|current| current != theme) {
+            self.slots.clear();
+        }
+        self.theme = Some(theme);
+        let key = (number, theme);
+        if !self.slots.contains_key(&key) && self.slots.len() >= GUTTER_CACHE_CAP {
+            self.slots.clear();
+        }
+        self.slots.insert(key, value);
     }
 }
 
@@ -43,19 +56,37 @@ pub(crate) fn theme_bits(red: f32, green: f32, blue: f32, alpha: f32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{KeyedCache, theme_bits};
+    use super::{GUTTER_CACHE_CAP, KeyedCache, theme_bits};
 
     #[test]
     fn gutter_cache_keeps_one_entry_per_number_and_theme() {
         let mut cache = KeyedCache::default();
         cache.insert(12, 1, "twelve");
-        cache.insert(12, 2, "other theme");
         cache.insert(13, 1, "thirteen");
         assert_eq!(cache.get(12, 1).copied(), Some("twelve"));
-        assert_eq!(cache.get(12, 2).copied(), Some("other theme"));
         assert_eq!(cache.get(13, 1).copied(), Some("thirteen"));
-        assert!(cache.get(12, 3).is_none());
         assert!(cache.get(14, 1).is_none());
+    }
+
+    #[test]
+    fn gutter_cache_drops_the_previous_theme() {
+        let mut cache = KeyedCache::default();
+        cache.insert(12, 1, "old");
+        cache.insert(12, 2, "new");
+        assert!(cache.get(12, 1).is_none());
+        assert_eq!(cache.get(12, 2).copied(), Some("new"));
+    }
+
+    #[test]
+    fn gutter_cache_caps_the_number_of_line_numbers() {
+        let mut cache = KeyedCache::default();
+        for number in 0..GUTTER_CACHE_CAP as u32 {
+            cache.insert(number, 1, number);
+        }
+        assert_eq!(cache.get(0, 1).copied(), Some(0));
+        cache.insert(GUTTER_CACHE_CAP as u32, 1, 99);
+        assert!(cache.get(0, 1).is_none());
+        assert_eq!(cache.get(GUTTER_CACHE_CAP as u32, 1).copied(), Some(99));
     }
 
     #[test]

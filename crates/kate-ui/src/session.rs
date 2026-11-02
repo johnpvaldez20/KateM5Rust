@@ -74,19 +74,7 @@ pub(crate) struct WindowRoot {
     caret_bounds: Option<Bounds<Pixels>>,
     pub(crate) shaped: ShapedLineCache,
     pub(crate) gutter: KeyedCache<ShapedLine>,
-    /// First line that `ensure` has not covered yet.
-    checkpoint: u32,
-    checkpoint_revision: Revision,
-    catch_up_to: u32,
-    catch_up_queued: bool,
-    visible_first: u32,
-    visible_last: u32,
-    /// Bumps on every scroll event.
-    scroll_gen: u64,
-    /// `scroll_gen` observed by the latest paint.
-    paint_scroll_gen: u64,
-    /// The next paint may syntax-color cache misses in the viewport.
-    colorize_visible: bool,
+    gate: ColorGate,
 }
 
 pub(crate) fn launch(path: Option<PathBuf>) {
@@ -129,6 +117,145 @@ pub(crate) fn launch(path: Option<PathBuf>) {
     });
 }
 
+/// Syntax progress for one window.
+///
+/// Paint does not highlight a skipped gap.
+/// Catch-up moves the checkpoint by one budget, then waits for the next frame.
+struct ColorGate {
+    checkpoint: u32,
+    checkpoint_revision: Revision,
+    catch_up_to: u32,
+    catch_up_queued: bool,
+    visible_first: u32,
+    visible_last: u32,
+    scroll_gen: u64,
+    paint_scroll_gen: u64,
+    colorize_visible: bool,
+}
+
+struct CatchUpStep {
+    through: u32,
+    colorize: bool,
+    again: bool,
+}
+
+impl Default for ColorGate {
+    fn default() -> Self {
+        Self {
+            checkpoint: 0,
+            checkpoint_revision: Revision(0),
+            catch_up_to: 0,
+            catch_up_queued: false,
+            visible_first: 0,
+            visible_last: 0,
+            scroll_gen: 0,
+            paint_scroll_gen: 0,
+            colorize_visible: false,
+        }
+    }
+}
+
+impl ColorGate {
+    fn note_scroll(&mut self) {
+        self.scroll_gen = self.scroll_gen.saturating_add(1);
+    }
+
+    #[cfg(test)]
+    fn checkpoint(&self) -> u32 {
+        self.checkpoint
+    }
+
+    fn prepare(
+        &mut self,
+        first: u32,
+        last: u32,
+        revision: Revision,
+        has_hl: bool,
+    ) -> HighlightPrep {
+        if self.checkpoint_revision != revision {
+            self.checkpoint = 0;
+            self.checkpoint_revision = revision;
+            self.catch_up_to = 0;
+        }
+        self.visible_first = first;
+        self.visible_last = last.saturating_add(1);
+        let scrolling = self.scroll_gen != self.paint_scroll_gen;
+        self.paint_scroll_gen = self.scroll_gen;
+        let colorize = self.colorize_visible && !scrolling;
+        if colorize {
+            self.colorize_visible = false;
+        }
+        if !has_hl {
+            self.checkpoint = last.saturating_add(1);
+            return HighlightPrep {
+                plain_from: None,
+                want_catch_up: false,
+                invalidate: false,
+            };
+        }
+        let step = highlight_step(self.checkpoint, first, last, PAINT_LINE_BUDGET);
+        let plain_from = if !colorize {
+            Some(first)
+        } else {
+            match step.ensure_through {
+                Some(through) if through >= last => None,
+                Some(through) => Some(through.saturating_add(1).max(first)),
+                // `None` with `plain_from: None` means the viewport is already highlighted.
+                None => step.plain_from,
+            }
+        };
+        // A plain viewport inside an already highlighted region must be drawn again in color.
+        let drew_plain = plain_from.is_some_and(|start| start <= last);
+        if drew_plain && self.checkpoint > last {
+            self.colorize_visible = true;
+        }
+        let want_catch_up = self.checkpoint <= last;
+        if want_catch_up {
+            self.catch_up_to = last;
+        }
+        HighlightPrep {
+            plain_from,
+            want_catch_up,
+            invalidate: colorize,
+        }
+    }
+
+    /// Cover at most [`CATCH_UP_LINE_BUDGET`] lines.
+    ///
+    /// Returns `None` when the checkpoint is already past the viewport.
+    fn step_catch_up(&mut self, revision: Revision) -> Option<CatchUpStep> {
+        if self.checkpoint_revision != revision {
+            self.checkpoint = 0;
+            self.checkpoint_revision = revision;
+        }
+        if self.checkpoint > self.catch_up_to {
+            self.catch_up_queued = false;
+            return None;
+        }
+        let from = self.checkpoint;
+        let through = from
+            .saturating_add(CATCH_UP_LINE_BUDGET)
+            .saturating_sub(1)
+            .min(self.catch_up_to);
+        self.checkpoint = through.saturating_add(1);
+        let idle = self.scroll_gen == self.paint_scroll_gen;
+        let covered =
+            self.checkpoint >= self.visible_last && self.visible_last > self.visible_first;
+        if idle && covered {
+            self.colorize_visible = true;
+        }
+        let again = self.checkpoint <= self.catch_up_to;
+        if !again {
+            self.catch_up_queued = false;
+        }
+        Some(CatchUpStep {
+            through,
+            colorize: idle && covered,
+            again,
+        })
+    }
+}
+
 impl WindowRoot {
     fn open(cx: &mut Context<Self>, path: Option<PathBuf>, focus: FocusHandle) -> Self {
         let mut workspace = themed_workspace();
@@ -161,15 +288,7 @@ impl WindowRoot {
             caret_bounds: None,
             shaped: ShapedLineCache::default(),
             gutter: KeyedCache::default(),
-            checkpoint: 0,
-            checkpoint_revision: Revision(0),
-            catch_up_to: 0,
-            catch_up_queued: false,
-            visible_first: 0,
-            visible_last: 0,
-            scroll_gen: 0,
-            paint_scroll_gen: 0,
-            colorize_visible: false,
+            gate: ColorGate::default(),
         }
     }
 
@@ -207,49 +326,7 @@ impl WindowRoot {
         cx: &mut Context<Self>,
     ) -> HighlightPrep {
         let revision = self.document_revision(cx);
-        if self.checkpoint_revision != revision {
-            self.checkpoint = 0;
-            self.checkpoint_revision = revision;
-            self.catch_up_to = 0;
-        }
-        self.visible_first = first;
-        self.visible_last = last.saturating_add(1);
-        let scrolling = self.scroll_gen != self.paint_scroll_gen;
-        self.paint_scroll_gen = self.scroll_gen;
-        let colorize = self.colorize_visible && !scrolling;
-        if colorize {
-            self.colorize_visible = false;
-        }
-        if self.hl.is_none() {
-            self.checkpoint = last.saturating_add(1);
-            return HighlightPrep {
-                drop_from: 0,
-                drop_to: 0,
-                plain_from: None,
-                want_catch_up: false,
-            };
-        }
-        // Syntax `ensure` stays off this path. Catch-up resumes from `checkpoint`.
-        let step = highlight_step(self.checkpoint, first, last, PAINT_LINE_BUDGET);
-        let plain_from = if !colorize {
-            Some(first)
-        } else {
-            match step.ensure_through {
-                Some(through) if through >= last => None,
-                Some(through) => Some(through.saturating_add(1).max(first)),
-                None => step.plain_from.or(Some(first)),
-            }
-        };
-        let want_catch_up = self.checkpoint <= last;
-        if want_catch_up {
-            self.catch_up_to = last;
-        }
-        HighlightPrep {
-            drop_from: 0,
-            drop_to: 0,
-            plain_from,
-            want_catch_up,
-        }
+        self.gate.prepare(first, last, revision, self.hl.is_some())
     }
 
     pub(crate) fn plans_for(
@@ -306,9 +383,10 @@ impl WindowRoot {
         self.column_ready = true;
         self.caret_bounds = drawn.caret_bounds;
         self.frame = drawn.sample.frame;
-        if drawn.want_catch_up && !self.catch_up_queued {
-            self.catch_up_queued = true;
-            cx.defer_in(window, |this, window, cx| {
+        if drawn.want_catch_up && !self.gate.catch_up_queued {
+            self.gate.catch_up_queued = true;
+            // One budget per frame. `defer_in` would run the whole jump in one flush.
+            cx.on_next_frame(window, |this, window, cx| {
                 this.run_catch_up(window, cx);
             });
         }
@@ -316,42 +394,22 @@ impl WindowRoot {
     }
 
     fn run_catch_up(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.hl.is_none() || self.checkpoint > self.catch_up_to {
-            self.catch_up_queued = false;
+        if self.hl.is_none() {
+            self.gate.catch_up_queued = false;
             return;
         }
         let revision = self.document_revision(cx);
-        if self.checkpoint_revision != revision {
-            self.checkpoint = 0;
-            self.checkpoint_revision = revision;
-        }
-        if self.checkpoint > self.catch_up_to {
-            self.catch_up_queued = false;
+        let Some(step) = self.gate.step_catch_up(revision) else {
             return;
-        }
-        let from = self.checkpoint;
-        let through = from
-            .saturating_add(CATCH_UP_LINE_BUDGET)
-            .saturating_sub(1)
-            .min(self.catch_up_to);
-        self.ensure_syntax(through, cx);
-        self.checkpoint = through.saturating_add(1);
-        let idle = self.scroll_gen == self.paint_scroll_gen;
-        let covered =
-            self.checkpoint >= self.visible_last && self.visible_last > self.visible_first;
-        if idle && covered {
-            self.shaped
-                .invalidate_range(self.visible_first, self.visible_last, revision);
-            self.colorize_visible = true;
+        };
+        self.ensure_syntax(step.through, cx);
+        if step.colorize {
             cx.notify();
         }
-        let more = self.checkpoint <= self.catch_up_to;
-        if more {
-            cx.defer_in(window, |this, window, cx| {
+        if step.again {
+            cx.on_next_frame(window, |this, window, cx| {
                 this.run_catch_up(window, cx);
             });
-        } else {
-            self.catch_up_queued = false;
         }
     }
 
@@ -383,7 +441,7 @@ impl WindowRoot {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.scroll_gen = self.scroll_gen.saturating_add(1);
+        self.gate.note_scroll();
         let line_height = f32::from(self.editor.line_height()).max(1.0);
         let delta = event.delta.pixel_delta(self.editor.line_height());
         // A positive wheel delta moves the document toward line 0.
@@ -557,10 +615,10 @@ impl EntityInputHandler for WindowRoot {
 }
 
 pub(crate) struct HighlightPrep {
-    pub drop_from: u32,
-    pub drop_to: u32,
     pub plain_from: Option<u32>,
     pub want_catch_up: bool,
+    /// Drop shaped lines in the viewport and draw them from the theme.
+    pub invalidate: bool,
 }
 
 fn push_plans(
@@ -769,4 +827,242 @@ fn range_from_utf16(text: &str, range: &Range<usize>) -> Range<usize> {
 
 fn range_to_utf16(text: &str, range: &Range<usize>) -> Range<usize> {
     utf16_index(text, range.start)..utf16_index(text, range.end)
+}
+
+#[cfg(test)]
+struct Viewport<'a> {
+    gate: &'a mut ColorGate,
+    shaped: &'a mut crate::ShapedLineCache,
+    workspace: &'a mut kate_core::Workspace,
+    doc: kate_core::DocumentId,
+    hl: &'a mut kate_syntax::Highlighter<'static>,
+    font: &'a gpui::Font,
+    foreground: gpui::Hsla,
+    revision: Revision,
+}
+
+#[cfg(test)]
+fn rust_buffer(
+    lines: u32,
+) -> (
+    kate_core::Workspace,
+    kate_core::DocumentId,
+    kate_syntax::Highlighter<'static>,
+) {
+    let mut workspace = themed_workspace();
+    let doc = workspace.new_document();
+    let view = workspace.new_view(doc).expect("the document is open");
+    let mut body = String::new();
+    for index in 0..lines {
+        body.push_str(&format!("fn item_{index:06}() {{}}\n"));
+    }
+    workspace
+        .execute(view, kate_core::Command::InsertText(body))
+        .expect("text");
+    let rust = workspace.syntax.by_name("Rust").expect("Rust");
+    workspace
+        .execute(view, kate_core::Command::SetSyntax(Some(rust)))
+        .expect("syntax");
+    let hl = highlighter_for(&workspace, Some(rust)).expect("highlighter");
+    (workspace, doc, hl)
+}
+
+#[cfg(test)]
+fn buffer_revision(workspace: &kate_core::Workspace, doc: kate_core::DocumentId) -> Revision {
+    workspace
+        .documents
+        .get(doc)
+        .expect("document")
+        .buffer
+        .revision()
+}
+
+#[cfg(test)]
+fn ensure_lines(
+    workspace: &mut kate_core::Workspace,
+    doc: kate_core::DocumentId,
+    hl: &mut kate_syntax::Highlighter<'_>,
+    through: u32,
+) {
+    if let Some(document) = workspace.documents.get_mut(doc) {
+        document.syntax.ensure(&document.buffer, hl, through);
+    }
+}
+
+#[cfg(test)]
+fn catch_up_viewport(view: &mut Viewport<'_>) {
+    while let Some(step) = view.gate.step_catch_up(view.revision) {
+        ensure_lines(view.workspace, view.doc, view.hl, step.through);
+        if !step.again {
+            break;
+        }
+    }
+}
+
+#[cfg(test)]
+fn paint_viewport(view: &mut Viewport<'_>, first: u32, last: u32) -> Vec<paint::LinePlan> {
+    let prep = view.gate.prepare(first, last, view.revision, true);
+    if prep.invalidate {
+        view.shaped
+            .invalidate_range(first, last.saturating_add(1), view.revision);
+    }
+    let lines: Vec<u32> = (first..=last)
+        .filter(|line| view.shaped.get(*line, view.revision).is_none())
+        .collect();
+    let syntax: Vec<u32> = lines
+        .iter()
+        .copied()
+        .filter(|line| prep.plain_from.is_none_or(|start| *line < start))
+        .collect();
+    let plain: Vec<u32> = lines
+        .iter()
+        .copied()
+        .filter(|line| prep.plain_from.is_some_and(|start| *line >= start))
+        .collect();
+    let mut plans = Vec::new();
+    push_plans(
+        &mut plans,
+        view.workspace,
+        view.doc,
+        &syntax,
+        view.hl,
+        view.font,
+        view.foreground,
+    );
+    push_plain(
+        &mut plans,
+        view.workspace,
+        view.doc,
+        &plain,
+        view.font,
+        view.foreground,
+    );
+    for plan in &plans {
+        view.shaped
+            .insert(plan.index, plan.revision, crate::ShapedLine::default());
+    }
+    plans
+}
+
+#[cfg(test)]
+fn open_viewport<'a>(
+    workspace: &'a mut kate_core::Workspace,
+    doc: kate_core::DocumentId,
+    hl: &'a mut kate_syntax::Highlighter<'static>,
+    gate: &'a mut ColorGate,
+    shaped: &'a mut crate::ShapedLineCache,
+    font: &'a gpui::Font,
+    foreground: gpui::Hsla,
+) -> Viewport<'a> {
+    let revision = buffer_revision(workspace, doc);
+    Viewport {
+        gate,
+        shaped,
+        workspace,
+        doc,
+        hl,
+        font,
+        foreground,
+        revision,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        CATCH_UP_LINE_BUDGET, ColorGate, catch_up_viewport, open_viewport, paint_viewport,
+        rust_buffer,
+    };
+    use kate_text::Revision;
+
+    #[test]
+    fn open_and_catch_up_colors_the_visible_lines() {
+        let (mut workspace, doc, mut hl) = rust_buffer(80);
+        let mut gate = ColorGate::default();
+        let mut shaped = crate::ShapedLineCache::default();
+        let font = crate::paint::editor_font();
+        let foreground = crate::paint::colors_from_theme(&workspace.theme).foreground;
+        let mut view = open_viewport(
+            &mut workspace,
+            doc,
+            &mut hl,
+            &mut gate,
+            &mut shaped,
+            &font,
+            foreground,
+        );
+        let first = paint_viewport(&mut view, 0, 39);
+        assert!(
+            first.iter().all(|plan| plan.runs.len() <= 1),
+            "the first paint is plain"
+        );
+        catch_up_viewport(&mut view);
+        let colored = paint_viewport(&mut view, 0, 39);
+        for line in 0..40 {
+            let plan = colored
+                .iter()
+                .find(|plan| plan.index == line)
+                .unwrap_or_else(|| panic!("line {line}"));
+            assert!(plan.runs.len() > 1, "line {line} has no theme spans");
+        }
+    }
+
+    #[test]
+    fn scroll_back_recolors_lines_outside_the_retain_window() {
+        let (mut workspace, doc, mut hl) = rust_buffer(700);
+        let mut gate = ColorGate::default();
+        let mut shaped = crate::ShapedLineCache::default();
+        let font = crate::paint::editor_font();
+        let foreground = crate::paint::colors_from_theme(&workspace.theme).foreground;
+        let mut view = open_viewport(
+            &mut workspace,
+            doc,
+            &mut hl,
+            &mut gate,
+            &mut shaped,
+            &font,
+            foreground,
+        );
+        let _ = paint_viewport(&mut view, 0, 39);
+        catch_up_viewport(&mut view);
+        let _ = paint_viewport(&mut view, 0, 39);
+
+        view.gate.note_scroll();
+        let _ = paint_viewport(&mut view, 600, 639);
+        catch_up_viewport(&mut view);
+        let _ = paint_viewport(&mut view, 600, 639);
+        view.shaped.retain_near(600, 640, view.revision);
+        assert!(view.shaped.get(0, view.revision).is_none());
+
+        view.gate.note_scroll();
+        let scrolling = paint_viewport(&mut view, 0, 39);
+        assert!(
+            scrolling.iter().all(|plan| plan.runs.len() <= 1),
+            "a scroll frame stays plain"
+        );
+        let colored = paint_viewport(&mut view, 0, 39);
+        for line in 0..40 {
+            let plan = colored
+                .iter()
+                .find(|plan| plan.index == line)
+                .unwrap_or_else(|| panic!("line {line}"));
+            assert!(plan.runs.len() > 1, "line {line} stays plain");
+        }
+    }
+
+    #[test]
+    fn one_catch_up_step_stops_at_the_budget() {
+        let mut gate = ColorGate::default();
+        let revision = Revision(1);
+        let prep = gate.prepare(90_000, 90_040, revision, true);
+        assert!(prep.want_catch_up);
+        assert_eq!(prep.plain_from, Some(90_000));
+        let step = gate.step_catch_up(revision).expect("work");
+        assert_eq!(step.through, CATCH_UP_LINE_BUDGET - 1);
+        assert_eq!(gate.checkpoint(), CATCH_UP_LINE_BUDGET);
+        assert!(step.again);
+        let step = gate.step_catch_up(revision).expect("more");
+        assert_eq!(step.through, CATCH_UP_LINE_BUDGET * 2 - 1);
+        assert_eq!(gate.checkpoint(), CATCH_UP_LINE_BUDGET * 2);
+    }
 }
