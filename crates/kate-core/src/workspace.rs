@@ -1992,6 +1992,25 @@ mod tests {
     }
 
     #[test]
+    fn replace_from_load_returns_the_new_text() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
+        let path = dir.path().join("note.txt");
+        std::fs::write(&path, "reloaded line\n").expect("write");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        let view = add_view(&mut ws, doc);
+        ws.execute(view, Command::InsertText("DIRTY".into()))
+            .expect("dirty the buffer");
+        let loaded = kate_fileio::load(&path, &ws.decode_options()).expect("load");
+        let expected = loaded.decoded.text.to_string();
+        let returned: String =
+            super::replace_from_load(&mut ws, view, doc, loaded).expect("replace");
+        assert_eq!(returned, expected);
+        assert_eq!(text_of(&ws, doc), returned);
+    }
+
+    #[test]
     fn reload_reapplies_the_modeline_over_editorconfig() {
         let dir = tempfile::tempdir().expect("tempdir");
         pin_editorconfig(dir.path());
