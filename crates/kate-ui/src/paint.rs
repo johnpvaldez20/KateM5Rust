@@ -761,3 +761,38 @@ fn color_or(theme: &Theme, role: EditorColor, fallback: impl Into<Hsla>) -> Hsla
 fn hsla_from_rgba(color: Rgba) -> Hsla {
     gpui::rgba(u32::from_be_bytes([color.0, color.1, color.2, color.3])).into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{LinePaintStep, line_paint_steps};
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn selection_is_painted_after_the_line_background() {
+        let steps = line_paint_steps();
+        assert_eq!(
+            steps,
+            &[
+                LinePaintStep::CurrentLine,
+                LinePaintStep::TextBackground,
+                LinePaintStep::Selection,
+                LinePaintStep::Text,
+                LinePaintStep::Caret,
+            ]
+        );
+        let background = steps
+            .iter()
+            .position(|step| *step == LinePaintStep::TextBackground)
+            .expect("text background");
+        let selection = steps
+            .iter()
+            .position(|step| *step == LinePaintStep::Selection)
+            .expect("selection");
+        let text = steps
+            .iter()
+            .position(|step| *step == LinePaintStep::Text)
+            .expect("text");
+        assert!(selection > background);
+        assert!(selection < text);
+    }
+}
