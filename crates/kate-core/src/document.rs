@@ -287,4 +287,31 @@ end_of_line = lf
         assert!(saved.bom);
         assert_eq!(doc.buffer.text().to_string(), text);
     }
+
+    #[test]
+    fn note_disk_names_modified_deleted_and_created() {
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+        let stored = file.digest_on_disk;
+        file.note_disk(true, stored);
+        assert_eq!(file.disk_change, None);
+        assert_eq!(file.digest_on_disk, stored);
+
+        let mut other = stored;
+        other[0] = other[0].wrapping_add(1);
+        file.note_disk(true, other);
+        assert_eq!(file.disk_change, Some(DiskChange::Modified));
+        assert_eq!(file.digest_on_disk, stored);
+
+        file.note_disk(false, other);
+        assert_eq!(file.disk_change, Some(DiskChange::Deleted));
+        assert_eq!(file.digest_on_disk, stored);
+
+        file.note_disk(true, stored);
+        assert_eq!(file.disk_change, Some(DiskChange::Created));
+        assert_eq!(file.digest_on_disk, stored);
+
+        file.note_disk(true, stored);
+        assert_eq!(file.disk_change, None);
+        assert_eq!(file.digest_on_disk, stored);
+    }
 }
