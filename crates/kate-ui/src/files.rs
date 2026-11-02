@@ -6,11 +6,7 @@
 //! This module does not import GPUI.
 //! `session` sends a [`FileRequest`] and reads the [`FileEffect`].
 
-// On macOS the module is unused until `session` calls it.
-// The tests must still compile and fail on assertions.
-#![cfg_attr(target_os = "macos", allow(dead_code))]
-
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// One file action from the window.
 #[derive(Debug)]
@@ -52,8 +48,68 @@ pub fn apply_file_request(
     view: kate_core::ViewId,
     request: FileRequest,
 ) -> FileEffect {
-    let _ = (ws, view, request);
+    match request {
+        FileRequest::New => make_new(ws),
+        FileRequest::OpenPath(path) => open_path(ws, &path),
+        FileRequest::Save => write_save(ws, view),
+        FileRequest::SaveAsPath(path) => write_save_as(ws, view, path),
+        FileRequest::Close => close_one(ws, view),
+    }
+}
+
+fn make_new(ws: &mut kate_core::Workspace) -> FileEffect {
+    let doc = ws.new_document();
+    ws.new_view(doc).expect("the document is open");
     FileEffect::Ready
+}
+
+fn open_path(ws: &mut kate_core::Workspace, path: &Path) -> FileEffect {
+    let opened = match ws.open(path) {
+        Ok(doc) => doc,
+        Err(_) => return FileEffect::OpenFailed,
+    };
+    if ws.new_view(opened).is_none() {
+        FileEffect::OpenFailed
+    } else {
+        FileEffect::Ready
+    }
+}
+
+fn write_save(ws: &mut kate_core::Workspace, view: kate_core::ViewId) -> FileEffect {
+    map_command(ws.execute(view, kate_core::Command::Save))
+}
+
+fn write_save_as(
+    ws: &mut kate_core::Workspace,
+    view: kate_core::ViewId,
+    path: PathBuf,
+) -> FileEffect {
+    map_command(ws.execute(view, kate_core::Command::SaveAs(path)))
+}
+
+fn map_command(result: Result<(), kate_core::CommandError>) -> FileEffect {
+    match result {
+        Ok(()) => FileEffect::Ready,
+        Err(kate_core::CommandError::NoFile) => FileEffect::NeedsPath,
+        Err(kate_core::CommandError::AlreadyOpen) => FileEffect::AlreadyOpen,
+        Err(kate_core::CommandError::UnknownView(_)) => FileEffect::UnknownView,
+        Err(
+            kate_core::CommandError::Save(_)
+            | kate_core::CommandError::Load(_)
+            | kate_core::CommandError::Apply(_)
+            | kate_core::CommandError::Transaction(_),
+        ) => FileEffect::SaveFailed,
+    }
+}
+
+fn close_one(ws: &mut kate_core::Workspace, view: kate_core::ViewId) -> FileEffect {
+    if ws.views.get(view).is_none() {
+        return FileEffect::UnknownView;
+    }
+    match ws.close_view(view) {
+        kate_core::CloseResult::Closed => FileEffect::Ready,
+        kate_core::CloseResult::RefusedModified(doc) => FileEffect::RefusedModified(doc),
+    }
 }
 
 /// File-effect tests need `kate_syntax` to build a workspace.
