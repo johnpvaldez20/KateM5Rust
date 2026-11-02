@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0045",
   "title": "kate-ui: sound paint recovery, resume color, buffer the fixture",
-  "summary": "Sound paint recovery for the GPUI spike. A panic inside entity update keeps the window root and its caches. The window itself is still dropped by GPUI. A color cursor outside the viewport resumes at the first visible line. The fixture writer is buffered. The editor font loads before the first timed paint. gpui test-support stays off by default because it enables Wayland and X11.",
+  "summary": "Sound paint recovery for the GPUI spike. A panic inside entity update keeps the window root and its caches. The window itself is still dropped by GPUI. A color cursor outside the viewport resumes at the first visible line. The fixture writer is buffered. The editor font loads before the first timed paint. The gpui-tests feature stays off by default because test-support adds about 1254 Cargo.lock lines.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-11-02T16:54:51Z",
@@ -53,7 +53,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 38,
     "branch": "pkt/PKT-0045-gpui-paint-followups",
-    "base_sha": "1242c9cd43fe017b055012ab52d00af49a8e90de"
+    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
   },
   "handoff_artifact": {
     "kind": "ISSUE",

@@ -1305,9 +1305,10 @@ mod tests {
         finish_colors(&mut view, 10, 49);
     }
 
-    /// `gpui` feature `test-support` also enables Wayland and X11.
-    /// Those links need libraries the macOS runner does not provide.
-    /// Opt in with `cargo test -p kate-ui --features gpui-tests`.
+    /// `gpui-tests` turns on `gpui` `test-support`.
+    /// That feature adds about 1,254 lines to `Cargo.lock`.
+    /// Default `cargo test` leaves it off.
+    /// On a Mac, run `cargo test -p kate-ui --locked --features gpui-tests`.
     #[cfg(feature = "gpui-tests")]
     #[test]
     fn apply_frame_requests_an_animation_frame_while_coloring_is_pending() {
@@ -1335,7 +1336,7 @@ mod tests {
     fn panic_inside_model_update_keeps_the_window_root_and_the_caches() {
         let (root, mut cx) = open_long_root(40);
         let revision = kate_text::Revision(7);
-        root.update(cx, |this, _| {
+        root.update(&mut cx, |this, _| {
             this.shaped.insert(9, revision, gpui::ShapedLine::default());
         });
         PANIC_IN_MODEL.with(|flag| flag.set(true));
@@ -1346,7 +1347,7 @@ mod tests {
         }));
         PANIC_IN_MODEL.with(|flag| flag.set(false));
         assert!(drawn.is_err(), "the paint panic still propagates");
-        root.update(cx, |this, cx| {
+        root.update(&mut cx, |this, cx| {
             assert!(
                 this.shaped.get(9, revision).is_some(),
                 "the shape cache returns after the panic"

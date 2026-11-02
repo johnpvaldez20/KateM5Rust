@@ -23,13 +23,8 @@ kate-syntax = { workspace = true }
 # Metal window, Core Text shaping, and NSTextInputClient. Pinned. A bump is a new packet.
 gpui = { version = "=0.2.2", default-features = false, features = ["font-kit"] }
 
-# Same pin as the normal dependency. Tests link it only on macOS.
-[target.'cfg(target_os = "macos")'.dev-dependencies]
-gpui = { version = "=0.2.2", default-features = false, features = ["font-kit"] }
-
-# `gpui`'s `test-support` feature also enables `wayland` and `x11`.
-# Those crates link libwayland and libxkbcommon. The macOS runner does not provide them.
-# Default `cargo test` leaves this off. Opt in with `--features gpui-tests`.
+# Opt-in. `test-support` adds about 1,254 lines to Cargo.lock.
+# Default `cargo test` leaves this off.
 [features]
 gpui-tests = ["gpui/test-support"]
 
