@@ -286,6 +286,16 @@ const MOVE_BINDINGS: &[MoveBinding] = &[
         movement: Movement::DocEnd,
         extend: Extend::Yes,
     },
+    MoveBinding {
+        name: "ctrl-6",
+        movement: Movement::ToMatch,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "ctrl-shift-6",
+        movement: Movement::ToMatch,
+        extend: Extend::Yes,
+    },
 ];
 
 fn move_binding(name: &str) -> Option<Command> {
@@ -314,6 +324,7 @@ fn edit_binding(name: &str) -> Option<Command> {
         "alt-shift-down" => Some(Command::AddCursorBelow),
         "alt-shift-up" => Some(Command::AddCursorAbove),
         "escape" => Some(Command::RemoveSecondaryCursors),
+        "ctrl-space" => Some(Command::CompleteWord),
         _ => None,
     }
 }
