@@ -61,9 +61,16 @@ pub fn indent_lines(
     Transaction::new(edits)
 }
 
-/// Build one delete of one indent unit for each touched line.
+/// Build one delete of one indent step for each touched line.
 ///
-/// A line with no indent produces no edit. The result can be empty.
+/// A line that starts with the configured unit loses that unit.
+/// A leading tab in spaces mode loses that one tab.
+/// A leading space run loses up to one indent width.
+/// A width of 0 counts as 1.
+/// A shorter run is deleted in full.
+/// One step does not delete a tab and spaces together.
+/// A line with no indent produces no edit.
+/// The result can be empty.
 pub fn unindent_lines(
     buf: &TextBuffer,
     lines: &[u32],
@@ -131,13 +138,17 @@ fn remove_unit(body: &str, config: &DocumentConfig) -> String {
     if body.starts_with(&unit) {
         return unit;
     }
+    if config.indent_with_spaces && body.starts_with('\t') {
+        return "\t".to_string();
+    }
     short_spaces(body, config)
 }
 
+/// Return a leading space run, up to one indent width.
+///
+/// A width of 0 counts as 1.
+/// A shorter run is returned in full.
 fn short_spaces(body: &str, config: &DocumentConfig) -> String {
-    if !config.indent_with_spaces {
-        return String::new();
-    }
     let width = usize::from(config.indent_width.max(1));
     let count = body.chars().take(width).take_while(|ch| *ch == ' ').count();
     " ".repeat(count)
@@ -214,5 +225,51 @@ mod tests {
         assert_eq!(back.edits()[0].old, "    ");
         let partial = unindent_lines(&TextBuffer::from_str("  ab"), &[0], &config).expect("part");
         assert_eq!(partial.edits()[0].old, "  ");
+    }
+
+    #[test]
+    fn spaces_mode_strips_one_tab() {
+        let config = DocumentConfig::default();
+        let tab = unindent_lines(&TextBuffer::from_str("\tab"), &[0], &config).expect("tab");
+        assert_eq!(tab.edits().len(), 1);
+        assert_eq!(tab.edits()[0].start, Offset(0));
+        assert_eq!(tab.edits()[0].old, "\t");
+        assert_eq!(tab.edits()[0].new, "");
+        let mixed =
+            unindent_lines(&TextBuffer::from_str("\t    ab"), &[0], &config).expect("mixed");
+        assert_eq!(mixed.edits().len(), 1);
+        assert_eq!(mixed.edits()[0].old, "\t");
+        let spaces =
+            unindent_lines(&TextBuffer::from_str("    ab"), &[0], &config).expect("spaces");
+        assert_eq!(spaces.edits().len(), 1);
+        assert_eq!(spaces.edits()[0].old, "    ");
+    }
+
+    #[test]
+    fn tab_mode_strips_leading_spaces() {
+        let config = DocumentConfig {
+            indent_with_spaces: false,
+            indent_width: 4,
+            ..DocumentConfig::default()
+        };
+        let four = unindent_lines(&TextBuffer::from_str("    ab"), &[0], &config).expect("four");
+        assert_eq!(four.edits().len(), 1);
+        assert_eq!(four.edits()[0].start, Offset(0));
+        assert_eq!(four.edits()[0].old, "    ");
+        assert_eq!(four.edits()[0].new, "");
+        let two = unindent_lines(&TextBuffer::from_str("  \tab"), &[0], &config).expect("two");
+        assert_eq!(two.edits().len(), 1);
+        assert_eq!(two.edits()[0].old, "  ");
+        let tab = unindent_lines(&TextBuffer::from_str("\tab"), &[0], &config).expect("tab");
+        assert_eq!(tab.edits().len(), 1);
+        assert_eq!(tab.edits()[0].old, "\t");
+        let narrow = DocumentConfig {
+            indent_with_spaces: false,
+            indent_width: 0,
+            ..DocumentConfig::default()
+        };
+        let one = unindent_lines(&TextBuffer::from_str("  ab"), &[0], &narrow).expect("narrow");
+        assert_eq!(one.edits().len(), 1);
+        assert_eq!(one.edits()[0].old, " ");
     }
 }
