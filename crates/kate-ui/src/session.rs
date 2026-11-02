@@ -5,7 +5,8 @@
 
 //! The window, the scroll position, and the IME composition.
 //!
-//! The document stays read-only. Marked text is drawn on top of the caret.
+//! A key command and a committed string go through the workspace.
+//! Marked text stays off the buffer until the input method commits it.
 
 #[cfg(test)]
 use std::cell::Cell;
@@ -15,8 +16,9 @@ use std::sync::OnceLock;
 
 use gpui::{
     App as GpuiApp, Application, Bounds, Context, EntityInputHandler, FocusHandle, Focusable,
-    KeyBinding, Menu, MenuItem, Pixels, Point, Render, ScrollWheelEvent, TitlebarOptions,
-    UTF16Selection, Window, WindowBounds, WindowOptions, div, prelude::*, px, size,
+    KeyBinding, KeyDownEvent, Menu, MenuItem, Pixels, Point, Render, ScrollWheelEvent,
+    TitlebarOptions, UTF16Selection, Window, WindowBounds, WindowOptions, div, prelude::*, px,
+    size,
 };
 use kate_core::{Command, DocumentId, EditorConfig, OpenError, Scroll, ViewId, Workspace};
 use kate_syntax::{DefId, Highlighter, LineHighlight, Repository, Theme};
@@ -26,6 +28,7 @@ use crate::cache::KeyedCache;
 use crate::highlight::{
     CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, PAINT_LINE_BUDGET, highlight_step,
 };
+use crate::keys::{CaretMark, SelSpan};
 use crate::paint::{
     self, Colors, DrawnFrame, EditorSurface, byte_at_char, line_text, runs_for_line,
 };
@@ -47,6 +50,8 @@ pub(crate) struct ViewSnap {
     pub line_count: u32,
     pub caret_line: u32,
     pub caret_byte: usize,
+    pub caret_marks: Vec<CaretMark>,
+    pub selection_spans: Vec<SelSpan>,
     pub colors: Colors,
     pub font: gpui::Font,
     pub column_width: Pixels,
@@ -370,6 +375,7 @@ impl WindowRoot {
         let model = self.model.read(app);
         let (revision, line_count, caret_line, caret_byte, scroll) =
             document_view(model, self.doc, self.view);
+        let (caret_marks, selection_spans) = caret_and_spans(model, self.doc, self.view);
         ViewSnap {
             scroll,
             scroll_y: self.scroll_y,
@@ -378,6 +384,8 @@ impl WindowRoot {
             line_count,
             caret_line,
             caret_byte,
+            caret_marks,
+            selection_spans,
             colors: self.colors,
             font: self.font.clone(),
             column_width: self.column_width,
@@ -552,6 +560,46 @@ impl WindowRoot {
         });
         cx.notify();
     }
+
+    fn on_key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(command) = crate::keys::command_for_binding(&binding_name(&event.keystroke))
+        else {
+            return;
+        };
+        // Tab and enter also reach the input handler unless this event stops.
+        cx.stop_propagation();
+        self.run_command(command, window, cx);
+    }
+
+    fn run_command(&mut self, command: Command, window: &mut Window, cx: &mut Context<Self>) {
+        let view = self.view;
+        let model = self.model.clone();
+        with_app(&model, cx, |app| {
+            let _ = app.workspace.execute(view, command);
+        });
+        self.reveal_caret(window, cx);
+        cx.notify();
+    }
+
+    fn reveal_caret(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let line_height = f32::from(self.editor.line_height());
+        let rows = visible_row_count(window, line_height);
+        let doc = self.doc;
+        let view = self.view;
+        let model = self.model.clone();
+        let (first_line, caret_line, line_count) = with_app(&model, cx, |app| {
+            let (_, line_count, caret_line, _, scroll) = document_view(app, doc, view);
+            (scroll.first_line, caret_line, line_count)
+        });
+        let first = crate::keys::reveal_line(first_line, rows, caret_line, line_count);
+        if first != first_line {
+            self.gate.note_scroll();
+        }
+        with_app(&model, cx, |app| {
+            let _ = app.workspace.execute(view, Command::ScrollTo(first));
+        });
+        self.scroll_y = crate::keys::scroll_y_for_line(first, line_height);
+    }
 }
 
 impl Render for WindowRoot {
@@ -567,6 +615,7 @@ impl Render for WindowRoot {
             .cursor(gpui::CursorStyle::IBeam)
             .track_focus(&focus)
             .on_scroll_wheel(cx.listener(Self::on_scroll))
+            .on_key_down(cx.listener(Self::on_key_down))
             .child(EditorSurface { root: cx.entity() })
     }
 }
@@ -622,11 +671,18 @@ impl EntityInputHandler for WindowRoot {
     fn replace_text_in_range(
         &mut self,
         _range_utf16: Option<Range<usize>>,
-        _text: &str,
-        _window: &mut Window,
+        text: &str,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // The spike does not edit the document. Drop the committed composition.
+        if let Some(command) = crate::keys::command_for_commit(text) {
+            let view = self.view;
+            let model = self.model.clone();
+            with_app(&model, cx, |app| {
+                let _ = app.workspace.execute(view, command);
+            });
+            self.reveal_caret(window, cx);
+        }
         self.ime_text.clear();
         self.marked_utf8 = None;
         self.selected_utf8 = 0..0;
@@ -821,6 +877,59 @@ fn push_plain(
             runs,
             revision,
         });
+    }
+}
+
+fn caret_and_spans(model: &App, doc: DocumentId, view: ViewId) -> (Vec<CaretMark>, Vec<SelSpan>) {
+    let Some(document) = model.workspace.documents.get(doc) else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(state) = model.workspace.views.get(view) else {
+        return (Vec::new(), Vec::new());
+    };
+    (
+        crate::keys::caret_marks(&document.buffer, &state.selections),
+        crate::keys::selection_spans(&document.buffer, &state.selections),
+    )
+}
+
+fn binding_name(keystroke: &gpui::Keystroke) -> String {
+    let mut parts = Vec::new();
+    if keystroke.modifiers.function {
+        parts.push("fn");
+    }
+    if keystroke.modifiers.control {
+        parts.push("ctrl");
+    }
+    if keystroke.modifiers.alt {
+        parts.push("alt");
+    }
+    if keystroke.modifiers.shift {
+        parts.push("shift");
+    }
+    if keystroke.modifiers.platform {
+        parts.push("cmd");
+    }
+    parts.push(keystroke.key.as_str());
+    parts.join("-")
+}
+
+fn visible_row_count(window: &Window, line_height: f32) -> u32 {
+    if !line_height.is_finite() || line_height <= 0.0 {
+        return 0;
+    }
+    let height = f32::from(window.viewport_size().height);
+    if !height.is_finite() || height <= 0.0 {
+        return 0;
+    }
+    let rows = (height / line_height).floor();
+    if !rows.is_finite() || rows <= 0.0 {
+        return 0;
+    }
+    if rows >= u32::MAX as f32 {
+        u32::MAX
+    } else {
+        rows as u32
     }
 }
 
