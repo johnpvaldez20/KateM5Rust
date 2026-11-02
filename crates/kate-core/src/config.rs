@@ -655,6 +655,23 @@ document.ensure_trailing_newline = true
     }
 
     #[test]
+    fn replacement_label_is_rejected() {
+        let err =
+            editor_config_from_toml("format_version = 1\nfallback_encoding = \"replacement\"\n")
+                .expect_err("replacement");
+        assert_eq!(
+            err,
+            ConfigError::BadValue {
+                key: "fallback_encoding".to_string(),
+            }
+        );
+
+        let config = editor_config_from_toml("format_version = 1\nfallback_encoding = \"utf-8\"\n")
+            .expect("utf-8");
+        assert_eq!(config.fallback_encoding.name(), "UTF-8");
+    }
+
+    #[test]
     fn missing_format_version_fails() {
         let err = editor_config_from_toml("document.tab_width = 4\n").expect_err("version");
         assert_eq!(
