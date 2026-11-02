@@ -72,10 +72,18 @@ pub fn editorconfig_overrides(text: &str, file_name: &str) -> ModeOverride {
     over
 }
 
+/// Largest `.editorconfig` file `read_editorconfig` reads, in bytes.
+///
+/// A larger file is skipped. A skipped file does not set root.
+pub const MAX_EDITORCONFIG_BYTES: u64 = 1_048_576;
+
 /// Reads `.editorconfig` from the file directory through its parents.
 ///
 /// The nearest file wins when both set one field.
 /// `root = true` stops the walk after that file.
+/// A path that is not a file is skipped.
+/// A file larger than [`MAX_EDITORCONFIG_BYTES`] is skipped.
+/// A skipped path does not set root.
 pub fn read_editorconfig(start: &Path) -> ModeOverride {
     let Some(file_name) = start.file_name().and_then(|name| name.to_str()) else {
         return ModeOverride::default();
@@ -501,7 +509,14 @@ fn directory_of(start: &Path) -> Option<PathBuf> {
 }
 
 fn push_layer(dir: &Path, file_name: &str, layers: &mut Vec<ModeOverride>) -> bool {
-    let Ok(text) = std::fs::read_to_string(dir.join(".editorconfig")) else {
+    let path = dir.join(".editorconfig");
+    let Ok(meta) = std::fs::metadata(&path) else {
+        return false;
+    };
+    if !meta.is_file() || meta.len() > MAX_EDITORCONFIG_BYTES {
+        return false;
+    }
+    let Ok(text) = std::fs::read_to_string(&path) else {
         return false;
     };
     let root = text_is_root(&text);
@@ -553,12 +568,12 @@ mod tests {
     use kate_fileio::{DecodeOptions, LineEnding};
 
     use super::{
-        DocumentConfig, FileState, TrailingSpaces, apply_mode, editorconfig_overrides,
-        modeline_overrides, read_editorconfig,
+        DocumentConfig, FileState, MAX_EDITORCONFIG_BYTES, TrailingSpaces, apply_mode,
+        editorconfig_overrides, modeline_overrides, read_editorconfig,
     };
 
-    /// One byte past the one-mebibyte limit.
-    const OVERSIZED_EDITORCONFIG_LEN: u64 = 1_048_576 + 1;
+    /// One byte past [`MAX_EDITORCONFIG_BYTES`].
+    const OVERSIZED_EDITORCONFIG_LEN: u64 = MAX_EDITORCONFIG_BYTES + 1;
 
     fn oversized_editorconfig_body() -> Vec<u8> {
         let mut body = b"root = true\n[*]\nindent_size = 2\n".to_vec();
