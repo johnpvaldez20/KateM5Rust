@@ -252,10 +252,10 @@ fn encoding_value(value: &str) -> Result<Encoding, ConfigError> {
     encoding_for_label(label).ok_or_else(|| bad_value("fallback_encoding"))
 }
 
-/// `kate-fileio` exposes the encoding type. The label table is `for_label` on that type.
+/// `kate-fileio` exposes the encoding type. The label table is `for_label_no_replacement` on that type.
 fn encoding_for_label(label: &str) -> Option<Encoding> {
     type Target = <Encoding as std::ops::Deref>::Target;
-    Target::for_label(label.as_bytes())
+    Target::for_label_no_replacement(label.as_bytes())
 }
 
 fn width_value(key: &str, value: &str) -> Result<u8, ConfigError> {
@@ -652,6 +652,23 @@ document.ensure_trailing_newline = true
                 key: "fallback_encoding".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn replacement_label_is_rejected() {
+        let err =
+            editor_config_from_toml("format_version = 1\nfallback_encoding = \"replacement\"\n")
+                .expect_err("replacement");
+        assert_eq!(
+            err,
+            ConfigError::BadValue {
+                key: "fallback_encoding".to_string(),
+            }
+        );
+
+        let config = editor_config_from_toml("format_version = 1\nfallback_encoding = \"utf-8\"\n")
+            .expect("utf-8");
+        assert_eq!(config.fallback_encoding.name(), "UTF-8");
     }
 
     #[test]
