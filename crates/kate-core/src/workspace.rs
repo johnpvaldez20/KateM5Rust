@@ -24,13 +24,16 @@ use crate::command::{Command, CommandError};
 use crate::document::{
     Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, TrailingSpaces,
 };
-use crate::fanout::{delete_backward, delete_forward, insert_text};
+use crate::fanout::{delete_backward, delete_forward, fan_out, insert_text};
 use crate::movement::{
     Extend, MoveContext, Movement, grapheme_after, grapheme_before, move_all, move_selection,
 };
 use crate::selection::{Selection, Selections};
 use crate::syntax_cache::{LineSplice, line_bounds};
 use crate::view::{Scroll, View, ViewId};
+
+#[path = "indent.rs"]
+mod indent;
 
 /// Split direction.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -405,9 +408,11 @@ fn is_empty_leaf(tree: &SplitTree) -> bool {
 fn run_text(ws: &mut Workspace, view: ViewId, cmd: &Command) -> Result<bool, CommandError> {
     match cmd {
         Command::InsertText(text) => insert_cmd(ws, view, text)?,
-        Command::Newline => insert_cmd(ws, view, "\n")?,
+        Command::Newline => newline_cmd(ws, view)?,
         Command::DeleteBackward => delete_cmd(ws, view, false)?,
         Command::DeleteForward => delete_cmd(ws, view, true)?,
+        Command::Indent => indent_cmd(ws, view, false)?,
+        Command::Unindent => indent_cmd(ws, view, true)?,
         _ => return Ok(false),
     }
     Ok(true)
@@ -464,6 +469,85 @@ fn insert_cmd(ws: &mut Workspace, view: ViewId, text: &str) -> Result<(), Comman
     }
     let kind = insert_kind_of(&tx, text);
     apply_change(ws, view, tx, Some(after), kind)
+}
+
+fn newline_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError> {
+    let doc_id = ws.doc_id(view)?;
+    let sel = snapped_selections(ws, view, doc_id)?;
+    let cstyle = uses_cstyle(ws, doc_ref(ws, doc_id, view)?);
+    let (tx, mut after) = {
+        let doc = doc_ref(ws, doc_id, view)?;
+        let config = doc.config.clone();
+        fan_out(&doc.buffer, &sel, |buffer, selection| {
+            let text = indent::newline_insertion(buffer, selection.min(), &config, cstyle);
+            Some(span_edit(buffer, selection.min(), selection.max(), &text))
+        })
+        .map_err(CommandError::Transaction)?
+    };
+    after.map(|selection| Selection::caret(selection.head));
+    if tx.is_empty() {
+        return write_selections(ws, view, after);
+    }
+    apply_change(ws, view, tx, Some(after), EditKind::Typing)
+}
+
+/// Shift each touched line by one indent unit.
+///
+/// When `out` is true, remove one unit.
+/// When `out` is false, add one unit.
+fn indent_cmd(ws: &mut Workspace, view: ViewId, out: bool) -> Result<(), CommandError> {
+    let doc_id = ws.doc_id(view)?;
+    let sel = snapped_selections(ws, view, doc_id)?;
+    let tx = {
+        let doc = doc_ref(ws, doc_id, view)?;
+        let lines = touched_lines(&doc.buffer, &sel);
+        let built = if out {
+            indent::unindent_lines(&doc.buffer, &lines, &doc.config)
+        } else {
+            indent::indent_lines(&doc.buffer, &lines, &doc.config)
+        };
+        built.map_err(CommandError::Transaction)?
+    };
+    if tx.is_empty() {
+        return Ok(());
+    }
+    apply_change(ws, view, tx, None, EditKind::Indent)
+}
+
+fn uses_cstyle(ws: &Workspace, doc: &crate::Document) -> bool {
+    let Some(id) = doc.syntax.definition else {
+        return false;
+    };
+    ws.syntax.definition(id).indenter.as_deref() == Some("cstyle")
+}
+
+fn touched_lines(buf: &TextBuffer, sel: &Selections) -> Vec<u32> {
+    let mut lines = Vec::new();
+    for selection in sel.iter() {
+        let first = buf.line_col(selection.min()).line;
+        let last = buf.line_col(selection.max()).line;
+        for line in first..=last {
+            lines.push(line);
+        }
+    }
+    lines
+}
+
+fn span_edit(buf: &TextBuffer, start: Offset, end: Offset, new_text: &str) -> Edit {
+    let len = buf.len().0;
+    let start = start.0.min(end.0).min(len);
+    let end = start.max(end.0.min(len));
+    let old = if start == end {
+        String::new()
+    } else {
+        buf.slice(CharRange::new(Offset(start), Offset(end)))
+            .to_string()
+    };
+    Edit {
+        start: Offset(start),
+        old,
+        new: new_text.to_string(),
+    }
 }
 
 fn delete_cmd(ws: &mut Workspace, view: ViewId, forward: bool) -> Result<(), CommandError> {
@@ -1770,7 +1854,7 @@ mod tests {
     use crate::document::{DocumentConfig, TrailingSpaces};
     use crate::selection::{Selection, Selections};
     use crate::view::ViewId;
-    use kate_syntax::{Repository, Theme};
+    use kate_syntax::{DefId, Repository, Theme};
     use kate_text::{Edit, Offset, Transaction};
     use proptest::prelude::*;
     use proptest::test_runner::RngSeed;
@@ -1939,6 +2023,105 @@ mod tests {
         assert_eq!(
             ws.views.get(view).expect("view").selections.primary().head,
             Offset(0)
+        );
+    }
+
+    #[test]
+    fn indent_command_indents_the_line() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view = add_view(&mut ws, doc);
+        ws.execute(view, Command::InsertText("ab".into()))
+            .expect("seed");
+        let before = ws.views.get(view).expect("view").selections.primary();
+        assert!(before.is_caret());
+        ws.execute(view, Command::Indent).expect("indent");
+        assert_eq!(text_of(&ws, doc), "    ab");
+        let after = ws.views.get(view).expect("view").selections.primary();
+        assert!(after.is_caret());
+        assert_eq!(after.head.0, before.head.0 + 4);
+        ws.execute(view, Command::Unindent).expect("unindent");
+        assert_eq!(text_of(&ws, doc), "ab");
+        let restored = ws.views.get(view).expect("view").selections.primary();
+        assert!(restored.is_caret());
+        assert_eq!(restored.head, before.head);
+        ws.execute(view, Command::Unindent).expect("unindent again");
+        assert_eq!(text_of(&ws, doc), "ab");
+        ws.execute(view, Command::Undo).expect("undo the unindent");
+        assert_eq!(text_of(&ws, doc), "    ab");
+    }
+
+    #[test]
+    fn indent_command_shifts_each_line_of_a_selection() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view = add_view(&mut ws, doc);
+        ws.execute(view, Command::InsertText("ab\ncd".into()))
+            .expect("seed");
+        let state = ws.views.get_mut(view).expect("view");
+        state.selections = Selections::single(Selection {
+            anchor: Offset(0),
+            head: Offset(5),
+            goal_col: None,
+        });
+        ws.execute(view, Command::Indent).expect("indent");
+        assert_eq!(text_of(&ws, doc), "    ab\n    cd");
+        ws.execute(view, Command::Unindent).expect("unindent");
+        assert_eq!(text_of(&ws, doc), "ab\ncd");
+    }
+
+    #[test]
+    fn indent_does_not_merge_with_the_next_typed_character() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view = add_view(&mut ws, doc);
+        ws.execute(view, Command::Indent).expect("indent");
+        assert_eq!(text_of(&ws, doc), "    ");
+        let caret = ws.views.get(view).expect("view").selections.primary();
+        assert!(caret.is_caret());
+        assert_eq!(caret.head, Offset(4));
+        ws.execute(view, Command::InsertText("a".into()))
+            .expect("type");
+        assert_eq!(text_of(&ws, doc), "    a");
+        ws.execute(view, Command::Undo).expect("undo the character");
+        assert_eq!(text_of(&ws, doc), "    ");
+    }
+
+    fn newline_on(ws: &mut Workspace, syntax: Option<DefId>, seed: &str) -> String {
+        let doc = ws.new_document();
+        let view = add_view(ws, doc);
+        ws.execute(view, Command::InsertText(seed.into()))
+            .expect("seed");
+        if let Some(id) = syntax {
+            ws.execute(view, Command::SetSyntax(Some(id)))
+                .expect("syntax");
+        }
+        ws.execute(view, Command::Newline).expect("newline");
+        text_of(ws, doc)
+    }
+
+    #[test]
+    fn cstyle_definition_adds_one_unit_on_newline() {
+        const CSTYLE: &str = r##"<language name="Block" section="Test" version="1" kateversion="5.0" extensions="*.block" indenter="cstyle" license="MIT"><highlighting><contexts><context name="Normal" attribute="Normal" lineEndContext="#stay"><DetectChar char="x" context="#stay"/></context></contexts><itemDatas><itemData name="Normal" defStyleNum="dsNormal"/></itemDatas></highlighting></language>"##;
+        const PLAIN: &str = r##"<language name="Plain" section="Test" version="1" kateversion="5.0" extensions="*.plain" indenter="normal" license="MIT"><highlighting><contexts><context name="Normal" attribute="Normal" lineEndContext="#stay"><DetectChar char="x" context="#stay"/></context></contexts><itemDatas><itemData name="Normal" defStyleNum="dsNormal"/></itemDatas></highlighting></language>"##;
+        let mut ws = workspace();
+        ws.syntax.add_xml(CSTYLE).expect("cstyle xml");
+        ws.syntax.add_xml(PLAIN).expect("plain xml");
+        ws.syntax.link().expect("link");
+        let cstyle = ws.syntax.by_name("Block").expect("Block");
+        let plain = ws.syntax.by_name("Plain").expect("Plain");
+        assert_eq!(newline_on(&mut ws, None, "    foo{"), "    foo{\n    ");
+        assert_eq!(
+            newline_on(&mut ws, Some(cstyle), "    foo{"),
+            "    foo{\n        "
+        );
+        assert_eq!(
+            newline_on(&mut ws, Some(cstyle), "    foo"),
+            "    foo\n    "
+        );
+        assert_eq!(
+            newline_on(&mut ws, Some(plain), "    foo{"),
+            "    foo{\n    "
         );
     }
 
