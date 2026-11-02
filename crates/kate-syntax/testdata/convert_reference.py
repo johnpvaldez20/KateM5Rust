@@ -9,7 +9,7 @@
 #   python3 convert_reference.py REFERENCE INPUT EXPECTED
 #
 # REFERENCE is autotests/reference/<file>.ref from syntax-highlighting
-# commit 2d07614ca2ba8565915cc7e0959fd44745702ca1.
+# commit 6d8ab7945958e7354295db7f399cce06f7de7571 (tag v6.31.0).
 # INPUT is the matching autotests/input file.
 # The script checks that the tag text equals the input line.
 # It writes EXPECTED. Commit that file. Do not commit upstream/.
