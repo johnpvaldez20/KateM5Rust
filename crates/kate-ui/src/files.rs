@@ -57,10 +57,19 @@ pub fn apply_file_request(
     }
 }
 
+/// Map a new view to a file effect.
+///
+/// `None` means the view is missing. The caller keeps the document.
+fn effect_for_new_view(view: Option<kate_core::ViewId>) -> FileEffect {
+    match view {
+        None => FileEffect::OpenFailed,
+        Some(_) => FileEffect::Ready,
+    }
+}
+
 fn make_new(ws: &mut kate_core::Workspace) -> FileEffect {
     let doc = ws.new_document();
-    ws.new_view(doc).expect("the document is open");
-    FileEffect::Ready
+    effect_for_new_view(ws.new_view(doc))
 }
 
 fn open_path(ws: &mut kate_core::Workspace, path: &Path) -> FileEffect {
