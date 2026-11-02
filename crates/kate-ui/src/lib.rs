@@ -4,6 +4,8 @@
 //! GPUI shell for one document.
 
 mod cache;
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+mod files;
 mod fixture;
 mod highlight;
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
