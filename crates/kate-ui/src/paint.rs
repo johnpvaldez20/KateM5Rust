@@ -226,9 +226,10 @@ impl Element for EditorSurface {
         // This keeps the root entity and the caches. It does not keep the
         // `Window`. `App::update_window_id` takes the window out of the map.
         // A panic drops that window. An `extern "C"` frame callback then aborts.
-        let payload = self
-            .root
-            .update(cx, |root, cx| finish_paint(root, bounds, window, cx));
+        let root_entity = self.root.clone();
+        let payload = self.root.update(cx, |root, cx| {
+            finish_paint(root, &root_entity, bounds, window, cx)
+        });
         if let Some(payload) = payload {
             std::panic::resume_unwind(payload);
         }
@@ -237,12 +238,13 @@ impl Element for EditorSurface {
 
 fn finish_paint(
     root: &mut WindowRoot,
+    root_entity: &Entity<WindowRoot>,
     bounds: Bounds<Pixels>,
     window: &mut Window,
     cx: &mut gpui::Context<WindowRoot>,
 ) -> Option<Box<dyn std::any::Any + Send>> {
     match paint_with_loan(root, |shaped, gutter, root| {
-        draw_editor(shaped, gutter, root, bounds, window, cx)
+        draw_editor(shaped, gutter, root, root_entity, bounds, window, cx)
     }) {
         Ok(frame) => std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             root.apply_frame(frame, window, cx);
@@ -290,6 +292,7 @@ fn draw_editor(
     shaped: &mut ShapedLineCache,
     gutter_cache: &mut KeyedCache<ShapedLine>,
     root: &mut WindowRoot,
+    root_entity: &Entity<WindowRoot>,
     mut bounds: Bounds<Pixels>,
     window: &mut Window,
     cx: &mut gpui::Context<WindowRoot>,
@@ -359,7 +362,7 @@ fn draw_editor(
     let draw_started = Instant::now();
     window.handle_input(
         &snap.focus,
-        gpui::ElementInputHandler::new(bounds, root.clone()),
+        gpui::ElementInputHandler::new(bounds, root_entity.clone()),
         cx,
     );
     let mut caret_bounds = None;

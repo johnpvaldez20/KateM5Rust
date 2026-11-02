@@ -1094,9 +1094,11 @@ fn open_viewport<'a>(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "gpui-tests")]
+    use super::{ANIMATION_FRAMES, PANIC_IN_MODEL};
     use super::{
-        ANIMATION_FRAMES, CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, ColorGate, PANIC_IN_MODEL,
-        Viewport, catch_up_viewport, open_viewport, paint_viewport, rust_buffer,
+        CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, ColorGate, Viewport, catch_up_viewport,
+        open_viewport, paint_viewport, rust_buffer,
     };
     use kate_text::Revision;
     use std::collections::HashMap;
