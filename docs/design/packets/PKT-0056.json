@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 42,
+    "issue_number": 51,
     "branch": "pkt/PKT-0056-editorconfig-guard",
     "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/42"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/51"
   },
   "lane": {
     "runtime": "CLOUD",
