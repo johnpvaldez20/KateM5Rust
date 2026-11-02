@@ -1086,4 +1086,48 @@ mod tests {
         assert!(up.head.0 <= buf.len().0);
         assert!(up.anchor.0 <= buf.len().0);
     }
+
+    #[test]
+    fn to_match_lands_on_the_mate() {
+        let buf = TextBuffer::from_str("(a(b)c)");
+        let outer = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::ToMatch,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(outer.head, Offset(6));
+        assert!(outer.is_caret());
+
+        let inner = move_selection(
+            &buf,
+            Selection::caret(Offset(3)),
+            Movement::ToMatch,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(inner.head, Offset(4));
+        assert!(inner.is_caret());
+
+        let extended = move_selection(
+            &buf,
+            Selection {
+                anchor: Offset(1),
+                head: Offset(0),
+                goal_col: Some(2),
+            },
+            Movement::ToMatch,
+            Extend::Yes,
+            &ctx(),
+        );
+        assert_eq!(extended.anchor, Offset(1));
+        assert_eq!(extended.head, Offset(6));
+
+        let plain = TextBuffer::from_str("abc");
+        let start = Selection::caret(Offset(0));
+        let stayed = move_selection(&plain, start, Movement::ToMatch, Extend::No, &ctx());
+        assert_eq!(stayed.head, Offset(0));
+        assert_eq!(stayed, start);
+    }
 }
