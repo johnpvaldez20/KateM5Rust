@@ -868,4 +868,30 @@ mod tests {
         assert_eq!(color, second);
         assert_ne!(color, background);
     }
+
+    #[test]
+    fn fallback_selection_color_differs_from_the_current_line() {
+        let second = Rgba(0x00, 0x5F, 0xA8, 0xFF);
+        let white = Rgba(0xFF, 0xFF, 0xFF, 0xFF);
+        let theme = editor_color_theme(&[
+            ("BackgroundColor", "#94CAEF"),
+            ("CurrentLine", "#005FA8"),
+            ("TextSelection", "#94CAEF"),
+        ]);
+        let background = theme
+            .editor_color(EditorColor::BackgroundColor)
+            .expect("background");
+        let current_line = theme
+            .editor_color(EditorColor::CurrentLine)
+            .expect("current line");
+        assert_eq!(
+            theme.editor_color(EditorColor::TextSelection),
+            Some(background)
+        );
+        assert_eq!(current_line, second);
+        let color = theme.selection_color();
+        assert_eq!(color, white);
+        assert_ne!(color, current_line);
+        assert_ne!(color, background);
+    }
 }
