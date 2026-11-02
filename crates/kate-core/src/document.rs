@@ -198,7 +198,7 @@ mod tests {
 
     use kate_fileio::{DecodeOptions, LineEnding};
 
-    use super::{DiskChange, Document, DocumentConfig, FileState, TrailingSpaces};
+    use super::{DiskChange, Document, DocumentConfig, FileState, ReloadChoice, TrailingSpaces};
 
     fn file_state(path: PathBuf, ending: LineEnding) -> FileState {
         FileState {
@@ -325,5 +325,26 @@ end_of_line = lf
         file.note_disk(true, stored);
         assert_eq!(file.disk_change, None);
         assert_eq!(file.digest_on_disk, stored);
+    }
+
+    #[test]
+    fn reload_choice_asks_when_the_buffer_is_dirty() {
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+
+        file.disk_change = None;
+        assert_eq!(file.reload_choice(false), ReloadChoice::Quiet);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Quiet);
+
+        file.disk_change = Some(DiskChange::Modified);
+        assert_eq!(file.reload_choice(false), ReloadChoice::Reload);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
+
+        file.disk_change = Some(DiskChange::Created);
+        assert_eq!(file.reload_choice(false), ReloadChoice::Reload);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
+
+        file.disk_change = Some(DiskChange::Deleted);
+        assert_eq!(file.reload_choice(false), ReloadChoice::Ask);
+        assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
     }
 }
