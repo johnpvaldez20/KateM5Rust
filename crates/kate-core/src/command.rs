@@ -21,6 +21,8 @@ use crate::view::ViewId;
 pub enum Command {
     /// Replace each selection with this text.
     InsertText(String),
+    /// Insert the suffix of the next buffer word at the primary caret.
+    CompleteWord,
     /// Insert a line break at each selection.
     Newline,
     /// Add one indent unit on each touched line.
