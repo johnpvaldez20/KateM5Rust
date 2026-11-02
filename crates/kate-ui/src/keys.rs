@@ -66,6 +66,34 @@ pub fn selection_spans(buf: &TextBuffer, selections: &Selections) -> Vec<SelSpan
     spans
 }
 
+/// Spans for each selection inside `visible`.
+///
+/// `visible` is a half-open line range.
+/// A caret adds no span.
+/// A span stays on one line.
+/// The walk starts at the first visible line of the selection.
+/// The walk stops at the end of the visible range.
+/// A line outside that range adds no span.
+/// The newline belongs to the line that ends there.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn visible_selection_spans(
+    buf: &TextBuffer,
+    selections: &Selections,
+    visible: std::ops::Range<u32>,
+) -> Vec<SelSpan> {
+    let mut spans = Vec::new();
+    if visible.is_empty() {
+        return spans;
+    }
+    for selection in selections.iter() {
+        if selection.is_caret() {
+            continue;
+        }
+        push_visible_spans(buf, selection, &visible, &mut spans);
+    }
+    spans
+}
+
 /// Empty text returns `None`.
 ///
 /// Any other text returns `Command::InsertText` of that text.
@@ -315,6 +343,39 @@ fn push_spans(buf: &TextBuffer, selection: &kate_core::Selection, spans: &mut Ve
             break;
         }
         line += 1;
+    }
+}
+
+fn push_visible_spans(
+    buf: &TextBuffer,
+    selection: &kate_core::Selection,
+    visible: &std::ops::Range<u32>,
+    spans: &mut Vec<SelSpan>,
+) {
+    let start = buf.line_col(selection.min());
+    let end = buf.line_col(selection.max());
+    if end.line < visible.start || start.line >= visible.end {
+        return;
+    }
+    let first = start.line.max(visible.start);
+    let last = end.line.min(visible.end.saturating_sub(1));
+    for line in first..=last {
+        let text = rope_line(buf, line);
+        let start_col = if line == start.line { start.col } else { 0 };
+        let end_col = if line == end.line {
+            end.col
+        } else {
+            char_count(&text)
+        };
+        let start_byte = line_byte(&text, start_col);
+        let end_byte = line_byte(&text, end_col);
+        if start_byte < end_byte {
+            spans.push(SelSpan {
+                line,
+                start_byte,
+                end_byte,
+            });
+        }
     }
 }
 
