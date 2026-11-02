@@ -135,6 +135,8 @@ struct ColorGate {
     colorize_visible: bool,
     /// Next visible line to draw with theme spans.
     color_at: u32,
+    /// The last paint asked for another frame so coloring can continue.
+    redraw_requested: bool,
 }
 
 struct CatchUpStep {
@@ -156,6 +158,7 @@ impl Default for ColorGate {
             paint_scroll_gen: 0,
             colorize_visible: false,
             color_at: 0,
+            redraw_requested: false,
         }
     }
 }
@@ -168,6 +171,25 @@ impl ColorGate {
     #[cfg(test)]
     fn checkpoint(&self) -> u32 {
         self.checkpoint
+    }
+
+    #[cfg(test)]
+    fn colorize_visible(&self) -> bool {
+        self.colorize_visible
+    }
+
+    #[cfg(test)]
+    fn redraw_requested(&self) -> bool {
+        self.redraw_requested
+    }
+
+    /// Record that this paint still has theme spans to draw.
+    ///
+    /// `apply_frame` asks GPUI for another frame when this returns true.
+    /// A notify inside paint does not dirty the window.
+    fn end_paint(&mut self) -> bool {
+        self.redraw_requested = self.colorize_visible;
+        self.redraw_requested
     }
 
     fn prepare(
@@ -424,6 +446,10 @@ impl WindowRoot {
             });
         }
         profile::write_sample(&drawn.sample);
+        // Coloring that remains must schedule a frame. Notify during paint does not.
+        if self.gate.end_paint() {
+            window.request_animation_frame();
+        }
     }
 
     fn run_catch_up(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -972,6 +998,7 @@ fn paint_viewport(view: &mut Viewport<'_>, first: u32, last: u32) -> Vec<paint::
         view.shaped
             .insert(plan.index, plan.revision, crate::ShapedLine::default());
     }
+    let _ = view.gate.end_paint();
     plans
 }
 
@@ -1029,7 +1056,75 @@ mod tests {
             "the first paint is plain"
         );
         catch_up_viewport(&mut view);
-        assert_theme_spans(&mut view, 0, 39);
+        assert!(
+            view.gate.colorize_visible(),
+            "catch-up leaves coloring pending"
+        );
+        let colored = paint_viewport(&mut view, 0, 39);
+        assert!(view.gate.colorize_visible());
+        assert!(
+            view.gate.redraw_requested(),
+            "a partial color pass must request another frame"
+        );
+        let mut runs = HashMap::new();
+        for plan in &colored {
+            if plan.runs.len() > 1 {
+                runs.insert(plan.index, plan.runs.len());
+            }
+        }
+        assert!(!runs.is_empty(), "the first color frame draws no spans");
+        assert!(runs.len() < 40, "one frame colored the whole viewport");
+        for _ in 0..8 {
+            if (0..40).all(|line| runs.get(&line).copied().unwrap_or(0) > 1) {
+                return;
+            }
+            assert!(
+                view.gate.redraw_requested() && view.gate.colorize_visible(),
+                "coloring continued without a requested redraw"
+            );
+            for plan in paint_viewport(&mut view, 0, 39) {
+                if plan.runs.len() > 1 {
+                    runs.insert(plan.index, plan.runs.len());
+                }
+            }
+        }
+        panic!("lines 0..40 stayed plain");
+    }
+
+    #[test]
+    fn scroll_back_requests_a_redraw_before_any_recolor() {
+        let (mut workspace, doc, mut hl) = rust_buffer(700);
+        let mut gate = ColorGate::default();
+        let mut shaped = crate::ShapedLineCache::default();
+        let font = crate::paint::editor_font();
+        let foreground = crate::paint::colors_from_theme(&workspace.theme).foreground;
+        let mut view = open_viewport(
+            &mut workspace,
+            doc,
+            &mut hl,
+            &mut gate,
+            &mut shaped,
+            &font,
+            foreground,
+        );
+        let _ = paint_viewport(&mut view, 0, 39);
+        catch_up_viewport(&mut view);
+        finish_colors(&mut view, 0, 39);
+
+        view.gate.note_scroll();
+        let _ = paint_viewport(&mut view, 600, 639);
+        catch_up_viewport(&mut view);
+        finish_colors(&mut view, 600, 639);
+        view.shaped.retain_near(600, 640, view.revision);
+
+        view.gate.note_scroll();
+        let scrolling = paint_viewport(&mut view, 0, 39);
+        assert!(scrolling.iter().all(|plan| plan.runs.len() <= 1));
+        assert!(view.gate.colorize_visible());
+        assert!(
+            view.gate.redraw_requested(),
+            "scroll-back coloring must request a frame with no more input"
+        );
     }
 
     #[test]
@@ -1065,7 +1160,8 @@ mod tests {
             scrolling.iter().all(|plan| plan.runs.len() <= 1),
             "a scroll frame stays plain"
         );
-        assert_theme_spans(&mut view, 0, 39);
+        assert!(view.gate.redraw_requested());
+        finish_colors(&mut view, 0, 39);
     }
 
     #[test]
@@ -1084,15 +1180,25 @@ mod tests {
         assert_eq!(gate.checkpoint(), CATCH_UP_LINE_BUDGET * 2);
     }
 
-    fn assert_theme_spans(view: &mut Viewport<'_>, first: u32, last: u32) {
+    fn finish_colors(view: &mut Viewport<'_>, first: u32, last: u32) {
         let mut runs = HashMap::new();
         for _ in 0..8 {
+            assert!(
+                view.gate.colorize_visible() || view.gate.redraw_requested(),
+                "coloring stalled without a redraw"
+            );
             for plan in paint_viewport(view, first, last) {
-                runs.insert(plan.index, plan.runs.len());
+                if plan.runs.len() > 1 {
+                    runs.insert(plan.index, plan.runs.len());
+                }
             }
             if (first..=last).all(|line| runs.get(&line).copied().unwrap_or(0) > 1) {
                 return;
             }
+            assert!(
+                view.gate.redraw_requested() && view.gate.colorize_visible(),
+                "a partial color pass did not request another frame"
+            );
         }
         panic!("lines {first}..={last} stayed plain");
     }

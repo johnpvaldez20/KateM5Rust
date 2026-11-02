@@ -5,7 +5,7 @@
   "summary": "The toolkit decision gate. Create crates/kate-ui on GPUI, open one window, render a kate-core Document read-only with themed spans, line numbers and smooth scrolling. Measure: open a 100,000-line file and scroll it; frame time must stay under 8 ms at 120 Hz on the owner's M-series machine, IME marked text must display, and Cmd-Q must quit cleanly. If GPUI fails any of these, this packet is rejected at Gate 3 and the fallback (objc2 + AppKit + Core Text) gets its own spike packet. kate-core is untouched either way.",
   "provenance": {
     "schema_version": "2.0.0",
-    "produced_at": "2026-11-02T02:29:21Z",
+    "produced_at": "2026-11-02T02:57:37Z",
     "author": {
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
