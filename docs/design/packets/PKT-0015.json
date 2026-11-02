@@ -1,0 +1,173 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0015",
+  "title": "kate-ui: type, move, undo, and paint every caret",
+  "summary": "The window inserts typed text and moves every caret. A one-character InsertText can pair a bracket in kate-core. Marked text stays off the buffer until the input method commits it. Paint draws every caret and every selection. This packet does not bind Cmd-O, Cmd-N, or Cmd-W. The keymap module does not import GPUI.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 50,
+    "branch": "pkt/PKT-0015-ui-typing",
+    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/50"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "session.rs and paint.rs compile only on macOS. The rust (macos-15) check is the GPUI build evidence. The owner must type on his Mac and confirm an input-method commit. Linux CI runs the keymap tests.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/session.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "apps/",
+      "crates/kate-core/",
+      "crates/kate-ui/Cargo.toml",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-ui/src/fixture.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/profile.rs",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0045",
+      "PKT-0019"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/keys.rs",
+        "definition": "pub struct CaretMark { pub line: u32, pub byte: usize }\n\npub struct SelSpan { pub line: u32, pub start_byte: usize, pub end_byte: usize }\n\n/// UTF-8 byte offset of char column `col` in one line. Same sum as paint::byte_at_char.\npub fn line_byte(line: &str, col: u32) -> usize\n\n/// One mark per selection head. `byte` is line_byte of that line.\npub fn caret_marks(buf: &kate_text::TextBuffer, selections: &kate_core::Selections) -> Vec<CaretMark>\n\n/// Half-open UTF-8 spans for non-caret selections. A caret adds no span.\n/// A span stays on one line. The newline belongs to the line that ends there.\npub fn selection_spans(buf: &kate_text::TextBuffer, selections: &kate_core::Selections) -> Vec<SelSpan>\n\n/// Empty text returns None. Any other text returns Command::InsertText of that text.\n/// Newlines in the committed string stay in the command.\npub fn command_for_commit(text: &str) -> Option<kate_core::Command>\n\n/// None when the binding is not in the table.\npub fn command_for_binding(binding: &str) -> Option<kate_core::Command>\n\n/// Return the first visible line that keeps the caret inside the window.\n/// visible_rows of 0 leaves first_line unchanged.\n/// A caret above the window moves the window to that line.\n/// A caret below the window uses caret_line + 1 - visible_rows.\n/// Clamp the caret to the last line. Clamp the result so the window stays in range.\npub fn reveal_line(first_line: u32, visible_rows: u32, caret_line: u32, line_count: u32) -> u32\n\n/// Modifier order is ctrl, then alt, then shift, then cmd, then the key.\npub fn normalize_binding(binding: &str) -> String\n\n/// Pixel offset for a jumped first line. A bad height returns 0.\npub fn scroll_y_for_line(first_line: u32, line_height: f32) -> f32"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "crates/kate-ui/src/keys.rs",
+        "definition": "| binding | command |\n|---|---|\n| left | Move(Left, Extend::No) |\n| right | Move(Right, Extend::No) |\n| up | Move(Up, Extend::No) |\n| down | Move(Down, Extend::No) |\n| shift-left | Move(Left, Extend::Yes) |\n| shift-right | Move(Right, Extend::Yes) |\n| shift-up | Move(Up, Extend::Yes) |\n| shift-down | Move(Down, Extend::Yes) |\n| backspace | DeleteBackward |\n| delete | DeleteForward |\n| enter | Newline |\n| tab | InsertText of one tab character |\n| home | Move(SmartHome, Extend::No) |\n| end | Move(LineEnd, Extend::No) |\n| shift-home | Move(SmartHome, Extend::Yes) |\n| shift-end | Move(LineEnd, Extend::Yes) |\n| cmd-left | Move(LineStart, Extend::No) |\n| cmd-right | Move(LineEnd, Extend::No) |\n| cmd-up | Move(DocStart, Extend::No) |\n| cmd-down | Move(DocEnd, Extend::No) |\n| shift-cmd-left | Move(LineStart, Extend::Yes) |\n| shift-cmd-right | Move(LineEnd, Extend::Yes) |\n| shift-cmd-up | Move(DocStart, Extend::Yes) |\n| shift-cmd-down | Move(DocEnd, Extend::Yes) |\n| cmd-a | SelectAll |\n| cmd-z | Undo |\n| shift-cmd-z | Redo |\n| cmd-s | Save |\n| alt-shift-down | AddCursorBelow |\n| alt-shift-up | AddCursorAbove |\n| escape | RemoveSecondaryCursors |"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/lib.rs",
+        "definition": "#[cfg_attr(not(target_os = \"macos\"), allow(dead_code))]\nmod keys;"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "lib.rs adds mod keys with allow(dead_code) off macOS. The module still compiles on Linux. command_for_binding normalizes modifiers before the lookup. The order is ctrl, alt, shift, cmd. session.rs binds the table and does not copy the match. replace_text_in_range runs command_for_commit and then clears the composition. The marked-text handler stays as it is. After a move or an edit, scroll.first_line comes from reveal_line. scroll_y becomes scroll_y_for_line for that line. A one-character InsertText of an opener is paired by kate-core. The keymap still returns that one character. Tab stays one tab character. snapshot stores caret_marks and selection_spans. paint draws each span and each caret. The primary caret still sets caret_bounds. Cmd-Q and the Quit menu stay. Do not add a dependency. Do not edit the highlight tests. A new Rust file starts with the GPL-3.0-or-later SPDX header. Do not start until PKT-0045 is on main. PKT-0045 owns paint.rs and session.rs. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-ui --locked keys::",
+      "cargo test -p kate-ui --locked",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "keys::tests::binding_table_matches_existing_commands",
+        "kind": "UNIT",
+        "asserts": "Each table row returns that command. cmd-o, cmd-n, cmd-w, and cmd-shift-s return None. An unknown binding returns None."
+      },
+      {
+        "name": "keys::tests::commit_inserts_text_and_empty_commit_does_not",
+        "kind": "UNIT",
+        "asserts": "command_for_commit of a\\nb is InsertText of that string. An empty string returns None."
+      },
+      {
+        "name": "keys::tests::spans_cover_each_line_of_a_selection",
+        "kind": "UNIT",
+        "asserts": "In ab\\ncd, a selection from offset 1 through 4 yields a span on line 0 and a span on line 1. A caret yields a mark and no span. Column 1 of e-acute is byte 2."
+      },
+      {
+        "name": "keys::tests::reveal_line_puts_the_caret_in_the_window",
+        "kind": "UNIT",
+        "asserts": "A caret inside the window keeps first_line. A caret above moves to that line. A caret below uses caret_line + 1 - visible_rows. Zero rows leaves first_line unchanged."
+      },
+      {
+        "name": "keys::tests::modifier_order_is_ctrl_alt_shift_cmd",
+        "kind": "UNIT",
+        "asserts": "cmd-shift-z and shift-cmd-z both return Redo. shift-cmd-left returns Move to the line start with extend. alt-shift-down returns AddCursorBelow."
+      },
+      {
+        "name": "keys::tests::scroll_y_matches_the_jumped_line",
+        "kind": "UNIT",
+        "asserts": "scroll_y_for_line of line 4 and height 20 is 80. A height of 0 returns 0. A non-finite height returns 0."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
