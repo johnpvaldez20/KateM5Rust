@@ -11,7 +11,7 @@ agents under a strict gatekeeper, with GitHub as the only source of truth.
 | `docs/governance/GOVERNANCE_LINUS.md` | The rules. Laws, gates, lanes, handoffs. Read before touching anything. |
 | `docs/design/00-overview.md` | The plan. Decisions index, then data structures, crates, GUI toolkit, parity map, backlog, licensing. |
 | `docs/design/packets/` | The first thirteen work packets as Gate 1 payloads. |
-| `upstream/` | Kate, KTextEditor and KSyntaxHighlighting as read-only pinned submodules. Never built. |
+| `upstream/` | Read-only submodules pinned to Kate `v26.08.2`, KTextEditor `v6.31.0`, and KSyntaxHighlighting `v6.31.0`. Never built. |
 
 ## Build
 
@@ -29,6 +29,17 @@ The upstream submodules are not needed to build. To read them:
 ```sh
 git submodule update --init --depth 1 upstream/kate upstream/ktexteditor upstream/syntax-highlighting
 ```
+
+The pins are release tags from invent.kde.org.
+Each commit is the commit that the tag points to.
+
+| Submodule | Tag | Commit |
+|---|---|---|
+| `upstream/kate` | `v26.08.2` | `2b6465a886b9d3bfc6eab25065c14ffe025e6ac3` |
+| `upstream/ktexteditor` | `v6.31.0` | `ea14509c132f2c016d55b38f7a1ec24cc6f9e7d2` |
+| `upstream/syntax-highlighting` | `v6.31.0` | `6d8ab7945958e7354295db7f399cce06f7de7571` |
+
+The same tags and commits are in `NOTICE` and `upstream/README.md`.
 
 ## License
 

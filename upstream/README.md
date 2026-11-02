@@ -10,6 +10,10 @@ reference material, nothing else.
 | `upstream/ktexteditor` | https://invent.kde.org/frameworks/ktexteditor | `v6.31.0` | `ea14509c132f2c016d55b38f7a1ec24cc6f9e7d2` |
 | `upstream/syntax-highlighting` | https://invent.kde.org/frameworks/syntax-highlighting | `v6.31.0` | `6d8ab7945958e7354295db7f399cce06f7de7571` |
 
+The Commit value is the commit that the tag points to.
+A gitlink stores that commit.
+The same tags and commits are in `README.md` and `NOTICE`.
+
 ## Rules
 
 1. **Nothing in here is ever built.** No `Cargo.toml` references `upstream/`.
