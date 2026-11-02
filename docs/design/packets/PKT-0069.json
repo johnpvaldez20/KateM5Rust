@@ -1,0 +1,130 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0069",
+  "title": "kate-ui: name a command error in one sentence",
+  "summary": "command_notice turns a CommandError into one sentence. The save and execute paths can show that sentence. session.rs still discards the Result. PKT-0051 owns that file. Linux CI runs the test.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T21:50:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 71,
+    "branch": "pkt/PKT-0069-command-notice",
+    "base_sha": "cf151935ab0c73b8849c83263306415934691074"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/71"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust in a file with no GPUI type. Linux CI runs the test. It does not need a window or the owner's eyes.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/notice.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/paint.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0068"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/notice.rs",
+        "definition": "#[cfg_attr(not(test), allow(dead_code))]\npub(crate) fn command_notice(error: &kate_core::CommandError) -> String"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "layout.rs declares notice.rs with a path attribute. command_notice returns one sentence for each CommandError. NoFile says this document has no path. AlreadyOpen says another document has that path. UnknownView says the view is not open. Save says the save failed. Load says the load failed. Apply says the edit was rejected. Transaction says the edits overlap. The function has cfg_attr(not(test), allow(dead_code)). session.rs still discards the execute Result. Leave session.rs, lib.rs, and files.rs unchanged. Leave keys.rs, paint.rs, and bar.rs unchanged. A new Rust file starts with the GPL-3.0-or-later SPDX header. Leave session.rs, lib.rs, and files.rs in kate-ui unchanged. PKT-0051 owns those files. Leave bar.rs unchanged. PKT-0067 owns that file. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-ui --locked notice::",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "layout::notice::tests::no_path_names_the_missing_file",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because command_notice does not exist. CommandError::NoFile returns the sentence about no path. CommandError::AlreadyOpen returns the sentence about another document. The two sentences differ."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

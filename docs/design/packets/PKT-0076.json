@@ -1,0 +1,132 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0076",
+  "title": "kate-core: move the caret to the matching bracket",
+  "summary": "Movement::ToMatch moves the caret to the bracket mate. No mate leaves the caret in place. The scan is matching_bracket. This packet adds no key binding. Linux CI runs the test.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T21:50:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 71,
+    "branch": "pkt/PKT-0076-match-bracket",
+    "base_sha": "cf151935ab0c73b8849c83263306415934691074"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/71"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust in kate-core. Linux CI runs the test. It does not need a window or the owner's eyes.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/movement.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0052"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/movement.rs",
+        "definition": "pub enum Movement {\n    ToMatch,\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add Movement::ToMatch. move_selection calls kate_text::matching_bracket. A mate moves the head to that offset. Extend::No makes a caret there. Extend::Yes keeps the anchor. No mate leaves the selection unchanged. In (a(b)c), a caret at offset 0 moves to offset 6. A caret at offset 3 moves to offset 4. Leave brackets.rs unchanged. Leave keys.rs unchanged. This packet adds no key binding. Leave session.rs, lib.rs, and files.rs in kate-ui unchanged. PKT-0051 owns those files. Leave bar.rs unchanged. PKT-0067 owns that file. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked movement::tests::to_match_lands_on_the_mate",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "movement::tests::to_match_lands_on_the_mate",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because Movement::ToMatch does not exist. In (a(b)c), a caret at offset 0 moves to offset 6. A caret at offset 3 moves to offset 4. In abc, a caret at offset 0 stays at offset 0."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,143 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0074",
+  "title": "kate-core: insert a word completion",
+  "summary": "Command::CompleteWord inserts the suffix of the next buffer word at the primary caret. An empty list leaves the text unchanged. Undo removes the suffix. This packet does not draw a popup. Linux CI runs the test.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T21:50:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 71,
+    "branch": "pkt/PKT-0074-complete-word",
+    "base_sha": "cf151935ab0c73b8849c83263306415934691074"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/71"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The work is pure Rust in kate-core. Linux CI runs the test. It does not need a window or the owner's eyes.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fold.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0018",
+      "PKT-0055",
+      "PKT-0063",
+      "PKT-0066"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/command.rs",
+        "definition": "pub enum Command {\n    CompleteWord,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "fn complete_word(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add Command::CompleteWord. The workspace match handles that variant. complete_word reads the primary caret. It calls word_completions with limit 1. An empty list leaves the buffer unchanged. The returned word starts with the prefix before the caret. Insert only the suffix at the caret. Use the same insert path as InsertText. Undo removes that suffix. In alpha alphabet, the caret is Offset(4). The prefix is alph. The suffix is abet. The buffer becomes alphabet alphabet. Leave completion.rs and lib.rs unchanged. Leave kate-ui unchanged. The in-repo Command match is in this file. Leave session.rs, lib.rs, and files.rs in kate-ui unchanged. PKT-0051 owns those files. Leave bar.rs unchanged. PKT-0067 owns that file. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked workspace::tests::complete_word_inserts_the_suffix",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::complete_word_inserts_the_suffix",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because Command::CompleteWord does not exist. The caret is Offset(4) in alpha alphabet. After the command the text is alphabet alphabet. Undo restores alpha alphabet."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
