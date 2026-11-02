@@ -5,6 +5,7 @@
 //!
 //! A newline copies the indent of the caret line.
 //! When cstyle is on, a line that ends in `{`, `(`, or `[` adds one unit.
+//! A Python newline adds one unit when the line ends in `:`.
 
 use std::collections::BTreeSet;
 
@@ -40,6 +41,23 @@ pub fn newline_insertion(
     let mut text = String::from("\n");
     text.push_str(leading_indent(&body));
     if cstyle && ends_with_opener(&body) {
+        text.push_str(&indent_unit(config));
+    }
+    text
+}
+
+/// Return the text a Python newline inserts at `at`.
+///
+/// The result starts with a newline.
+/// It copies the leading spaces and tabs on that line.
+/// When the last scalar that is not a space or a tab is a colon, the result adds one unit.
+/// A width of 0 counts as 1.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> String {
+    let body = line_body(buf, buf.line_col(at).line);
+    let mut text = String::from("\n");
+    text.push_str(leading_indent(&body));
+    if ends_with_colon(&body) {
         text.push_str(&indent_unit(config));
     }
     text
@@ -130,6 +148,13 @@ fn ends_with_opener(body: &str) -> bool {
     matches!(
         body.trim_end_matches([' ', '\t']).chars().next_back(),
         Some('{' | '(' | '[')
+    )
+}
+
+fn ends_with_colon(body: &str) -> bool {
+    matches!(
+        body.trim_end_matches([' ', '\t']).chars().next_back(),
+        Some(':')
     )
 }
 
