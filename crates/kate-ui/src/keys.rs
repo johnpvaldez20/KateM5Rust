@@ -6,7 +6,7 @@
 //! This module does not import GPUI.
 //! `session` asks for a command. `paint` reads the marks.
 
-use kate_core::{Command, Selections};
+use kate_core::{Command, Extend, Movement, Selections};
 use kate_text::TextBuffer;
 
 /// One caret, in UTF-8 bytes on its line.
@@ -30,15 +30,24 @@ pub struct SelSpan {
 ///
 /// The sum matches `paint::byte_at_char`.
 pub fn line_byte(line: &str, col: u32) -> usize {
-    let _ = (line, col);
-    0
+    line.chars().take(col as usize).map(char::len_utf8).sum()
 }
 
 /// One mark per selection head.
 ///
-/// `byte` is [`line_byte`] of that line.
-pub fn caret_marks(_buf: &TextBuffer, _selections: &Selections) -> Vec<CaretMark> {
-    Vec::new()
+/// `byte` is `line_byte` of that line.
+pub fn caret_marks(buf: &TextBuffer, selections: &Selections) -> Vec<CaretMark> {
+    selections
+        .iter()
+        .map(|selection| {
+            let at = buf.line_col(selection.head);
+            let text = content_line(buf, at.line);
+            CaretMark {
+                line: at.line,
+                byte: line_byte(&text, at.col),
+            }
+        })
+        .collect()
 }
 
 /// Half-open UTF-8 spans for non-caret selections.
@@ -46,21 +55,35 @@ pub fn caret_marks(_buf: &TextBuffer, _selections: &Selections) -> Vec<CaretMark
 /// A caret adds no span.
 /// A span stays on one line.
 /// The newline belongs to the line that ends there.
-pub fn selection_spans(_buf: &TextBuffer, _selections: &Selections) -> Vec<SelSpan> {
-    Vec::new()
+pub fn selection_spans(buf: &TextBuffer, selections: &Selections) -> Vec<SelSpan> {
+    let mut spans = Vec::new();
+    for selection in selections.iter() {
+        if selection.is_caret() {
+            continue;
+        }
+        push_spans(buf, selection, &mut spans);
+    }
+    spans
 }
 
 /// Empty text returns `None`.
 ///
-/// Any other text returns [`Command::InsertText`] of that text.
+/// Any other text returns `Command::InsertText` of that text.
 /// Newlines in the committed string stay in the command.
-pub fn command_for_commit(_text: &str) -> Option<Command> {
-    None
+pub fn command_for_commit(text: &str) -> Option<Command> {
+    if text.is_empty() {
+        None
+    } else {
+        Some(Command::InsertText(text.to_string()))
+    }
 }
 
 /// `None` when the binding is not in the table.
-pub fn command_for_binding(_binding: &str) -> Option<Command> {
-    None
+pub fn command_for_binding(binding: &str) -> Option<Command> {
+    let name = normalize_binding(binding);
+    move_binding(&name)
+        .or_else(|| text_binding(&name))
+        .or_else(|| edit_binding(&name))
 }
 
 /// Return the first visible line that keeps the caret inside the window.
@@ -70,25 +93,268 @@ pub fn command_for_binding(_binding: &str) -> Option<Command> {
 /// A caret below the window uses `caret_line + 1 - visible_rows`.
 /// Clamp the caret to the last line.
 /// Clamp the result so the window stays in range.
-pub fn reveal_line(
-    _first_line: u32,
-    _visible_rows: u32,
-    _caret_line: u32,
-    _line_count: u32,
-) -> u32 {
-    0
+pub fn reveal_line(first_line: u32, visible_rows: u32, caret_line: u32, line_count: u32) -> u32 {
+    if visible_rows == 0 {
+        return first_line;
+    }
+    let last_line = line_count.saturating_sub(1);
+    let caret = caret_line.min(last_line);
+    let next = if caret < first_line {
+        caret
+    } else if caret >= first_line.saturating_add(visible_rows) {
+        caret.saturating_add(1).saturating_sub(visible_rows)
+    } else {
+        first_line
+    };
+    next.min(last_line)
 }
 
 /// Modifier order is ctrl, then alt, then shift, then cmd, then the key.
 pub fn normalize_binding(binding: &str) -> String {
-    binding.to_string()
+    let mut ctrl = false;
+    let mut alt = false;
+    let mut shift = false;
+    let mut cmd = false;
+    let mut key = String::new();
+    for part in binding.split('-') {
+        if part.is_empty() {
+            push_token(&mut key, "-");
+            continue;
+        }
+        let token = part.to_ascii_lowercase();
+        match token.as_str() {
+            "ctrl" | "control" => ctrl = true,
+            "alt" | "option" => alt = true,
+            "shift" => shift = true,
+            "cmd" | "super" | "win" | "platform" => cmd = true,
+            _ => push_token(&mut key, &token),
+        }
+    }
+    let mut out = String::new();
+    append_mod(&mut out, ctrl, "ctrl");
+    append_mod(&mut out, alt, "alt");
+    append_mod(&mut out, shift, "shift");
+    append_mod(&mut out, cmd, "cmd");
+    if !key.is_empty() {
+        push_token(&mut out, &key);
+    }
+    out
 }
 
 /// Pixel offset for a jumped first line.
 ///
 /// A bad height returns 0.
-pub fn scroll_y_for_line(_first_line: u32, _line_height: f32) -> f32 {
-    0.0
+pub fn scroll_y_for_line(first_line: u32, line_height: f32) -> f32 {
+    if !line_height.is_finite() || line_height <= 0.0 {
+        return 0.0;
+    }
+    first_line as f32 * line_height
+}
+
+struct MoveBinding {
+    name: &'static str,
+    movement: Movement,
+    extend: Extend,
+}
+
+const MOVE_BINDINGS: &[MoveBinding] = &[
+    MoveBinding {
+        name: "left",
+        movement: Movement::Left,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "right",
+        movement: Movement::Right,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "up",
+        movement: Movement::Up,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "down",
+        movement: Movement::Down,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "shift-left",
+        movement: Movement::Left,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "shift-right",
+        movement: Movement::Right,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "shift-up",
+        movement: Movement::Up,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "shift-down",
+        movement: Movement::Down,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "home",
+        movement: Movement::SmartHome,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "end",
+        movement: Movement::LineEnd,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "shift-home",
+        movement: Movement::SmartHome,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "shift-end",
+        movement: Movement::LineEnd,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "cmd-left",
+        movement: Movement::LineStart,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "cmd-right",
+        movement: Movement::LineEnd,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "cmd-up",
+        movement: Movement::DocStart,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "cmd-down",
+        movement: Movement::DocEnd,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "shift-cmd-left",
+        movement: Movement::LineStart,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "shift-cmd-right",
+        movement: Movement::LineEnd,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "shift-cmd-up",
+        movement: Movement::DocStart,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "shift-cmd-down",
+        movement: Movement::DocEnd,
+        extend: Extend::Yes,
+    },
+];
+
+fn move_binding(name: &str) -> Option<Command> {
+    MOVE_BINDINGS
+        .iter()
+        .find(|row| row.name == name)
+        .map(|row| Command::Move(row.movement, row.extend))
+}
+
+fn text_binding(name: &str) -> Option<Command> {
+    match name {
+        "backspace" => Some(Command::DeleteBackward),
+        "delete" => Some(Command::DeleteForward),
+        "enter" => Some(Command::Newline),
+        "tab" => Some(Command::InsertText("\t".to_string())),
+        _ => None,
+    }
+}
+
+fn edit_binding(name: &str) -> Option<Command> {
+    match name {
+        "cmd-a" => Some(Command::SelectAll),
+        "cmd-z" => Some(Command::Undo),
+        "shift-cmd-z" => Some(Command::Redo),
+        "cmd-s" => Some(Command::Save),
+        "alt-shift-down" => Some(Command::AddCursorBelow),
+        "alt-shift-up" => Some(Command::AddCursorAbove),
+        "escape" => Some(Command::RemoveSecondaryCursors),
+        _ => None,
+    }
+}
+
+fn push_spans(buf: &TextBuffer, selection: &kate_core::Selection, spans: &mut Vec<SelSpan>) {
+    let start = buf.line_col(selection.min());
+    let end = buf.line_col(selection.max());
+    let mut line = start.line;
+    loop {
+        let text = rope_line(buf, line);
+        let start_col = if line == start.line { start.col } else { 0 };
+        let end_col = if line == end.line {
+            end.col
+        } else {
+            char_count(&text)
+        };
+        let start_byte = line_byte(&text, start_col);
+        let end_byte = line_byte(&text, end_col);
+        if start_byte < end_byte {
+            spans.push(SelSpan {
+                line,
+                start_byte,
+                end_byte,
+            });
+        }
+        if line >= end.line {
+            break;
+        }
+        line += 1;
+    }
+}
+
+fn rope_line(buf: &TextBuffer, line: u32) -> String {
+    let rope = buf.text();
+    let Some(index) = usize::try_from(line).ok() else {
+        return String::new();
+    };
+    if index >= rope.len_lines() {
+        return String::new();
+    }
+    rope.line(index).to_string()
+}
+
+fn content_line(buf: &TextBuffer, line: u32) -> String {
+    let mut text = rope_line(buf, line);
+    if text.ends_with('\n') {
+        text.pop();
+    }
+    if text.ends_with('\r') {
+        text.pop();
+    }
+    text
+}
+
+fn char_count(text: &str) -> u32 {
+    u32::try_from(text.chars().count()).unwrap_or(u32::MAX)
+}
+
+fn push_token(out: &mut String, token: &str) {
+    if !out.is_empty() {
+        out.push('-');
+    }
+    out.push_str(token);
+}
+
+fn append_mod(out: &mut String, on: bool, name: &str) {
+    if on {
+        push_token(out, name);
+    }
 }
 
 #[cfg(test)]
