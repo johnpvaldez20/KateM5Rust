@@ -362,6 +362,7 @@ mod tests {
     use super::{
         CaretMark, SelSpan, caret_marks, command_for_binding, command_for_commit, line_byte,
         normalize_binding, reveal_line, scroll_y_for_line, selection_spans,
+        visible_selection_spans,
     };
     use kate_core::{Command, Extend, Movement, Selection, Selections};
     use kate_text::{Offset, TextBuffer};
@@ -476,6 +477,39 @@ mod tests {
             vec![CaretMark { line: 0, byte: 2 }]
         );
         assert!(selection_spans(&acute, &mark).is_empty());
+    }
+
+    #[test]
+    fn visible_spans_cover_only_the_window() {
+        let text = "x\n".repeat(4000);
+        let buf = TextBuffer::from_str(&text);
+        let all = Selections::single(Selection {
+            anchor: Offset(0),
+            head: buf.len(),
+            goal_col: None,
+        });
+        assert_eq!(
+            visible_selection_spans(&buf, &all, 10..12),
+            vec![
+                SelSpan {
+                    line: 10,
+                    start_byte: 0,
+                    end_byte: 2,
+                },
+                SelSpan {
+                    line: 11,
+                    start_byte: 0,
+                    end_byte: 2,
+                },
+            ]
+        );
+        let outside = Selections::single(Selection {
+            anchor: Offset(0),
+            head: Offset(1),
+            goal_col: None,
+        });
+        assert_eq!(visible_selection_spans(&buf, &outside, 10..12), vec![]);
+        assert_eq!(visible_selection_spans(&buf, &all, 10..10), vec![]);
     }
 
     #[test]
