@@ -1901,6 +1901,14 @@ mod tests {
         state.selections = Selections::single(Selection::caret(Offset(at)));
     }
 
+    fn pin_editorconfig(dir: &Path) {
+        std::fs::write(dir.join(".editorconfig"), "root = true\n").expect("root config");
+    }
+
+    fn indent_width(ws: &Workspace, doc: crate::DocumentId) -> u8 {
+        ws.documents.get(doc).expect("document").config.indent_width
+    }
+
     #[test]
     fn edit_in_one_view_moves_cursors_in_the_other() {
         let mut ws = workspace();
@@ -1923,6 +1931,7 @@ mod tests {
     #[test]
     fn open_edit_save_reload_round_trip_in_tempdir() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("note.txt");
         std::fs::write(&path, b"caf\xE9\r\n").expect("write seed file");
         let mut ws = workspace();
@@ -1956,8 +1965,56 @@ mod tests {
     }
 
     #[test]
+    fn reload_reapplies_the_modeline_over_editorconfig() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
+        let config_text = "\
+root = true
+[*]
+indent_size = 8
+";
+        std::fs::write(dir.path().join(".editorconfig"), config_text).expect("config");
+        let path = dir.path().join("note.txt");
+        std::fs::write(&path, "hello\n").expect("file");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        let view = add_view(&mut ws, doc);
+        assert_eq!(indent_width(&ws, doc), 8);
+        std::fs::write(&path, "// kate: indent-width 2;\nhello\n").expect("modeline");
+        ws.execute(view, Command::Reload).expect("reload");
+        assert_eq!(indent_width(&ws, doc), 2);
+        std::fs::write(&path, "hello\n").expect("plain");
+        ws.execute(view, Command::Reload).expect("reload");
+        assert_eq!(indent_width(&ws, doc), 8);
+    }
+
+    #[test]
+    fn open_ignores_a_parent_editorconfig() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parent = root.path().join("parent");
+        let dir = parent.join("child");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let parent_config = "\
+root = true
+[*]
+indent_size = 8
+";
+        std::fs::write(parent.join(".editorconfig"), parent_config).expect("parent config");
+        pin_editorconfig(&dir);
+        let path = dir.join("plain.txt");
+        std::fs::write(&path, "hello\n").expect("file");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        assert_eq!(
+            indent_width(&ws, doc),
+            DocumentConfig::default().indent_width
+        );
+    }
+
+    #[test]
     fn close_last_view_of_modified_document_is_refused() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("note.txt");
         std::fs::write(&path, b"hi\n").expect("write");
         let mut ws = workspace();
@@ -2194,6 +2251,7 @@ mod tests {
             Err(CommandError::NoFile)
         ));
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("bin.dat");
         std::fs::write(&path, [0u8, 1, 2, 3]).expect("write binary");
         assert!(matches!(
@@ -2206,6 +2264,7 @@ mod tests {
     #[test]
     fn open_reuses_the_canonical_path() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("same.txt");
         std::fs::write(&path, b"one\n").expect("write");
         let mut ws = workspace();
@@ -2218,6 +2277,7 @@ mod tests {
     #[test]
     fn save_as_rejects_a_path_open_in_another_document() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let first_path = dir.path().join("one.txt");
         let second_path = dir.path().join("two.txt");
         std::fs::write(&first_path, b"one\n").expect("write one");
@@ -2257,6 +2317,7 @@ mod tests {
     #[test]
     fn save_as_rejects_a_symlink_to_an_open_file() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let real_dir = dir.path().join("real");
         std::fs::create_dir(&real_dir).expect("dir");
         let real = real_dir.join("a.txt");
@@ -2319,6 +2380,7 @@ mod tests {
     #[test]
     fn modified_lines_lose_trailing_spaces_on_save() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("pad.txt");
         std::fs::write(&path, b"a \nb \n").expect("write");
         let mut ws = workspace();
@@ -2340,6 +2402,7 @@ mod tests {
     #[test]
     fn modified_lines_strips_a_shifted_line_after_undo() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("shift.txt");
         std::fs::write(&path, b"top\ntail  ").expect("write");
         let mut ws = workspace();
@@ -2365,6 +2428,7 @@ mod tests {
     #[test]
     fn save_can_append_a_final_newline() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("nl.txt");
         std::fs::write(&path, b"abc").expect("write");
         let mut ws = workspace();
@@ -2746,6 +2810,7 @@ mod tests {
     #[test]
     fn strip_removes_trailing_tabs() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("tab.txt");
         std::fs::write(&path, b"ab\t").expect("write");
         let mut ws = workspace();
@@ -2763,6 +2828,7 @@ mod tests {
     #[test]
     fn save_strips_then_adds_one_final_newline() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("pad.txt");
         std::fs::write(&path, b"abc\t \n  ").expect("write");
         let mut ws = workspace();
@@ -2781,6 +2847,7 @@ mod tests {
     #[test]
     fn save_of_an_empty_document_does_not_add_a_newline() {
         let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
         let path = dir.path().join("empty.txt");
         std::fs::write(&path, b"").expect("write");
         let mut ws = workspace();
