@@ -3,9 +3,13 @@
 
 #![cfg(target_os = "macos")]
 
-//! Paint one view. The element holds layout caches only.
+//! Paint one view.
+//!
+//! The shape cache stays on the window root.
+//! Line numbers are shaped once per number and theme.
 
 use std::ops::Range;
+use std::time::{Duration, Instant};
 
 use gpui::{
     Bounds, Element, ElementId, Entity, Font, FontFallbacks, GlobalElementId, Hsla,
@@ -15,8 +19,9 @@ use gpui::{
 use kate_syntax::{DefaultStyle, EditorColor, Rgba, Span, Style as ThemeStyle, Theme};
 use kate_text::{Revision, TextBuffer};
 
+use crate::cache::{KeyedCache, theme_bits};
 use crate::session::WindowRoot;
-use crate::{EditorElement, FrameSample};
+use crate::{FrameSample, ShapedLineCache};
 
 const FONT_SIZE: f32 = 14.0;
 
@@ -38,7 +43,6 @@ pub(crate) struct LinePlan {
 }
 
 pub(crate) struct EditorSurface {
-    pub editor: EditorElement,
     pub root: Entity<WindowRoot>,
 }
 
@@ -198,12 +202,17 @@ impl Element for EditorSurface {
         window: &mut Window,
         cx: &mut gpui::App,
     ) {
-        let drawn = draw_editor(&mut self.editor, &self.root, bounds, window, cx);
-        let view = self.editor.view();
-        let line_height = self.editor.line_height();
-        let editor = std::mem::replace(&mut self.editor, EditorElement::new(view, line_height));
-        self.root.update(cx, |root, _| {
-            root.restore_paint(editor, drawn);
+        let (mut shaped, mut gutter) = self.root.update(cx, |root, _| {
+            (
+                std::mem::take(&mut root.shaped),
+                std::mem::take(&mut root.gutter),
+            )
+        });
+        let drawn = draw_editor(&mut shaped, &mut gutter, &self.root, bounds, window, cx);
+        self.root.update(cx, |root, cx| {
+            root.shaped = shaped;
+            root.gutter = gutter;
+            root.apply_frame(drawn, window, cx);
         });
     }
 }
@@ -211,11 +220,13 @@ impl Element for EditorSurface {
 pub(crate) struct DrawnFrame {
     pub column_width: Pixels,
     pub caret_bounds: Option<Bounds<Pixels>>,
+    pub want_catch_up: bool,
     pub sample: FrameSample,
 }
 
 fn draw_editor(
-    editor: &mut EditorElement,
+    shaped: &mut ShapedLineCache,
+    gutter_cache: &mut KeyedCache<ShapedLine>,
     root: &Entity<WindowRoot>,
     mut bounds: Bounds<Pixels>,
     window: &mut Window,
@@ -224,9 +235,9 @@ fn draw_editor(
     if f32::from(bounds.size.height) < 1.0 {
         bounds = Bounds::new(point(px(0.0), px(0.0)), window.viewport_size());
     }
-    let started = std::time::Instant::now();
+    let started = Instant::now();
     let snap = root.read_with(cx, |root, app| root.snapshot(app));
-    let line_height = editor.line_height();
+    let line_height = snap.line_height;
     let fraction =
         (snap.scroll_y - f32::from(line_height) * snap.scroll.first_line as f32).max(0.0);
     let range = crate::layout::visible_line_range(
@@ -235,31 +246,49 @@ fn draw_editor(
         snap.scroll,
         snap.line_count,
     );
+    let highlight_started = Instant::now();
+    let prep = if range.is_empty() {
+        None
+    } else {
+        let last = range.end - 1;
+        Some(root.update(cx, |root, cx| root.prepare_highlight(range.start, last, cx)))
+    };
+    if let Some(prep) = prep.as_ref()
+        && prep.drop_from < prep.drop_to
+    {
+        shaped.invalidate_range(prep.drop_from, prep.drop_to, snap.revision);
+    }
+    let plain_from = prep.as_ref().and_then(|prep| prep.plain_from);
+    let want_catch_up = prep.as_ref().is_some_and(|prep| prep.want_catch_up);
     let misses: Vec<u32> = range
         .clone()
-        .filter(|line| editor.cache_mut().get(*line, snap.revision).is_none())
+        .filter(|line| shaped.get(*line, snap.revision).is_none())
         .collect();
-    let last = range.end.saturating_sub(1);
-    let plans = root.update(cx, |root, cx| root.highlight_lines(&misses, last, cx));
+    let plans = root.update(cx, |root, cx| root.plans_for(&misses, plain_from, cx));
+    let highlight_micros = micros(highlight_started.elapsed());
     let font_size = px(FONT_SIZE);
+    let mut shape_micros = 0u64;
     let mut column_width = snap.column_width;
     if !snap.column_ready {
+        let shape_started = Instant::now();
         column_width = measure_column(window, &snap.font, font_size, snap.colors.foreground);
+        shape_micros = shape_micros.saturating_add(micros(shape_started.elapsed()));
     }
+    let shape_started = Instant::now();
     for plan in &plans {
-        if editor.cache_mut().get(plan.index, plan.revision).is_some() {
+        if shaped.get(plan.index, plan.revision).is_some() {
             continue;
         }
-        let shaped = shape_plan(window, plan, font_size);
-        editor.cache_mut().insert(plan.index, plan.revision, shaped);
+        let line = shape_plan(window, plan, font_size);
+        shaped.insert(plan.index, plan.revision, line);
     }
+    shape_micros = shape_micros.saturating_add(micros(shape_started.elapsed()));
     if !range.is_empty() {
-        editor
-            .cache_mut()
-            .retain_near(range.start, range.end, snap.revision);
+        shaped.retain_near(range.start, range.end, snap.revision);
     }
 
     let gutter = gutter_width(column_width, snap.line_count);
+    let draw_started = Instant::now();
     window.handle_input(
         &snap.focus,
         gpui::ElementInputHandler::new(bounds, root.clone()),
@@ -285,14 +314,14 @@ fn draw_editor(
                 snap.colors.current_line,
             ));
         }
-        if let Some(shaped) = editor.cache_mut().get(index, snap.revision) {
+        if let Some(line) = shaped.get(index, snap.revision) {
             let origin = point(text_left - px(snap.scroll_x), y);
-            if !shaped.text.is_empty() {
-                let _ = shaped.paint_background(origin, line_height, window, cx);
-                let _ = shaped.paint(origin, line_height, window, cx);
+            if !line.text.is_empty() {
+                let _ = line.paint_background(origin, line_height, window, cx);
+                let _ = line.paint(origin, line_height, window, cx);
             }
             if index == snap.caret_line {
-                let caret_x = origin.x + shaped.x_for_index(snap.caret_byte);
+                let caret_x = origin.x + line.x_for_index(snap.caret_byte);
                 caret_bounds = Some(paint_caret_and_ime(
                     window,
                     cx,
@@ -313,6 +342,7 @@ fn draw_editor(
         ),
         snap.colors.gutter,
     ));
+    let mut draw_micros = micros(draw_started.elapsed());
     for index in range {
         let y = bounds.top()
             + px(line_top(
@@ -321,9 +351,10 @@ fn draw_editor(
                 fraction,
                 line_height,
             ));
-        paint_line_number(
+        let (label_shape, label_draw) = paint_line_number(
             window,
             cx,
+            gutter_cache,
             &snap.font,
             GutterLabel {
                 index,
@@ -335,18 +366,28 @@ fn draw_editor(
                 color: snap.colors.gutter_text,
             },
         );
+        shape_micros = shape_micros.saturating_add(label_shape);
+        draw_micros = draw_micros.saturating_add(label_draw);
     }
-    let paint_micros = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX);
+    let paint_micros = micros(started.elapsed());
     DrawnFrame {
         column_width,
         caret_bounds,
+        want_catch_up,
         sample: FrameSample {
             frame: snap.frame.saturating_add(1),
             paint_micros,
             first_line: snap.scroll.first_line,
             lines_painted: painted,
+            highlight_micros,
+            shape_micros,
+            draw_micros,
         },
     }
+}
+
+fn micros(duration: Duration) -> u64 {
+    u64::try_from(duration.as_micros()).unwrap_or(u64::MAX)
 }
 
 fn line_top(index: u32, first: u32, fraction: f32, line_height: Pixels) -> f32 {
@@ -391,21 +432,39 @@ struct GutterLabel {
     color: Hsla,
 }
 
-fn paint_line_number(window: &mut Window, cx: &mut gpui::App, font: &Font, label: GutterLabel) {
-    let text = label.index.saturating_add(1).to_string();
-    let run = TextRun {
-        len: text.len(),
-        font: font.clone(),
-        color: label.color,
-        background_color: None,
-        underline: None,
-        strikethrough: None,
+fn paint_line_number(
+    window: &mut Window,
+    cx: &mut gpui::App,
+    cache: &mut KeyedCache<ShapedLine>,
+    font: &Font,
+    label: GutterLabel,
+) -> (u64, u64) {
+    let number = label.index.saturating_add(1);
+    let rgb = label.color.to_rgb();
+    let theme = theme_bits(rgb.r, rgb.g, rgb.b, rgb.a);
+    let (shaped, shape_micros) = if let Some(hit) = cache.get(number, theme).cloned() {
+        (hit, 0)
+    } else {
+        let started = Instant::now();
+        let text = number.to_string();
+        let run = TextRun {
+            len: text.len(),
+            font: font.clone(),
+            color: label.color,
+            background_color: None,
+            underline: None,
+            strikethrough: None,
+        };
+        let shaped = window
+            .text_system()
+            .shape_line(text.into(), label.font_size, &[run], None);
+        cache.insert(number, theme, shaped.clone());
+        (shaped, micros(started.elapsed()))
     };
-    let shaped = window
-        .text_system()
-        .shape_line(text.into(), label.font_size, &[run], None);
+    let draw_started = Instant::now();
     let x = label.left + label.gutter - px(8.0) - shaped.width;
     let _ = shaped.paint(point(x, label.y), label.line_height, window, cx);
+    (shape_micros, micros(draw_started.elapsed()))
 }
 
 fn paint_caret_and_ime(

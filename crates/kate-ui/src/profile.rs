@@ -33,10 +33,13 @@ mod tests {
             paint_micros: 2,
             first_line: 3,
             lines_painted: 4,
+            highlight_micros: 5,
+            shape_micros: 6,
+            draw_micros: 7,
         });
         assert_eq!(
             line,
-            r#"{"frame":1,"paint_micros":2,"first_line":3,"lines_painted":4}"#
+            r#"{"frame":1,"paint_micros":2,"first_line":3,"lines_painted":4,"highlight_micros":5,"shape_micros":6,"draw_micros":7}"#
         );
     }
 }

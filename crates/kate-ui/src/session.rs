@@ -20,10 +20,12 @@ use kate_core::{Command, DocumentId, EditorConfig, OpenError, Scroll, ViewId, Wo
 use kate_syntax::{DefId, Highlighter, LineHighlight, Repository, Theme};
 use kate_text::Revision;
 
+use crate::cache::KeyedCache;
+use crate::highlight::{CATCH_UP_LINE_BUDGET, PAINT_LINE_BUDGET, highlight_step};
 use crate::paint::{
     self, Colors, DrawnFrame, EditorSurface, byte_at_char, line_text, runs_for_line,
 };
-use crate::{App, EditorElement, profile};
+use crate::{App, EditorElement, ShapedLine, ShapedLineCache, profile};
 
 const LINE_HEIGHT: f32 = 20.0;
 const SAMPLE: &str = "\
@@ -49,6 +51,7 @@ pub(crate) struct ViewSnap {
     pub marked: Option<Range<usize>>,
     pub focus: FocusHandle,
     pub frame: u64,
+    pub line_height: Pixels,
 }
 
 pub(crate) struct WindowRoot {
@@ -69,6 +72,15 @@ pub(crate) struct WindowRoot {
     selected_utf8: Range<usize>,
     marked_utf8: Option<Range<usize>>,
     caret_bounds: Option<Bounds<Pixels>>,
+    pub(crate) shaped: ShapedLineCache,
+    pub(crate) gutter: KeyedCache<ShapedLine>,
+    /// First line that `ensure` has not covered yet.
+    checkpoint: u32,
+    checkpoint_revision: Revision,
+    catch_up_to: u32,
+    catch_up_queued: bool,
+    visible_first: u32,
+    visible_last: u32,
 }
 
 pub(crate) fn launch(path: Option<PathBuf>) {
@@ -141,6 +153,14 @@ impl WindowRoot {
             selected_utf8: 0..0,
             marked_utf8: None,
             caret_bounds: None,
+            shaped: ShapedLineCache::default(),
+            gutter: KeyedCache::default(),
+            checkpoint: 0,
+            checkpoint_revision: Revision(0),
+            catch_up_to: 0,
+            catch_up_queued: false,
+            visible_first: 0,
+            visible_last: 0,
         }
     }
 
@@ -164,50 +184,174 @@ impl WindowRoot {
             marked: self.marked_utf8.clone(),
             focus: self.focus.clone(),
             frame: self.frame,
+            line_height: self.editor.line_height(),
         }
     }
 
-    pub(crate) fn highlight_lines(
+    /// Highlight only a short span from the checkpoint.
+    ///
+    /// A viewport past that span is left plain. Catch-up runs after paint.
+    pub(crate) fn prepare_highlight(
+        &mut self,
+        first: u32,
+        last: u32,
+        cx: &mut Context<Self>,
+    ) -> HighlightPrep {
+        let revision = self.document_revision(cx);
+        if self.checkpoint_revision != revision {
+            self.checkpoint = 0;
+            self.checkpoint_revision = revision;
+            self.catch_up_to = 0;
+        }
+        self.visible_first = first;
+        self.visible_last = last.saturating_add(1);
+        if self.hl.is_none() {
+            self.checkpoint = last.saturating_add(1);
+            return HighlightPrep {
+                drop_from: 0,
+                drop_to: 0,
+                plain_from: None,
+                want_catch_up: false,
+            };
+        }
+        let step = highlight_step(self.checkpoint, first, last, PAINT_LINE_BUDGET);
+        let drop_from = self.checkpoint;
+        if let Some(through) = step.ensure_through {
+            self.ensure_syntax(through, cx);
+            self.checkpoint = through.saturating_add(1);
+        }
+        let want_catch_up = self.checkpoint <= last;
+        if want_catch_up {
+            self.catch_up_to = last;
+        }
+        HighlightPrep {
+            drop_from,
+            drop_to: self.checkpoint,
+            plain_from: step.plain_from,
+            want_catch_up,
+        }
+    }
+
+    pub(crate) fn plans_for(
         &mut self,
         lines: &[u32],
-        through: u32,
+        plain_from: Option<u32>,
         cx: &mut Context<Self>,
     ) -> Vec<paint::LinePlan> {
+        let mut plans = Vec::with_capacity(lines.len());
         let model = self.model.clone();
         let doc = self.doc;
         let font = self.font.clone();
         let foreground = self.colors.foreground;
-        let mut plans = Vec::with_capacity(lines.len());
+        if self.hl.is_none() {
+            model.update(cx, |app, _| {
+                push_plain(&mut plans, &app.workspace, doc, lines, &font, foreground);
+            });
+            return plans;
+        }
+        let syntax: Vec<u32> = lines
+            .iter()
+            .copied()
+            .filter(|line| plain_from.is_none_or(|start| *line < start))
+            .collect();
+        let plain: Vec<u32> = lines
+            .iter()
+            .copied()
+            .filter(|line| plain_from.is_some_and(|start| *line >= start))
+            .collect();
+        if let Some(hl) = self.hl.as_mut() {
+            model.update(cx, |app, _| {
+                push_plans(
+                    &mut plans,
+                    &app.workspace,
+                    doc,
+                    &syntax,
+                    hl,
+                    &font,
+                    foreground,
+                );
+                push_plain(&mut plans, &app.workspace, doc, &plain, &font, foreground);
+            });
+        }
+        plans
+    }
+
+    pub(crate) fn apply_frame(
+        &mut self,
+        drawn: DrawnFrame,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.column_width = drawn.column_width;
+        self.column_ready = true;
+        self.caret_bounds = drawn.caret_bounds;
+        self.frame = drawn.sample.frame;
+        if drawn.want_catch_up && !self.catch_up_queued {
+            self.catch_up_queued = true;
+            cx.defer_in(window, |this, window, cx| {
+                this.run_catch_up(window, cx);
+            });
+        }
+        profile::write_sample(&drawn.sample);
+    }
+
+    fn run_catch_up(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.hl.is_none() || self.checkpoint > self.catch_up_to {
+            self.catch_up_queued = false;
+            return;
+        }
+        let revision = self.document_revision(cx);
+        if self.checkpoint_revision != revision {
+            self.checkpoint = 0;
+            self.checkpoint_revision = revision;
+        }
+        if self.checkpoint > self.catch_up_to {
+            self.catch_up_queued = false;
+            return;
+        }
+        let from = self.checkpoint;
+        let through = from
+            .saturating_add(CATCH_UP_LINE_BUDGET)
+            .saturating_sub(1)
+            .min(self.catch_up_to);
+        self.ensure_syntax(through, cx);
+        self.checkpoint = through.saturating_add(1);
+        self.shaped
+            .invalidate_range(from, self.checkpoint, revision);
+        let overlaps = from < self.visible_last && self.checkpoint > self.visible_first;
+        let more = self.checkpoint <= self.catch_up_to;
+        if overlaps {
+            cx.notify();
+        }
+        if more {
+            cx.defer_in(window, |this, window, cx| {
+                this.run_catch_up(window, cx);
+            });
+        } else {
+            self.catch_up_queued = false;
+        }
+    }
+
+    fn ensure_syntax(&mut self, through: u32, cx: &mut Context<Self>) {
+        let model = self.model.clone();
+        let doc = self.doc;
         if let Some(hl) = self.hl.as_mut() {
             model.update(cx, |app, _| {
                 if let Some(document) = app.workspace.documents.get_mut(doc) {
                     document.syntax.ensure(&document.buffer, hl, through);
                 }
-                push_plans(
-                    &mut plans,
-                    &app.workspace,
-                    doc,
-                    lines,
-                    hl,
-                    &font,
-                    foreground,
-                );
             });
-            return plans;
         }
-        model.update(cx, |app, _| {
-            push_plain(&mut plans, &app.workspace, doc, lines, &font, foreground);
-        });
-        plans
     }
 
-    pub(crate) fn restore_paint(&mut self, editor: EditorElement, drawn: DrawnFrame) {
-        self.editor = editor;
-        self.column_width = drawn.column_width;
-        self.column_ready = true;
-        self.caret_bounds = drawn.caret_bounds;
-        self.frame = drawn.sample.frame;
-        profile::write_sample(&drawn.sample);
+    fn document_revision(&self, cx: &Context<Self>) -> Revision {
+        self.model
+            .read(cx)
+            .workspace
+            .documents
+            .get(self.doc)
+            .map(|document| document.buffer.revision())
+            .unwrap_or(Revision(0))
     }
 
     fn on_scroll(
@@ -251,9 +395,6 @@ impl Render for WindowRoot {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let background = self.colors.background;
         let focus = self.focus.clone();
-        let view = self.editor.view();
-        let line_height = self.editor.line_height();
-        let editor = std::mem::replace(&mut self.editor, EditorElement::new(view, line_height));
         div()
             .flex()
             .flex_col()
@@ -263,10 +404,7 @@ impl Render for WindowRoot {
             .cursor(gpui::CursorStyle::IBeam)
             .track_focus(&focus)
             .on_scroll_wheel(cx.listener(Self::on_scroll))
-            .child(EditorSurface {
-                editor,
-                root: cx.entity(),
-            })
+            .child(EditorSurface { root: cx.entity() })
     }
 }
 
@@ -392,6 +530,13 @@ impl EntityInputHandler for WindowRoot {
     ) -> Option<usize> {
         Some(utf16_index(&self.ime_text, self.selected_utf8.end))
     }
+}
+
+pub(crate) struct HighlightPrep {
+    pub drop_from: u32,
+    pub drop_to: u32,
+    pub plain_from: Option<u32>,
+    pub want_catch_up: bool,
 }
 
 fn push_plans(

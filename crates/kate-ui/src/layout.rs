@@ -123,6 +123,32 @@ mod tests {
         );
         assert!(cache.get(5, revision).is_none(), "another line is a miss");
     }
+
+    #[test]
+    fn shaped_cache_drops_one_revision_range() {
+        let mut cache = ShapedLineCache::default();
+        let revision = Revision(3);
+        cache.insert(1, revision, shaped_line());
+        cache.insert(2, revision, shaped_line());
+        cache.insert(3, revision, shaped_line());
+        cache.insert(2, Revision(4), shaped_line());
+        cache.invalidate_range(2, 4, revision);
+        assert!(cache.get(1, revision).is_some());
+        assert!(cache.get(2, revision).is_none());
+        assert!(cache.get(3, revision).is_none());
+        assert!(cache.get(2, Revision(4)).is_some());
+    }
+
+    fn shaped_line() -> ShapedLine {
+        #[cfg(target_os = "macos")]
+        {
+            ShapedLine::default()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            ShapedLine
+        }
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
