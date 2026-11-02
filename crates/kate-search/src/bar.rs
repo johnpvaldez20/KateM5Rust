@@ -40,6 +40,8 @@ pub struct FindBar {
     pub whole_words: bool,
     /// When true, [`FindBar::find_from`] walks toward the start of the buffer.
     pub backwards: bool,
+    /// When true, [`FindBar::find_from`] continues from the other end.
+    pub wrap: bool,
 }
 
 impl FindBar {
@@ -62,13 +64,13 @@ impl FindBar {
 
     /// Finds the next hit from `from`.
     ///
-    /// Wrap is off. The walk uses [`FindBar::backwards`].
+    /// The walk uses [`FindBar::backwards`] and [`FindBar::wrap`].
     ///
     /// # Errors
     ///
     /// Returns the same errors as [`crate::find_next`].
     pub fn find_from(&self, buf: &TextBuffer, from: Offset) -> Result<Option<Match>, SearchError> {
-        crate::find_next(buf, &self.query(), from, self.backwards, false)
+        crate::find_next(buf, &self.query(), from, self.backwards, self.wrap)
     }
 
     /// Builds one edit for `hit`.
@@ -137,6 +139,7 @@ mod tests {
             case_sensitive: true,
             whole_words: false,
             backwards,
+            wrap: false,
         }
     }
 
@@ -244,6 +247,19 @@ mod tests {
                 .is_none(),
             "wrap is false, so a backward search at offset 0 returns None"
         );
+    }
+
+    #[test]
+    fn wrap_finds_a_hit_on_the_other_side() {
+        let buf = TextBuffer::from_str("aba");
+        let mut bar = sample("a", "", FindMode::Plain, true);
+        bar.wrap = true;
+        let hit = bar
+            .find_from(&buf, Offset(0))
+            .expect("plain search does not fail")
+            .expect("wrap finds the match at offset 2");
+        assert_eq!(hit.range.start(), Offset(2));
+        assert_eq!(hit.range.end(), Offset(3));
     }
 
     #[test]
