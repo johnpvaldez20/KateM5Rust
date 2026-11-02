@@ -76,4 +76,6 @@ pub enum CommandError {
     Transaction(TransactionError),
     /// The view id is not in the workspace.
     UnknownView(ViewId),
+    /// `SaveAs` names a path that another open document already has.
+    AlreadyOpen,
 }
