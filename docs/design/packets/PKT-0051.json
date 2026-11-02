@@ -1,0 +1,151 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0051",
+  "title": "kate-ui: open, save, and close documents from the window",
+  "summary": "The window can make a document, open a path, save, and close. A modified document refuses to close. An untitled save asks for a path. This packet starts only after PKT-0015 is merged. The file-effect tests do not import GPUI. Linux CI runs those tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T18:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 42,
+    "branch": "pkt/PKT-0051-file-commands",
+    "base_sha": "ecce1b06610732046c2cfb93ec340e26e44f29ef"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/42"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "files.rs is pure Rust and its tests run on Linux. The open and save panels compile only on macOS. The rust (macos-15) check is the GPUI build evidence. The owner must look at both panels on his Mac.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/Cargo.toml",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/paint.rs",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0045"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/files.rs",
+        "definition": "#[derive(Debug)]\npub enum FileRequest {\n    New,\n    OpenPath(std::path::PathBuf),\n    Save,\n    SaveAsPath(std::path::PathBuf),\n    Close,\n}\n\n#[derive(Debug, PartialEq, Eq)]\npub enum FileEffect {\n    Ready,\n    NeedsPath,\n    RefusedModified(kate_core::DocumentId),\n    OpenFailed,\n    SaveFailed,\n    AlreadyOpen,\n    UnknownView,\n}\n\npub fn apply_file_request(ws: &mut kate_core::Workspace, view: kate_core::ViewId, request: FileRequest) -> FileEffect"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/lib.rs",
+        "definition": "#[cfg_attr(not(target_os = \"macos\"), allow(dead_code))]\nmod files;"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Do not start until PKT-0015 and PKT-0045 are on main. Keep mod keys and its allow(dead_code) attribute. lib.rs adds mod files with the same allow(dead_code) attribute off macOS. The module still compiles on Linux. New calls new_document and new_view. OpenPath calls open and new_view. A load error or a binary file returns OpenFailed and adds no document. An already open path gets another view. Save runs Command::Save. NoFile returns NeedsPath. SaveAsPath runs Command::SaveAs. AlreadyOpen returns AlreadyOpen. Close runs close_view. RefusedModified leaves the view in the workspace. session.rs keeps command_for_binding. It handles Command::Save by calling apply_file_request. NeedsPath calls App::prompt_for_new_path and then SaveAsPath. cmd-o calls App::prompt_for_paths with files true, directories false, and multiple false. It then calls OpenPath on the first path. cmd-shift-s calls prompt_for_new_path. cmd-n calls New. cmd-w calls Close. A refused close does not show a sheet. Add a File menu for those five actions. Do not edit keys.rs or paint.rs. Do not add a dependency. A new Rust file starts with the GPL-3.0-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-ui --locked files::",
+      "cargo test -p kate-ui --locked",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "files::tests::save_as_writes_the_bytes",
+        "kind": "UNIT",
+        "asserts": "SaveAsPath writes the buffer bytes into a temp file. A later Save keeps those bytes. The test builds the temp directory with std::fs and does not use the process home."
+      },
+      {
+        "name": "files::tests::save_of_untitled_needs_a_path",
+        "kind": "UNIT",
+        "asserts": "Save on a document with no path returns NeedsPath. The document stays open and unsaved."
+      },
+      {
+        "name": "files::tests::close_refuses_a_modified_document",
+        "kind": "UNIT",
+        "asserts": "Close on the only view of a modified document returns RefusedModified. The view is still in the workspace. Close of an unmodified view removes it."
+      },
+      {
+        "name": "files::tests::missing_path_does_not_open_a_document",
+        "kind": "UNIT",
+        "asserts": "OpenPath of a missing file returns OpenFailed. The document count does not change."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
