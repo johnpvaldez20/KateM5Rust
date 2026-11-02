@@ -2,7 +2,7 @@
   "gate": "G1_PLANNING",
   "packet_id": "PKT-0019",
   "title": "kate-core: pair brackets on a one-character insert",
-  "summary": "A one-character insert can wrap a pair or step over a closer. A longer insert stays a plain replace. Existing fan-out tests keep their assertions. This packet does not add a command and does not add a dependency. Linux CI runs the tests.",
+  "summary": "A one-character insert can wrap a pair or step over a closer. A longer insert stays a plain replace. Pairing is always on. Existing fan-out tests keep their assertions. This packet does not add a command and does not add a dependency. Linux CI runs the tests.",
   "provenance": {
     "schema_version": "2.0.0",
     "produced_at": "2026-11-02T16:55:00Z",
@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 42,
     "branch": "pkt/PKT-0019-auto-brackets",
-    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+    "base_sha": "17af4d75d0ac7ee211d081156b11982352ee9a46"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -99,11 +99,11 @@
       {
         "language": "RUST",
         "path": "crates/kate-core/src/pair.rs",
-        "definition": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum PairPlan {\n    Plain,\n    Wrap { caret_after_open: bool },\n    TypeOver,\n}\n\npub fn plan_pair(buf: &kate_text::TextBuffer, selection: kate_core::Selection, typed: &str) -> PairPlan"
+        "definition": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum PairPlan {\n    Plain,\n    Wrap { caret_after_open: bool },\n    TypeOver,\n}\n\npub fn plan_pair(buf: &kate_text::TextBuffer, selection: crate::Selection, typed: &str) -> PairPlan"
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "fanout.rs declares pair.rs with a path attribute. insert_text keeps its signature. When every plan is Plain, the old body runs. An opener is ( [ { \" or '. A closer is ) ] } \" or '. More than one scalar is Plain. A caret whose next scalar equals a typed closer is TypeOver. A quote after an ASCII letter, digit, or underscore is Plain when it is not a type-over. Any other opener is Wrap. A caret wrap inserts the pair and leaves the caret after the opener. A range wrap replaces the span with opener, old text, and closer, and leaves the caret after the closer. TypeOver inserts nothing and moves that caret one scalar right. Other carets in the same call still transform. Do not change an assertion in the existing fan-out tests. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+    "schema_diff_summary": "fanout.rs declares pair.rs with a path attribute. insert_text keeps its signature. When every plan is Plain, the old body runs. An opener is ( [ { \" or '. A closer is ) ] } \" or '. More than one scalar is Plain. A caret whose next scalar equals a typed closer is TypeOver. A quote after an ASCII letter, digit, or underscore is Plain when it is not a type-over. Any other opener is Wrap. A caret wrap inserts the pair and leaves the caret after the opener. A range wrap replaces the span with opener, old text, and closer, and leaves the caret after the closer. TypeOver inserts nothing and moves that caret one scalar right. Other carets in the same call still transform. Do not change an assertion in the existing fan-out tests. A new Rust file starts with the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. plan_pair takes crate::Selection. Do not write kate_core::Selection. Pairing is always on. There is no setting that turns it off."
   },
   "verification_plan": {
     "commands": [

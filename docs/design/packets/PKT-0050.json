@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 42,
     "branch": "pkt/PKT-0050-find-bar",
-    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+    "base_sha": "17af4d75d0ac7ee211d081156b11982352ee9a46"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -101,7 +101,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "lib.rs adds mod bar and re-exports FindMode and FindBar. query maps the three modes onto Pattern. It copies case_sensitive, whole_words, and a range of None. find_from calls find_next with wrap false and the backwards flag. replace_all calls the existing replace_all. replace_one builds one edit for that hit. A plain pattern copies the replacement. Escape and regex patterns use the existing expander. Do not change find_next or replace_all. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+    "schema_diff_summary": "lib.rs adds mod bar and re-exports FindMode and FindBar. query maps the three modes onto Pattern. It copies case_sensitive, whole_words, and a range of None. find_from calls find_next with wrap false and the backwards flag. replace_all calls the existing replace_all. replace_one builds one edit for that hit. A plain pattern copies the replacement. A regex or escape replace_one calls escape::expand and passes the capture names. replace_all uses that same call. Do not call the public expand_replacement for a regex hit. Do not change find_next or replace_all. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -120,7 +120,7 @@
       {
         "name": "bar::tests::replace_one_expands_a_regex_group",
         "kind": "UNIT",
-        "asserts": "The regex (c)at and the replacement $1 replace cat with c. An invalid regex returns InvalidRegex from find_from."
+        "asserts": "The regex (c)at and the replacement $1 replace cat with c. replace_one calls escape::expand with the capture names. An invalid regex returns InvalidRegex from find_from."
       },
       {
         "name": "bar::tests::find_from_walks_backward_without_wrap",

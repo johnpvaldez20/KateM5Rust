@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 42,
     "branch": "pkt/PKT-0052-matching-bracket",
-    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+    "base_sha": "17af4d75d0ac7ee211d081156b11982352ee9a46"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -102,7 +102,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "lib.rs adds mod brackets and re-exports matching_bracket. The pairs are parentheses, square brackets, and curly brackets. If the scalar at `at` is not a bracket and at is greater than 0, test the scalar at at - 1. An offset past the end uses the last scalar when that scalar is a bracket. An opener scans forward. A closer scans backward. A stack tracks nested pairs. A different closer at the same depth returns None. The result is the offset of the matching scalar. Keep each function at cyclomatic complexity 10 or below. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+    "schema_diff_summary": "lib.rs adds mod brackets and re-exports matching_bracket. The pairs are parentheses, square brackets, and curly brackets. If the scalar at `at` is not a bracket and at is greater than 0, test the scalar at at - 1. An offset past the end uses the last scalar when that scalar is a bracket. An opener scans forward. A closer scans backward. A stack tracks nested pairs. A different closer at the same depth returns None. The result is the offset of the matching scalar. Keep each function at cyclomatic complexity 10 or below. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
@@ -116,7 +116,7 @@
       {
         "name": "brackets::tests::nested_pair_matches_the_inner_closer",
         "kind": "UNIT",
-        "asserts": "In (a(b)c) the offset 0 matches 6 and the offset 2 matches 4. The offset 6 matches 0. A caret on the a at offset 1 matches 2."
+        "asserts": "In (a(b)c) the offset 0 matches 6 and the offset 2 matches 4. The offset 6 matches 0. A caret on b at offset 3 matches 4. A caret on a at offset 1 matches 6."
       },
       {
         "name": "brackets::tests::mismatch_returns_none",

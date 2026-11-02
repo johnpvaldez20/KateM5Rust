@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 42,
     "branch": "pkt/PKT-0018-indent",
-    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+    "base_sha": "17af4d75d0ac7ee211d081156b11982352ee9a46"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -116,7 +116,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "Add Indent and Unindent. Do not remove a command variant. workspace.rs declares indent.rs with a path attribute. Command::Newline calls newline_cmd. uses_cstyle is true only when the definition indenter is cstyle. newline_insertion inserts a newline, then the leading spaces and tabs of the caret line. When cstyle is true and that line without trailing spaces ends in { or ( or [, it appends indent_unit. indent_unit is indent_width spaces, or one tab when indent_with_spaces is false. A width of 0 means 1. Indent and Unindent use one edit per touched line. A touched line is each line from a selection minimum to its maximum. An empty transaction does not record history. Newline uses EditKind::Typing. Indent and Unindent use EditKind::Indent. Do not reformat workspace.rs. Do not change the assertion in one_undo_reverts_a_group. Do not edit fanout.rs. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+    "schema_diff_summary": "Add Indent and Unindent. Do not remove a command variant. workspace.rs declares indent.rs with a path attribute. Command::Newline calls newline_cmd. uses_cstyle is true only when the definition indenter is cstyle. newline_insertion inserts a newline, then the leading spaces and tabs of the caret line. When cstyle is true and that line without trailing spaces ends in { or ( or [, it appends indent_unit. indent_unit is indent_width spaces, or one tab when indent_with_spaces is false. A width of 0 means 1. Indent and Unindent use one edit per touched line. A touched line is each line from a selection minimum to its maximum. An empty transaction does not record history. Newline uses EditKind::Typing. Indent and Unindent use EditKind::Indent. Do not reformat workspace.rs. Do not change the assertion in one_undo_reverts_a_group. Do not edit fanout.rs. A new Rust file starts with the LGPL-2.1-or-later SPDX header. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
