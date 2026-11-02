@@ -14,6 +14,9 @@ use kate_text::{Anchor, History, TextBuffer};
 
 use crate::syntax_cache::SyntaxCache;
 
+#[path = "modeline.rs"]
+mod modeline;
+
 slotmap::new_key_type! {
     /// Key for one document in a [`crate::Workspace`].
     pub struct DocumentId;
@@ -154,6 +157,13 @@ impl Document {
         file: FileState,
         definition: Option<kate_syntax::DefId>,
     ) -> Self {
+        let mut config = config;
+        let mut file = file;
+        // `.editorconfig` applies first. A modeline wins on each field it sets.
+        let editor = modeline::read_editorconfig(&file.path);
+        modeline::apply_mode(&mut config, &mut file, &editor);
+        let mode = modeline::modeline_overrides(text);
+        modeline::apply_mode(&mut config, &mut file, &mode);
         let buffer = TextBuffer::from_str(text);
         let mut syntax = SyntaxCache::new(definition);
         syntax.fit(buffer.line_count());
@@ -166,5 +176,115 @@ impl Document {
             name,
             config,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    use kate_fileio::{DecodeOptions, LineEnding};
+
+    use super::{DiskChange, Document, DocumentConfig, FileState, TrailingSpaces};
+
+    fn file_state(path: PathBuf, ending: LineEnding) -> FileState {
+        FileState {
+            path,
+            encoding: DecodeOptions::default().fallback,
+            bom: true,
+            line_ending: ending,
+            digest_on_disk: [9; 32],
+            mtime_on_disk: Some(SystemTime::UNIX_EPOCH),
+            disk_change: Some(DiskChange::Modified),
+        }
+    }
+
+    #[test]
+    fn plain_file_keeps_the_given_config() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parent = root.path().join("parent");
+        let dir = parent.join("dir");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let hostile = "\
+[*]
+indent_size = 8
+tab_width = 6
+indent_style = space
+trim_trailing_whitespace = false
+insert_final_newline = false
+end_of_line = crlf
+charset = utf-8
+";
+        std::fs::write(parent.join(".editorconfig"), hostile).expect("parent config");
+        std::fs::write(dir.join(".editorconfig"), "root = true\n").expect("root config");
+        let path = dir.join("plain.txt");
+        let text = "hello\n";
+        std::fs::write(&path, text).expect("file");
+        let config = DocumentConfig {
+            tab_width: 7,
+            indent_width: 3,
+            indent_with_spaces: false,
+            remove_trailing_spaces: TrailingSpaces::ModifiedLines,
+            ensure_trailing_newline: true,
+        };
+        let file = file_state(path, LineEnding::Lf);
+        let encoding = file.encoding;
+        let doc = Document::from_loaded("plain.txt".to_string(), config.clone(), text, file, None);
+        assert_eq!(doc.config, config);
+        let saved = doc.file.expect("file");
+        assert_eq!(saved.line_ending, LineEnding::Lf);
+        assert_eq!(saved.encoding, encoding);
+        assert!(saved.bom);
+        assert_eq!(saved.digest_on_disk, [9; 32]);
+        assert_eq!(saved.mtime_on_disk, Some(SystemTime::UNIX_EPOCH));
+        assert_eq!(saved.disk_change, Some(DiskChange::Modified));
+        assert_eq!(doc.buffer.text().to_string(), text);
+    }
+
+    #[test]
+    fn blank_keeps_the_given_config() {
+        let config = DocumentConfig {
+            tab_width: 7,
+            indent_width: 3,
+            indent_with_spaces: false,
+            remove_trailing_spaces: TrailingSpaces::All,
+            ensure_trailing_newline: true,
+        };
+        let doc = Document::blank("scratch".to_string(), config.clone());
+        assert_eq!(doc.config, config);
+        assert!(doc.file.is_none());
+    }
+
+    #[test]
+    fn from_loaded_applies_editorconfig_then_the_modeline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let config_text = "\
+root = true
+[*]
+indent_size = 8
+tab_width = 6
+indent_style = tab
+insert_final_newline = true
+end_of_line = lf
+";
+        std::fs::write(dir.path().join(".editorconfig"), config_text).expect("config");
+        let path = dir.path().join("main.rs");
+        let text = "// kate: indent-width 2; replace-tabs on; eol dos;\nfn main() {}\n";
+        std::fs::write(&path, text).expect("file");
+        let given = DocumentConfig {
+            indent_with_spaces: false,
+            ..DocumentConfig::default()
+        };
+        let file = file_state(path, LineEnding::Cr);
+        let doc = Document::from_loaded("main.rs".to_string(), given, text, file, None);
+        assert_eq!(doc.config.tab_width, 6);
+        assert!(doc.config.ensure_trailing_newline);
+        assert_eq!(doc.config.indent_width, 2);
+        assert!(doc.config.indent_with_spaces);
+        let saved = doc.file.expect("file");
+        assert_eq!(saved.line_ending, LineEnding::CrLf);
+        assert!(saved.bom);
+        assert_eq!(doc.buffer.text().to_string(), text);
     }
 }
