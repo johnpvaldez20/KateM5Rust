@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 42,
     "branch": "pkt/PKT-0051-file-commands",
     "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/42"
   },
   "lane": {
     "runtime": "LOCAL",
