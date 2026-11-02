@@ -8,18 +8,21 @@ KateM5Rust is a Rust rewrite derived from study of these KDE works:
 - KDE Kate
   https://invent.kde.org/utilities/kate
   Pinned tag: v26.08.2
+  Pinned commit: 2b6465a886b9d3bfc6eab25065c14ffe025e6ac3
   License: LGPL-2.0-or-later, LGPL-2.0-only, MIT, and GPL-2.0-or-later.
   See the SPDX headers in upstream/kate.
 
 - KTextEditor
   https://invent.kde.org/frameworks/ktexteditor
   Pinned tag: v6.31.0
+  Pinned commit: ea14509c132f2c016d55b38f7a1ec24cc6f9e7d2
   License: LGPL-2.0-or-later and LGPL-2.0-only.
   See the SPDX headers in upstream/ktexteditor.
 
 - KSyntaxHighlighting
   https://invent.kde.org/frameworks/syntax-highlighting
   Pinned tag: v6.31.0
+  Pinned commit: 6d8ab7945958e7354295db7f399cce06f7de7571
   License: the library and the themes are MIT. The syntax definitions use
   several licenses. See the license attribute in each definition file.
 

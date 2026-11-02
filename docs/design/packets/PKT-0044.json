@@ -1,0 +1,137 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0044",
+  "title": "Pin upstream submodules to the documented release tags",
+  "summary": "The three gitlinks do not match the release tags named in this repository. Kate tag v26.08.2 points at commit 2b6465a886b9d3bfc6eab25065c14ffe025e6ac3. The old Kate pin 0b44913ea82eb1deea88657756effc1ddcb91374 is a later commit on master. KTextEditor tag v6.31.0 points at commit ea14509c132f2c016d55b38f7a1ec24cc6f9e7d2. The old KTextEditor pin df8e3ad8b6fcbdb5278696640e9cdfe7507cb65a is the head of invent.kde.org merge request 943. KSyntaxHighlighting tag v6.31.0 points at commit 6d8ab7945958e7354295db7f399cce06f7de7571.\n\nThe old syntax-highlighting pin 2d07614ca2ba8565915cc7e0959fd44745702ca1 is a later commit on master. README.md, NOTICE, and upstream/README.md record these same tags and commits. This packet does not change Rust code. The gatekeeper implements this plan because upstream/ is a protected path. The Cursor cloud run id is bc-dc90a864-5ff4-5f3f-8bc4-acd41c6b675c.\n\nTags v6.31.0 and v6.31.0-rc1 point at the same commit for both frameworks. The recorded tag name is the release tag v6.31.0. Each gitlink stores the commit that the annotated tag points to.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T16:33:11Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "bc-dc90a864-5ff4-5f3f-8bc4-acd41c6b675c",
+        "os": "Ubuntu 24.04.5 LTS (Linux 6.12.94+)",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "bc-dc90a864-5ff4-5f3f-8bc4-acd41c6b675c",
+        "os": "Ubuntu 24.04.5 LTS (Linux 6.12.94+)",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 39,
+    "branch": "pkt/PKT-0044-upstream-release-pins",
+    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/39"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The change is three gitlinks plus the text that names them. It does not need macOS hardware.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "NOTICE",
+      "README.md",
+      "docs/design/packets/PKT-0044.json",
+      "upstream/README.md",
+      "upstream/kate",
+      "upstream/ktexteditor",
+      "upstream/syntax-highlighting"
+    ],
+    "forbidden_paths": [
+      ".github/",
+      "Cargo.toml",
+      "apps/",
+      "crates/",
+      "docs/governance/",
+      "rust-toolchain.toml"
+    ],
+    "crates_touched": [
+      "workspace"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "upstream/README.md",
+        "definition": "| Submodule | Upstream | Pinned tag | Commit |\n|---|---|---|---|\n| `upstream/kate` | https://invent.kde.org/utilities/kate | `v26.08.2` | `2b6465a886b9d3bfc6eab25065c14ffe025e6ac3` |\n| `upstream/ktexteditor` | https://invent.kde.org/frameworks/ktexteditor | `v6.31.0` | `ea14509c132f2c016d55b38f7a1ec24cc6f9e7d2` |\n| `upstream/syntax-highlighting` | https://invent.kde.org/frameworks/syntax-highlighting | `v6.31.0` | `6d8ab7945958e7354295db7f399cce06f7de7571` |"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "README.md",
+        "definition": "| Submodule | Tag | Commit |\n|---|---|---|\n| `upstream/kate` | `v26.08.2` | `2b6465a886b9d3bfc6eab25065c14ffe025e6ac3` |\n| `upstream/ktexteditor` | `v6.31.0` | `ea14509c132f2c016d55b38f7a1ec24cc6f9e7d2` |\n| `upstream/syntax-highlighting` | `v6.31.0` | `6d8ab7945958e7354295db7f399cce06f7de7571` |"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "NOTICE",
+        "definition": "| Work | Tag | Commit |\n|---|---|---|\n| KDE Kate | v26.08.2 | 2b6465a886b9d3bfc6eab25065c14ffe025e6ac3 |\n| KTextEditor | v6.31.0 | ea14509c132f2c016d55b38f7a1ec24cc6f9e7d2 |\n| KSyntaxHighlighting | v6.31.0 | 6d8ab7945958e7354295db7f399cce06f7de7571 |"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "No public API change. The three upstream gitlinks move to the commits that the named release tags point to. README.md, NOTICE, and upstream/README.md record those same tags and commits."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --all --check",
+      "cargo clippy --workspace --all-targets --locked -- -D warnings",
+      "cargo build --workspace --locked",
+      "cargo test --workspace --locked",
+      "cargo doc --workspace --no-deps --locked",
+      "cargo run -p gatecheck --locked",
+      "git ls-tree HEAD upstream/kate upstream/ktexteditor upstream/syntax-highlighting"
+    ],
+    "regression_tests": [],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
