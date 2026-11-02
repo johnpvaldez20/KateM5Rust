@@ -34,7 +34,7 @@ pub type Encoding = &'static encoding_rs::Encoding;
 /// An empty label returns `None`.
 /// The label `replacement` returns `None`.
 pub fn encoding_for_label(label: &str) -> Option<Encoding> {
-    encoding_rs::Encoding::for_label(label.as_bytes())
+    encoding_rs::Encoding::for_label_no_replacement(label.as_bytes())
 }
 
 /// Limits and the encoding used when the bytes are not UTF-8 and have no BOM.
