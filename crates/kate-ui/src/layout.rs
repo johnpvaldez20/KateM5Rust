@@ -46,6 +46,20 @@ pub(crate) fn visible_line_range(
     start..start.saturating_add(count).min(line_count)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+/// Count the visual rows for one logical line.
+///
+/// Each Unicode scalar has width 1.
+/// An empty line returns 1.
+/// A width of 0 returns 1.
+pub(crate) fn visual_row_count(line: &str, columns: u32) -> u32 {
+    if columns == 0 || line.is_empty() {
+        return 1;
+    }
+    let rows = line.chars().count().div_ceil(columns as usize);
+    u32::try_from(rows).unwrap_or(u32::MAX)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{visible_line_range, visual_row_count};
