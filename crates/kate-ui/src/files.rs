@@ -234,3 +234,18 @@ mod tests {
         assert_eq!(ws.documents.len(), before);
     }
 }
+
+/// The helper has no workspace. Linux CI can build this module.
+#[cfg(test)]
+mod effect_tests {
+    use super::{FileEffect, effect_for_new_view};
+
+    #[test]
+    fn a_missing_view_is_open_failed() {
+        assert_eq!(effect_for_new_view(None), FileEffect::OpenFailed);
+        assert_eq!(
+            effect_for_new_view(Some(kate_core::ViewId::default())),
+            FileEffect::Ready
+        );
+    }
+}
