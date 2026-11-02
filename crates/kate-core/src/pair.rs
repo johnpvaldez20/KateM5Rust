@@ -69,6 +69,7 @@ fn closer_for(opener: char) -> char {
         '{' => '}',
         '"' => '"',
         '\'' => '\'',
+        '`' => '`',
         other => other,
     }
 }
@@ -104,15 +105,15 @@ fn char_at(buf: &kate_text::TextBuffer, index: usize) -> Option<char> {
 }
 
 fn is_opener(ch: char) -> bool {
-    matches!(ch, '(' | '[' | '{' | '"' | '\'')
+    matches!(ch, '(' | '[' | '{' | '"' | '\'' | '`')
 }
 
 fn is_closer(ch: char) -> bool {
-    matches!(ch, ')' | ']' | '}' | '"' | '\'')
+    matches!(ch, ')' | ']' | '}' | '"' | '\'' | '`')
 }
 
 fn is_quote(ch: char) -> bool {
-    matches!(ch, '"' | '\'')
+    matches!(ch, '"' | '\'' | '`')
 }
 
 fn is_ascii_word(ch: char) -> bool {
