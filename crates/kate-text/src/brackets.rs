@@ -74,30 +74,28 @@ fn fallback_bracket(buf: &TextBuffer, at: usize, len: usize) -> Option<(usize, c
 }
 
 /// Scans forward when `nest_on_open` is true. Scans backward when it is false.
+///
+/// Forward starts on the next scalar. Backward uses a reversed `chars_at` iterator.
+/// The loop does not call `Rope::char`.
 fn scan(buf: &TextBuffer, origin: usize, mate: char, nest_on_open: bool) -> Option<Offset> {
     let text = buf.text();
-    let len = text.len_chars();
     let mut pending = Vec::new();
+    let (chars, step) = if nest_on_open {
+        let start = origin.checked_add(1)?;
+        (text.chars_at(start), 1isize)
+    } else {
+        (text.chars_at(origin).reversed(), -1isize)
+    };
     let mut index = origin;
-    while let Some(next) = next_index(index, len, nest_on_open) {
-        index = next;
-        match on_scan(text.char(index), &mut pending, mate, nest_on_open) {
+    for ch in chars {
+        index = index.checked_add_signed(step)?;
+        match on_scan(ch, &mut pending, mate, nest_on_open) {
             Hit::Found => return Some(Offset(index)),
             Hit::Mismatch => return None,
             Hit::Continue => {}
         }
     }
     None
-}
-
-/// Returns the next scalar index. `forward` selects the direction.
-fn next_index(index: usize, len: usize, forward: bool) -> Option<usize> {
-    if forward {
-        let next = index.checked_add(1)?;
-        (next < len).then_some(next)
-    } else {
-        index.checked_sub(1)
-    }
 }
 
 /// Updates `pending` for one scalar.
@@ -130,6 +128,15 @@ fn on_scan(ch: char, pending: &mut Vec<char>, mate: char, nest_on_open: bool) ->
 #[cfg(test)]
 mod tests {
     use crate::{Offset, TextBuffer, matching_bracket};
+
+    #[test]
+    fn chars_at_scan_matches_the_inner_pair() {
+        let buf = TextBuffer::from_str("(a(b)c)");
+        assert_eq!(matching_bracket(&buf, Offset(0)), Some(Offset(6)));
+        assert_eq!(matching_bracket(&buf, Offset(2)), Some(Offset(4)));
+        assert_eq!(matching_bracket(&buf, Offset(3)), Some(Offset(4)));
+        assert_eq!(matching_bracket(&buf, Offset(1)), Some(Offset(6)));
+    }
 
     #[test]
     fn nested_pair_matches_the_inner_closer() {
