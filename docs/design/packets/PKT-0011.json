@@ -92,7 +92,7 @@
       {
         "language": "RUST",
         "path": "crates/kate-core/src/selection.rs",
-        "definition": "/// anchor == head is a caret. head is the moving end. goal_col survives vertical movement.\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Selection { pub anchor: Offset, pub head: Offset, pub goal_col: Option<u32> }\nimpl Selection {\n    pub fn caret(at: Offset) -> Self;\n    pub fn range(&self) -> CharRange; pub fn is_caret(&self) -> bool;\n    pub fn min(&self) -> Offset; pub fn max(&self) -> Offset;\n}\n\n/// Invariant after every public method: sorted by min(), pairwise non-overlapping, primary < len().\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct Selections { ranges: Vec<Selection>, primary: usize }\nimpl Selections {\n    pub fn single(s: Selection) -> Self;\n    pub fn new(ranges: Vec<Selection>, primary: usize) -> Self; // normalizes; merges overlaps, primary follows its range\n    pub fn primary(&self) -> Selection; pub fn iter(&self) -> impl Iterator<Item = &Selection>; pub fn len(&self) -> usize;\n    pub fn push(&mut self, s: Selection); // becomes primary\n    pub fn remove_secondary(&mut self); // collapse to primary only\n    pub fn map(&mut self, f: impl FnMut(Selection) -> Selection); // then normalize\n    /// Positions after `tx` (pre-state offsets): anchor Left-biased, head Right-biased; then normalize.\n    pub fn transformed(&self, tx: &Transaction) -> Selections;\n}"
+        "definition": "/// anchor == head is a caret. head is the moving end. goal_col survives vertical movement.\n#[derive(Copy, Clone, PartialEq, Eq, Debug)]\npub struct Selection { pub anchor: Offset, pub head: Offset, pub goal_col: Option<u32> }\nimpl Selection {\n    pub fn caret(at: Offset) -> Self;\n    pub fn range(&self) -> CharRange; pub fn is_caret(&self) -> bool;\n    pub fn min(&self) -> Offset; pub fn max(&self) -> Offset;\n}\n\n/// Invariant after every public method: sorted by min(), pairwise non-overlapping, primary < len().\n#[derive(Clone, PartialEq, Eq, Debug)]\npub struct Selections { ranges: Vec<Selection>, primary: usize }\nimpl Selections {\n    pub fn single(s: Selection) -> Self;\n    pub fn new(ranges: Vec<Selection>, primary: usize) -> Self; // normalizes; merges overlaps, primary follows its range\n    pub fn primary(&self) -> Selection; pub fn iter(&self) -> impl Iterator<Item = &Selection>; pub fn len(&self) -> usize;\n    pub fn push(&mut self, s: Selection); // becomes primary\n    pub fn remove_secondary(&mut self); // collapse to primary only\n    pub fn map(&mut self, f: impl FnMut(Selection) -> Selection); // then normalize\n    /// Positions after `tx` (pre-state offsets): the minimum end uses Bias::Left and the maximum end uses Bias::Right. Direction stays. Then normalize.\n    pub fn transformed(&self, tx: &Transaction) -> Selections;\n}"
       },
       {
         "language": "RUST",
@@ -106,7 +106,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "New crate API. Dependencies with justification: unicode-segmentation 1.13 (grapheme cursor for movement; char stepping splits emoji and combining marks), proptest (dev only). Selections::new turns an empty list into one caret at 0. A primary index past the end uses the last range. It never panics. Normalize uses half-open overlap. Carets at the same offset merge. A caret at a range's max stays separate, and touching ranges stay separate. A merge keeps the primary's direction and goal_col. transformed maps any pre-state transaction in O(selections + edits), using the transform_offset bias (anchor Left, head Right). The own-edit rule applies only when an edit exactly covers its selection. goal_col is kept. fan_out clamps ends, and returns TransactionError when the caller builds overlapping edits. Built-in deletes never error. They drop a fully contained delete and trim a partial overlap. Mixed range-and-caret sets delete at every selection, which differs from Kate keyDelete. The vertical goal is tab-expanded with tab_width (0 means 1), and every other scalar has width 1. Short lines clamp to the line end and keep goal_col. Up on the first line and Down on the last stay on that line. Vertical moves and LineEnd snap to grapheme and CRLF boundaries. Word movement follows KTextEditor v6.31.0 with camel-cursor off: Unicode alphanumerics plus _, with the default delimiters. Grapheme steps use GraphemeCursor over rope chunks with pre-context. They are capped at 256 scalars and match full segmentation below that cap. Delete and insert clear goal_col. With 20k carets, insert, replace, backspace and Right on a 40k-character line each take about 10 ms or less in release. No full-text copy per move."
+    "schema_diff_summary": "New crate API. Dependencies with justification: unicode-segmentation 1.13 (grapheme cursor for movement; char stepping splits emoji and combining marks), proptest (dev only). Selections::new turns an empty list into one caret at 0. A primary index past the end uses the last range. It never panics. Normalize uses half-open overlap. Carets at the same offset merge. A caret at a range's max stays separate, and touching ranges stay separate. A merge keeps the primary's direction and goal_col. transformed maps any pre-state transaction in O(selections + edits). The minimum end uses Bias::Left. The maximum end uses Bias::Right. A forward range and a backward range keep one span. The direction of the selection stays. An edit that covers a selection exactly uses that same span rule. goal_col is kept. Pull request 35, squash 9c47cc94c3afb4c89f566493e113ad42347f11ff, replaced the anchor-Left and head-Right rule. fan_out clamps ends, and returns TransactionError when the caller builds overlapping edits. Built-in deletes never error. They drop a fully contained delete and trim a partial overlap. Mixed range-and-caret sets delete at every selection, which differs from Kate keyDelete. The vertical goal is tab-expanded with tab_width (0 means 1), and every other scalar has width 1. Short lines clamp to the line end and keep goal_col. Up on the first line and Down on the last stay on that line. Vertical moves and LineEnd snap to grapheme and CRLF boundaries. Word movement follows KTextEditor v6.31.0 with camel-cursor off: Unicode alphanumerics plus _, with the default delimiters. Grapheme steps use GraphemeCursor over rope chunks with pre-context. They are capped at 256 scalars and match full segmentation below that cap. Delete and insert clear goal_col. With 20k carets, insert, replace, backspace and Right on a 40k-character line each take about 10 ms or less in release. No full-text copy per move."
   },
   "verification_plan": {
     "commands": [
@@ -134,6 +134,21 @@
         "name": "fanout::tests::typing_with_many_cursors_is_one_transaction",
         "kind": "UNIT",
         "asserts": "insert_text with 40 carets yields one Transaction of 40 edits and 40 carets each advanced by the text length; single caret is the same code path with 1 edit."
+      },
+      {
+        "name": "selection::tests::insert_at_both_ends_grows_forward_and_backward_ranges",
+        "kind": "UNIT",
+        "asserts": "An insert at each end grows a forward range and a backward range to the same span. The direction stays."
+      },
+      {
+        "name": "selection::tests::exact_cover_keeps_the_same_span_in_both_directions",
+        "kind": "UNIT",
+        "asserts": "One edit that covers a selection maps a forward range and a backward range to the same span."
+      },
+      {
+        "name": "selection::tests::forward_and_backward_ranges_keep_one_span",
+        "kind": "PROPERTY",
+        "asserts": "For generated edits, a forward range and a backward range keep the same minimum and the same maximum."
       }
     ],
     "deterministic": true
