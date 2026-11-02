@@ -156,13 +156,18 @@ fn short_spaces(body: &str, config: &DocumentConfig) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{indent_lines, newline_insertion, unindent_lines};
+    use super::{indent_lines, newline_insertion, python_newline, unindent_lines};
     use crate::DocumentConfig;
     use kate_text::{Edit, Offset, TextBuffer, Transaction};
 
     fn inserted(text: &str, config: &DocumentConfig, cstyle: bool) -> String {
         let buf = TextBuffer::from_str(text);
         newline_insertion(&buf, buf.len(), config, cstyle)
+    }
+
+    fn python_inserted(text: &str, config: &DocumentConfig) -> String {
+        let buf = TextBuffer::from_str(text);
+        python_newline(&buf, buf.len(), config)
     }
 
     #[test]
@@ -207,6 +212,34 @@ mod tests {
             ..DocumentConfig::default()
         };
         assert_eq!(inserted("    foo{", &narrow, true), "\n     ");
+    }
+
+    #[test]
+    fn python_newline_adds_a_unit_after_a_colon() {
+        let config = DocumentConfig::default();
+        assert_eq!(python_inserted("def f():", &config), "\n    ");
+        assert_eq!(python_inserted("def f()", &config), "\n");
+        assert_eq!(python_inserted("    def f():", &config), "\n        ");
+        assert_eq!(python_inserted("    def f()", &config), "\n    ");
+        assert_eq!(python_inserted("\tdef f():", &config), "\n\t    ");
+        assert_eq!(python_inserted("def f():  ", &config), "\n    ");
+        assert_eq!(python_inserted("def f():\t", &config), "\n    ");
+        assert_eq!(python_inserted("def f(): pass", &config), "\n");
+        assert_eq!(python_inserted("def f():\r", &config), "\n    ");
+
+        let tabs = DocumentConfig {
+            indent_with_spaces: false,
+            ..DocumentConfig::default()
+        };
+        assert_eq!(python_inserted("def f():", &tabs), "\n\t");
+        assert_eq!(python_inserted("    def f():", &tabs), "\n    \t");
+
+        let narrow = DocumentConfig {
+            indent_width: 0,
+            ..DocumentConfig::default()
+        };
+        assert_eq!(python_inserted("def f():", &narrow), "\n ");
+        assert_eq!(python_inserted("def f()", &narrow), "\n");
     }
 
     #[test]
