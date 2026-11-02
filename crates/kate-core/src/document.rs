@@ -368,4 +368,17 @@ end_of_line = lf
         assert_eq!(file.reload_choice(false), ReloadChoice::Ask);
         assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
     }
+
+    #[test]
+    fn reload_choice_sentence_names_the_prompt() {
+        assert_eq!(ReloadChoice::Quiet.sentence(), None);
+        assert_eq!(
+            ReloadChoice::Reload.sentence(),
+            Some("Reload the file from disk.")
+        );
+        assert_eq!(
+            ReloadChoice::Ask.sentence(),
+            Some("The file on disk changed.")
+        );
+    }
 }
