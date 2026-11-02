@@ -82,7 +82,7 @@ fn gap_adjust(previous_match: Option<usize>, index: usize) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{FuzzyHit, fuzzy_match};
+    use super::{FuzzyHit, fuzzy_match, gap_adjust};
 
     #[test]
     fn foo_bar_scores_the_documented_hits() {
@@ -111,6 +111,14 @@ mod tests {
                 score: 0,
                 positions: Vec::new(),
             })
+        );
+    }
+
+    #[test]
+    fn a_huge_gap_does_not_panic() {
+        assert_eq!(
+            gap_adjust(Some(0), usize::MAX),
+            0i32.saturating_sub(i32::MAX)
         );
     }
 }
