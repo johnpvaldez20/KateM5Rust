@@ -23,5 +23,10 @@ kate-syntax = { workspace = true }
 # Metal window, Core Text shaping, and NSTextInputClient. Pinned. A bump is a new packet.
 gpui = { version = "=0.2.2", default-features = false, features = ["font-kit"] }
 
+# Opt-in. `test-support` adds about 1,254 lines to Cargo.lock.
+# Default `cargo test` leaves this off.
+[features]
+gpui-tests = ["gpui/test-support"]
+
 [lints]
 workspace = true

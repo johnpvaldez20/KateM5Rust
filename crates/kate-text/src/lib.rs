@@ -10,9 +10,11 @@
 //! An anchor stores an offset, a revision, and a bias.
 //! Resolve replays the edit log.
 //! `History` records undo and redo.
+//! `matching_bracket` returns the offset of the paired bracket.
 //! A file load is a later packet.
 
 mod anchor;
+mod brackets;
 mod buffer;
 mod edit;
 mod history;
@@ -20,6 +22,7 @@ mod log;
 mod offset;
 
 pub use anchor::{Anchor, Bias, StaleAnchor, transform_offset};
+pub use brackets::matching_bracket;
 pub use buffer::{ApplyError, TextBuffer};
 pub use edit::{Edit, Transaction, TransactionError};
 pub use history::{EditKind, History, HistoryEntry};
