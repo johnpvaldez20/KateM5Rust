@@ -5,7 +5,7 @@
   "summary": "The toolkit decision gate. Create crates/kate-ui on GPUI, open one window, render a kate-core Document read-only with themed spans, line numbers and smooth scrolling. Measure: open a 100,000-line file and scroll it; frame time must stay under 8 ms at 120 Hz on the owner's M-series machine, IME marked text must display, and Cmd-Q must quit cleanly. If GPUI fails any of these, this packet is rejected at Gate 3 and the fallback (objc2 + AppKit + Core Text) gets its own spike packet. kate-core is untouched either way.",
   "provenance": {
     "schema_version": "2.0.0",
-    "produced_at": "2026-10-29T23:35:00Z",
+    "produced_at": "2026-11-02T02:57:37Z",
     "author": {
       "agent_id": "overseer-linus-v1",
       "role": "GATEKEEPER",
@@ -28,7 +28,7 @@
       }
     },
     "worker": {
-      "agent_id": "cursor-local-coder-01",
+      "agent_id": "cursor-local-grok-4.7",
       "role": "CODER",
       "runtime": "LOCAL",
       "host": {
@@ -38,10 +38,10 @@
         "arch": "aarch64"
       },
       "model": {
-        "provider": "ANTHROPIC",
-        "name": "claude-opus-5-thinking-high",
+        "provider": "XAI",
+        "name": "grok-4.7",
         "settings": {
-          "reasoning_effort": "high"
+          "reasoning_effort": "xhigh"
         }
       },
       "tool": {
@@ -51,13 +51,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 13,
+    "issue_number": 33,
     "branch": "pkt/PKT-0013-ui-gpui-spike",
-    "base_sha": "6b0979f8fb168065551fd38c63674fa389cfa5fc"
+    "base_sha": "1c1ee156f3b4564d14f6d47b3a512a9d35920ed5"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/13"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/33"
   },
   "lane": {
     "runtime": "LOCAL",
@@ -74,7 +74,10 @@
     "allowed_files": [
       "crates/kate-ui/",
       "apps/katem5rust/",
-      "Cargo.toml"
+      "Cargo.toml",
+      "Cargo.lock",
+      "tools/gatecheck/src/spdx.rs",
+      "docs/design/packets/PKT-0013.json"
     ],
     "forbidden_paths": [
       "upstream/",
@@ -111,7 +114,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output)."
+    "schema_diff_summary": "New crate and the binary's first real main(). Dependencies with justification: gpui (Metal-backed UI with Core Text shaping, native macOS windows, menus and NSTextInputClient; the alternative is writing all of that against objc2), serde (telemetry output). gpui is a macOS-only dependency. On any other target, run() prints an error and exits. The Linux product-target exclude is a separate packet."
   },
   "verification_plan": {
     "commands": [
