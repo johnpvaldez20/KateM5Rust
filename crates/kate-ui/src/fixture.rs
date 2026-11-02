@@ -27,15 +27,25 @@ pub(crate) fn write_rust_lines(out: &mut impl Write, count: u32) -> io::Result<(
     Ok(())
 }
 
+/// Write `count` lines through one buffered writer.
+///
+/// `File::write` of each small line is one syscall. `BufWriter` groups them.
+pub(crate) fn write_buffered(out: impl Write, count: u32) -> io::Result<()> {
+    let mut out = std::io::BufWriter::new(out);
+    write_rust_lines(&mut out, count)?;
+    out.flush()
+}
+
 /// Write a 100,000-line Rust file to `path`.
 pub fn write_rust_fixture(path: &Path) -> io::Result<()> {
-    let mut file = std::fs::File::create(path)?;
-    write_rust_lines(&mut file, FIXTURE_LINE_COUNT)
+    let file = std::fs::File::create(path)?;
+    write_buffered(file, FIXTURE_LINE_COUNT)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{FIXTURE_LINE_COUNT, write_rust_lines};
+    use super::{FIXTURE_LINE_COUNT, write_buffered, write_rust_lines};
+    use std::io::{self, Write};
 
     #[test]
     fn generator_writes_100_000_rust_lines() {
@@ -47,5 +57,41 @@ mod tests {
         assert!(text.contains("fn item_"));
         assert!(text.contains('😀'));
         assert!(text.contains("日本語"));
+    }
+
+    #[test]
+    fn fixture_writer_buffers_many_small_line_writes() {
+        let mut counter = WriteCount::default();
+        let lines = 2_000u32;
+        write_buffered(&mut counter, lines).expect("write");
+        assert!(
+            counter.writes < lines as usize,
+            "writes {} for {lines} lines",
+            counter.writes
+        );
+        let direct = {
+            let mut buf = Vec::new();
+            write_rust_lines(&mut buf, lines).expect("write");
+            buf
+        };
+        assert_eq!(counter.bytes, direct);
+    }
+
+    #[derive(Default)]
+    struct WriteCount {
+        writes: usize,
+        bytes: Vec<u8>,
+    }
+
+    impl Write for WriteCount {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.writes += 1;
+            self.bytes.extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
     }
 }

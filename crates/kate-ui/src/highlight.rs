@@ -29,6 +29,29 @@ pub(crate) struct HighlightStep {
     pub plain_from: Option<u32>,
 }
 
+/// Next line to color after a plain cache miss.
+///
+/// `color_at` is the next line to color.
+/// `visible_first..visible_last` is the viewport. `visible_last` is exclusive.
+/// `plain_line` is the first visible line drawn with no theme spans.
+///
+/// A plain line before `color_at` is a hole. Coloring resumes at that hole.
+/// A plain line at or after `color_at` is the tail. The cursor stays.
+/// A cursor outside the viewport starts at `plain_line`.
+pub(crate) fn resume_color_line(
+    color_at: u32,
+    visible_first: u32,
+    visible_last: u32,
+    plain_line: u32,
+) -> u32 {
+    let cursor_in_view = (visible_first..visible_last).contains(&color_at);
+    if cursor_in_view && plain_line >= color_at {
+        color_at
+    } else {
+        plain_line
+    }
+}
+
 /// `checkpoint` is the first line that has not been highlighted yet.
 /// `first` and `last` are inclusive viewport lines.
 pub(crate) fn highlight_step(checkpoint: u32, first: u32, last: u32, budget: u32) -> HighlightStep {
@@ -72,7 +95,7 @@ pub(crate) fn highlight_step(checkpoint: u32, first: u32, last: u32, budget: u32
 
 #[cfg(test)]
 mod tests {
-    use super::{PAINT_LINE_BUDGET, highlight_step};
+    use super::{PAINT_LINE_BUDGET, highlight_step, resume_color_line};
 
     #[test]
     fn highlight_step_covers_a_viewport_at_the_checkpoint() {
@@ -107,5 +130,23 @@ mod tests {
         let step = highlight_step(1_000, 10, 50, PAINT_LINE_BUDGET);
         assert_eq!(step.ensure_through, None);
         assert_eq!(step.plain_from, None);
+    }
+
+    #[test]
+    fn resume_color_line_keeps_the_cursor_when_the_plain_line_is_later() {
+        // Viewport is half-open. The cursor is line 24. The plain miss is line 30.
+        assert_eq!(resume_color_line(24, 0, 40, 30), 24);
+    }
+
+    #[test]
+    fn resume_color_line_moves_to_a_plain_line_before_the_cursor() {
+        assert_eq!(resume_color_line(24, 0, 40, 10), 10);
+    }
+
+    #[test]
+    fn resume_color_line_starts_at_the_plain_line_when_the_cursor_is_outside() {
+        // `40` is the exclusive end, so the cursor is not in `0..40`.
+        assert_eq!(resume_color_line(40, 0, 40, 20), 20);
+        assert_eq!(resume_color_line(0, 0, 40, 0), 0);
     }
 }
