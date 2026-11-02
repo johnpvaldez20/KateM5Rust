@@ -829,4 +829,21 @@ mod tests {
             Rgba(0xab, 0xcd, 0xef, 0xff)
         );
     }
+
+    #[test]
+    fn fallback_selection_color_differs_from_the_background() {
+        let second = Rgba(0x00, 0x5F, 0xA8, 0xFF);
+        let theme =
+            editor_color_theme(&[("BackgroundColor", "#94CAEF"), ("TextSelection", "#94CAEF")]);
+        let background = theme
+            .editor_color(EditorColor::BackgroundColor)
+            .expect("background");
+        assert_eq!(
+            theme.editor_color(EditorColor::TextSelection),
+            Some(background)
+        );
+        let color = theme.selection_color();
+        assert_eq!(color, second);
+        assert_ne!(color, background);
+    }
 }
