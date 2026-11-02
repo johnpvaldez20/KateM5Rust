@@ -53,7 +53,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 38,
     "branch": "pkt/PKT-0045-gpui-paint-followups",
-    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+    "base_sha": "4d9172417ab856cfd878dc66ab2e1d1a704a2195"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
