@@ -1173,8 +1173,7 @@ fn reload_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError> {
             "probably binary",
         ))));
     }
-    let new_text = loaded.decoded.text.to_string();
-    replace_from_load(ws, view, doc_id, loaded)?;
+    let new_text = replace_from_load(ws, view, doc_id, loaded)?;
     copy_reloaded_mode(ws, view, doc_id, &new_text)
 }
 
@@ -1208,7 +1207,7 @@ fn replace_from_load(
     view: ViewId,
     doc_id: DocumentId,
     loaded: Loaded,
-) -> Result<(), CommandError> {
+) -> Result<String, CommandError> {
     let new_text = loaded.decoded.text.to_string();
     {
         let doc = doc_mut(ws, doc_id, view)?;
@@ -1217,7 +1216,7 @@ fn replace_from_load(
             let tx = Transaction::single(Edit {
                 start: Offset(0),
                 old,
-                new: new_text,
+                new: new_text.clone(),
             });
             doc.buffer.apply(&tx).map_err(CommandError::Apply)?;
         }
@@ -1237,7 +1236,7 @@ fn replace_from_load(
     ws.extra.insert(doc_id, DocExtra::default());
     let ids = ws.views_of(doc_id);
     clamp_ids(ws, doc_id, &ids);
-    Ok(())
+    Ok(new_text)
 }
 
 fn clamp_ids(ws: &mut Workspace, doc_id: DocumentId, ids: &[ViewId]) {
@@ -1989,6 +1988,25 @@ mod tests {
         assert_eq!(text, "Xcaf\u{e9}\n");
         assert!(!text.contains('Y'));
         assert!(!ws.documents.get(doc).expect("doc").history.is_modified());
+    }
+
+    #[test]
+    fn replace_from_load_returns_the_new_text() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
+        let path = dir.path().join("note.txt");
+        std::fs::write(&path, "reloaded line\n").expect("write");
+        let mut ws = workspace();
+        let doc = ws.open(&path).expect("open");
+        let view = add_view(&mut ws, doc);
+        ws.execute(view, Command::InsertText("DIRTY".into()))
+            .expect("dirty the buffer");
+        let loaded = kate_fileio::load(&path, &ws.decode_options()).expect("load");
+        let expected = loaded.decoded.text.to_string();
+        let returned: String =
+            super::replace_from_load(&mut ws, view, doc, loaded).expect("replace");
+        assert_eq!(returned, expected);
+        assert_eq!(text_of(&ws, doc), returned);
     }
 
     #[test]
