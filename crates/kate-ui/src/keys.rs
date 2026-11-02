@@ -286,6 +286,16 @@ const MOVE_BINDINGS: &[MoveBinding] = &[
         movement: Movement::DocEnd,
         extend: Extend::Yes,
     },
+    MoveBinding {
+        name: "ctrl-6",
+        movement: Movement::ToMatch,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "ctrl-shift-6",
+        movement: Movement::ToMatch,
+        extend: Extend::Yes,
+    },
 ];
 
 fn move_binding(name: &str) -> Option<Command> {
@@ -314,6 +324,7 @@ fn edit_binding(name: &str) -> Option<Command> {
         "alt-shift-down" => Some(Command::AddCursorBelow),
         "alt-shift-up" => Some(Command::AddCursorAbove),
         "escape" => Some(Command::RemoveSecondaryCursors),
+        "ctrl-space" => Some(Command::CompleteWord),
         _ => None,
     }
 }
@@ -604,5 +615,25 @@ mod tests {
         assert_eq!(scroll_y_for_line(4, 0.0), 0.0);
         assert_eq!(scroll_y_for_line(4, f32::NAN), 0.0);
         assert_eq!(scroll_y_for_line(4, f32::INFINITY), 0.0);
+    }
+
+    #[test]
+    fn ctrl_6_moves_to_the_match_and_ctrl_space_completes() {
+        assert_eq!(
+            command_for_binding("ctrl-6"),
+            Some(Command::Move(Movement::ToMatch, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("ctrl-shift-6"),
+            Some(Command::Move(Movement::ToMatch, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("shift-ctrl-6"),
+            Some(Command::Move(Movement::ToMatch, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("ctrl-space"),
+            Some(Command::CompleteWord)
+        );
     }
 }
