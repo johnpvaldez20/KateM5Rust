@@ -1,0 +1,138 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0050",
+  "title": "kate-search: find-bar query and replace-one transaction",
+  "summary": "FindBar builds a SearchQuery and replaces one hit or every hit. Plain replacement does not expand a dollar sign. Regex replacement uses the existing expander. This packet does not draw a bar and does not edit kate-ui. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T16:55:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0050-find-bar",
+    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The type is pure Rust in kate-search. It does not need a window or the owner's eyes. Linux CI is the test run. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-search/Cargo.toml",
+      "crates/kate-ui/",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-search"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0010",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-search/src/bar.rs",
+        "definition": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum FindMode { Plain, EscapeSequences, Regex }\n\n#[derive(Clone, Debug, PartialEq, Eq)]\npub struct FindBar {\n    pub pattern: String,\n    pub replacement: String,\n    pub mode: FindMode,\n    pub case_sensitive: bool,\n    pub whole_words: bool,\n    pub backwards: bool,\n}\n\nimpl FindBar {\n    pub fn query(&self) -> crate::SearchQuery\n    pub fn find_from(&self, buf: &kate_text::TextBuffer, from: kate_text::Offset) -> Result<Option<crate::Match>, crate::SearchError>\n    pub fn replace_one(&self, buf: &kate_text::TextBuffer, hit: &crate::Match) -> Result<kate_text::Transaction, crate::SearchError>\n    pub fn replace_all(&self, buf: &kate_text::TextBuffer) -> Result<(kate_text::Transaction, usize), crate::SearchError>\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "lib.rs adds mod bar and re-exports FindMode and FindBar. query maps the three modes onto Pattern. It copies case_sensitive, whole_words, and a range of None. find_from calls find_next with wrap false and the backwards flag. replace_all calls the existing replace_all. replace_one builds one edit for that hit. A plain pattern copies the replacement. Escape and regex patterns use the existing expander. Do not change find_next or replace_all. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-search --locked bar::",
+      "cargo test -p kate-search --locked",
+      "cargo clippy -p kate-search --all-targets --locked -- -D warnings",
+      "cargo check -p kate-search --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "bar::tests::plain_replacement_keeps_a_dollar",
+        "kind": "UNIT",
+        "asserts": "A plain pattern a and a replacement of $1 replaces a with the two characters dollar and 1."
+      },
+      {
+        "name": "bar::tests::replace_one_expands_a_regex_group",
+        "kind": "UNIT",
+        "asserts": "The regex (c)at and the replacement $1 replace cat with c. An invalid regex returns InvalidRegex from find_from."
+      },
+      {
+        "name": "bar::tests::find_from_walks_backward_without_wrap",
+        "kind": "UNIT",
+        "asserts": "In aba, find_from at offset 3 with backwards true returns the match at offset 2. wrap is false, so a search at offset 0 backward returns None."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

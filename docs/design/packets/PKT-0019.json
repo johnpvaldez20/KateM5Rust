@@ -1,0 +1,140 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0019",
+  "title": "kate-core: pair brackets on a one-character insert",
+  "summary": "A one-character insert can wrap a pair or step over a closer. A longer insert stays a plain replace. Existing fan-out tests keep their assertions. This packet does not add a command and does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T16:55:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0019-auto-brackets",
+    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The change is pure Rust in kate-core. It does not need a window or the owner's eyes. Linux CI runs the tests. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-core/src/pair.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/Cargo.toml",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/workspace.rs",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/pair.rs",
+        "definition": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum PairPlan {\n    Plain,\n    Wrap { caret_after_open: bool },\n    TypeOver,\n}\n\npub fn plan_pair(buf: &kate_text::TextBuffer, selection: kate_core::Selection, typed: &str) -> PairPlan"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "fanout.rs declares pair.rs with a path attribute. insert_text keeps its signature. When every plan is Plain, the old body runs. An opener is ( [ { \" or '. A closer is ) ] } \" or '. More than one scalar is Plain. A caret whose next scalar equals a typed closer is TypeOver. A quote after an ASCII letter, digit, or underscore is Plain when it is not a type-over. Any other opener is Wrap. A caret wrap inserts the pair and leaves the caret after the opener. A range wrap replaces the span with opener, old text, and closer, and leaves the caret after the closer. TypeOver inserts nothing and moves that caret one scalar right. Other carets in the same call still transform. Do not change an assertion in the existing fan-out tests. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked pair::",
+      "cargo test -p kate-core --locked fanout::",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "pair::tests::caret_gets_a_pair_and_sits_inside",
+        "kind": "UNIT",
+        "asserts": "insert_text of ( at offset 1 in ab yields a()b and a caret at offset 2. A selection of b yields a(b) and a caret at offset 4."
+      },
+      {
+        "name": "pair::tests::type_over_and_quote_after_a_letter",
+        "kind": "UNIT",
+        "asserts": "A caret between the parens of a() that types ) leaves a() and moves to offset 3. A caret after don that types a quote yields don' and does not add a second quote."
+      },
+      {
+        "name": "pair::tests::two_carets_each_get_a_pair",
+        "kind": "UNIT",
+        "asserts": "Carets at offsets 0 and 3 in ab cd that type ( yield ()ab ()cd. The caret offsets are 1 and 6."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

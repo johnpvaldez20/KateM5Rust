@@ -1,0 +1,146 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0017",
+  "title": "kate-core: apply kate modelines and editorconfig",
+  "summary": "Open applies a kate modeline and a nearby .editorconfig to the document. The modeline wins when both set one field. A file with neither keeps the config it was given. This packet does not parse config.toml. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T16:55:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0017-modelines",
+    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The parser is pure Rust in kate-core. It uses a temp directory and does not need a window or the owner's eyes. Linux CI is the test run. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/modeline.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/Cargo.toml",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/workspace.rs",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/modeline.rs",
+        "definition": "#[derive(Clone, Debug, Default, PartialEq, Eq)]\npub struct ModeOverride {\n    pub tab_width: Option<u8>,\n    pub indent_width: Option<u8>,\n    pub indent_with_spaces: Option<bool>,\n    pub remove_trailing_spaces: Option<crate::TrailingSpaces>,\n    pub ensure_trailing_newline: Option<bool>,\n    pub line_ending: Option<kate_fileio::LineEnding>,\n    pub encoding_label: Option<String>,\n}\n\npub fn modeline_overrides(text: &str) -> ModeOverride\n\npub fn editorconfig_overrides(text: &str, file_name: &str) -> ModeOverride\n\npub fn read_editorconfig(start: &std::path::Path) -> ModeOverride\n\npub fn apply_mode(config: &mut crate::DocumentConfig, file: &mut crate::FileState, over: &ModeOverride)"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "crates/kate-core/src/modeline.rs",
+        "definition": "| source | key | effect |\n|---|---|---|\n| modeline | indent-width | indent_width when the integer is 1 to 200 |\n| modeline | tab-width | tab_width when the integer is 1 to 200 |\n| modeline | replace-tabs | on, true, or 1 sets spaces; off, false, or 0 sets tabs |\n| modeline | space-indent | same boolean map as replace-tabs |\n| modeline | newline-at-eof | ensure_trailing_newline |\n| modeline | remove-trailing-spaces | none, 0, or - is Never; modified, mod, +, or 1 is ModifiedLines; all, *, or 2 is All |\n| modeline | eol or end-of-line | unix is Lf, dos is CrLf, mac is Cr |\n| modeline | encoding | label stored for apply_mode |\n| editorconfig | indent_size | integer 1 to 200 sets indent_width; the word tab is ignored |\n| editorconfig | tab_width | integer 1 to 200 |\n| editorconfig | indent_style | space or tab |\n| editorconfig | trim_trailing_whitespace | true is All; false is Never |\n| editorconfig | insert_final_newline | ensure_trailing_newline |\n| editorconfig | end_of_line | lf, crlf, or cr |\n| editorconfig | charset | label stored for apply_mode |"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "document.rs declares modeline.rs with a path attribute. from_loaded keeps its signature. It applies read_editorconfig first and modeline_overrides second. blank does not apply either source. A modeline line contains kate: and the previous character is absent or not an ASCII letter or digit. Only the first 10 lines and the last 10 lines are scanned, once each, in file order. Unknown modeline keys are ignored. editorconfig comments start with # or ;. The sections * and *.ext apply. Other sections are ignored. Keys before a section apply like *. root = true stops the parent walk after that file. An unknown encoding label does not change the file. Do not add fields to DocumentConfig. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked modeline::",
+      "cargo test -p kate-core --locked document::tests::plain_file_keeps_the_given_config",
+      "cargo test -p kate-core --locked",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "modeline::tests::modeline_wins_over_editorconfig",
+        "kind": "UNIT",
+        "asserts": "editorconfig indent_size 8 and a modeline indent-width 2 produce indent_width 2. replace-tabs on sets indent_with_spaces. eol dos sets CrLf."
+      },
+      {
+        "name": "document::tests::plain_file_keeps_the_given_config",
+        "kind": "UNIT",
+        "asserts": "A temp file with root = true and no keys, and with no kate modeline, keeps the DocumentConfig passed to from_loaded. The walk does not leave that directory."
+      },
+      {
+        "name": "modeline::tests::unknown_encoding_label_is_ignored",
+        "kind": "UNIT",
+        "asserts": "encoding nope leaves the file encoding. encoding utf-8 sets the UTF-8 encoding. indent-width 0 is ignored."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

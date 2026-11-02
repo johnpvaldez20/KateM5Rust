@@ -1,0 +1,134 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0052",
+  "title": "kate-text: find the matching bracket",
+  "summary": "matching_bracket returns the offset of the paired bracket. A mismatched nest returns None. Quotes are not brackets. The scan does not know syntax. This packet does not bind a key. It does not add a dependency. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T16:55:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0052-matching-bracket",
+    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The function is pure Rust in kate-text. It does not need a window or the owner's eyes. Linux CI is the test run. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-text/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-text/Cargo.toml",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0003",
+      "PKT-0004",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/brackets.rs",
+        "definition": "pub fn matching_bracket(buf: &crate::TextBuffer, at: crate::Offset) -> Option<crate::Offset>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "lib.rs adds mod brackets and re-exports matching_bracket. The pairs are parentheses, square brackets, and curly brackets. If the scalar at `at` is not a bracket and at is greater than 0, test the scalar at at - 1. An offset past the end uses the last scalar when that scalar is a bracket. An opener scans forward. A closer scans backward. A stack tracks nested pairs. A different closer at the same depth returns None. The result is the offset of the matching scalar. Keep each function at cyclomatic complexity 10 or below. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-text --locked brackets::",
+      "cargo test -p kate-text --locked",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo check -p kate-text --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "brackets::tests::nested_pair_matches_the_inner_closer",
+        "kind": "UNIT",
+        "asserts": "In (a(b)c) the offset 0 matches 6 and the offset 2 matches 4. The offset 6 matches 0. A caret on the a at offset 1 matches 2."
+      },
+      {
+        "name": "brackets::tests::mismatch_returns_none",
+        "kind": "UNIT",
+        "asserts": "((] at offset 0 returns None. An offset in text with no bracket returns None. Quotes are not matched."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

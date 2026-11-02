@@ -1,0 +1,149 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0016",
+  "title": "kate-core: load and save EditorConfig TOML",
+  "summary": "EditorConfig can be read from a TOML file and written back. The parser accepts only the keys in this packet. Workspace::new does not read the file. The window does not read the file. No new crate dependency is added. Linux CI runs the tests.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-02T16:55:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0016-editor-config-toml",
+    "base_sha": "cbb65c2e36a3148c5cb649d693011423ef4032c2"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "The parser is pure Rust in kate-core. It does not need a window, a Mac, or the owner's eyes. Linux CI is the test run. Also run cargo check for aarch64-apple-darwin.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/Cargo.toml",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-core/src/workspace.rs",
+      "upstream/"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/config.rs",
+        "definition": "#[derive(Debug, PartialEq, Eq)]\npub enum ConfigError {\n    Io { message: String },\n    BadVersion { found: String },\n    BadValue { key: String },\n    UnknownKey { key: String },\n}\n\npub fn user_config_path(home: &std::path::Path) -> std::path::PathBuf\n\npub fn editor_config_from_toml(text: &str) -> Result<crate::EditorConfig, ConfigError>\n\npub fn editor_config_to_toml(config: &crate::EditorConfig) -> String\n\npub fn load_editor_config(path: &std::path::Path) -> Result<crate::EditorConfig, ConfigError>\n\npub fn save_editor_config(path: &std::path::Path, config: &crate::EditorConfig) -> Result<(), ConfigError>"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "crates/kate-core/src/config.rs",
+        "definition": "| key | meaning |\n|---|---|\n| format_version | integer 1, required |\n| fallback_encoding | encoding_rs label, default windows-1252 |\n| document.tab_width | integer 1 to 200 |\n| document.indent_width | integer 1 to 200 |\n| document.indent_with_spaces | true or false |\n| document.remove_trailing_spaces | never, modified, or all |\n| document.ensure_trailing_newline | true or false |"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "lib.rs adds mod config and re-exports the error and the five functions. The parser accepts blank lines and a line whose trim starts with #. It accepts spaces around =. It rejects an unknown key, a duplicate key, a second section name, inline comments, and single quotes. A missing document key keeps DocumentConfig::default for that field. save writes the canonical text to a sibling temp file and renames it. A missing load path returns Io. user_config_path joins home, Library, Application Support, KateM5Rust, and config.toml. Do not read HOME in the tests. Do not add a dependency. A new Rust file starts with the LGPL-2.1-or-later SPDX header."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo test -p kate-core --locked config::",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo check -p kate-core --target aarch64-apple-darwin --locked",
+      "cargo fmt --all --check"
+    ],
+    "regression_tests": [
+      {
+        "name": "config::tests::toml_roundtrip_keeps_the_default",
+        "kind": "UNIT",
+        "asserts": "to_toml of the default config parses back to the same EditorConfig. A second to_toml matches the first string. The string starts with format_version = 1."
+      },
+      {
+        "name": "config::tests::unknown_key_and_bad_version_fail",
+        "kind": "UNIT",
+        "asserts": "An unknown key returns UnknownKey. format_version 2 returns BadVersion. A missing file returns Io. A width of 0 returns BadValue."
+      },
+      {
+        "name": "config::tests::user_config_path_uses_the_given_home",
+        "kind": "UNIT",
+        "asserts": "The path ends with Library/Application Support/KateM5Rust/config.toml under the given home. The test does not read the process home."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
