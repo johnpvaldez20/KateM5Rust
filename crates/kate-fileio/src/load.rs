@@ -29,8 +29,16 @@ pub enum LoadError {
 }
 
 /// Reads `path` and decodes the bytes with `opts`.
+/// The path must be a regular file.
 /// The read stops one byte past `max_bytes`.
 pub fn load(path: &Path, opts: &DecodeOptions) -> Result<Loaded, LoadError> {
+    let path_meta = std::fs::metadata(path).map_err(LoadError::Io)?;
+    if !path_meta.is_file() {
+        return Err(LoadError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "not a regular file",
+        )));
+    }
     let file = File::open(path).map_err(LoadError::Io)?;
     let meta = file.metadata().map_err(LoadError::Io)?;
     let mtime = meta.modified().ok();
@@ -99,6 +107,43 @@ mod tests {
             err,
             super::LoadError::Decode(crate::decode::DecodeError::TooLarge { size: 5, limit: 4 })
         ));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_fifo_returns_promptly() {
+        use std::os::unix::fs::FileTypeExt;
+
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        enum Seen {
+            Io,
+            Other,
+        }
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let fifo = dir.path().join("pipe");
+        let made = std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .expect("mkfifo");
+        assert!(made.success());
+        let meta = std::fs::metadata(&fifo).expect("fifo meta");
+        assert!(meta.file_type().is_fifo());
+        assert!(!meta.is_file());
+        let (send, recv) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let result = load(&fifo, &DecodeOptions::default());
+            let seen = match result {
+                Err(super::LoadError::Io(_)) => Seen::Io,
+                _ => Seen::Other,
+            };
+            let _ = send.send(seen);
+        });
+        let seen = recv
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("load returns");
+        worker.join().expect("worker");
+        assert_eq!(seen, Seen::Io);
     }
 
     fn sha256(bytes: &[u8]) -> [u8; 32] {
