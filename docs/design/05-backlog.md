@@ -59,11 +59,11 @@ Titles only; JSON payloads are written when each issue opens.
 | Packet | Title | Lane | Depends on |
 |---|---|---|---|
 | PKT-0014 | `kate-ui`: editing input → `Command`, caret and selection painting, blink, scroll-to-cursor | LOCAL | 0013 |
-| PKT-0015 | `kate-ui`: file open/save panels, Cmd-S/Cmd-O/Cmd-N/Cmd-W, modified indicator, unsaved-changes sheet | LOCAL | 0014 |
-| PKT-0016 | `kate-core`: `EditorConfig` TOML (`~/Library/Application Support/KateM5Rust/config.toml`), `DocumentConfig` defaults | CLOUD | 0012 |
-| PKT-0017 | `kate-core`: modelines (`kate:` variables) and `.editorconfig` | CLOUD | 0016 |
-| PKT-0018 | `kate-core`: indentation — `normal` and `cstyle` indenters, auto-indent on newline, Tab/Shift-Tab | CLOUD | 0016 |
-| PKT-0019 | `kate-core`: edit rules — auto-brackets, smart home, remove trailing spaces on save, trailing newline | CLOUD | 0018 |
+| PKT-0015 | `kate-ui`: type, move, undo, paint every caret. Waits for PKT-0045. | LOCAL | 0013, 0045 |
+| PKT-0016 | `kate-core`: EditorConfig TOML load and save. `document.*` is `default_document`. | CLOUD | 0012 |
+| PKT-0017 | `kate-core`: kate modelines and `.editorconfig` on open. The modeline wins. | CLOUD | 0012 |
+| PKT-0018 | `kate-core`: newline indent, plus Indent and Unindent. No key binding. | CLOUD | 0012 |
+| PKT-0019 | `kate-core`: pair one typed bracket. Pairing is always on. | CLOUD | 0011 |
 | PKT-0020 | `kate-core`: folding — `FoldRegion` from syntax `FoldEvent`s and indentation; fold/unfold commands | CLOUD | 0012 |
 | PKT-0021 | `kate-ui`: dynamic word wrap layout, visual-line Up/Down via `Command::MoveTo` | LOCAL | 0014 |
 | PKT-0022 | `kate-ui`: icon border — line numbers, marks, fold markers, modified-line bar | LOCAL | 0020 |
