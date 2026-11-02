@@ -21,7 +21,9 @@ use kate_syntax::{DefId, Highlighter, LineHighlight, Repository, Theme};
 use kate_text::Revision;
 
 use crate::cache::KeyedCache;
-use crate::highlight::{CATCH_UP_LINE_BUDGET, PAINT_LINE_BUDGET, highlight_step};
+use crate::highlight::{
+    CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, PAINT_LINE_BUDGET, highlight_step,
+};
 use crate::paint::{
     self, Colors, DrawnFrame, EditorSurface, byte_at_char, line_text, runs_for_line,
 };
@@ -131,6 +133,8 @@ struct ColorGate {
     scroll_gen: u64,
     paint_scroll_gen: u64,
     colorize_visible: bool,
+    /// Next visible line to draw with theme spans.
+    color_at: u32,
 }
 
 struct CatchUpStep {
@@ -151,6 +155,7 @@ impl Default for ColorGate {
             scroll_gen: 0,
             paint_scroll_gen: 0,
             colorize_visible: false,
+            color_at: 0,
         }
     }
 }
@@ -190,24 +195,29 @@ impl ColorGate {
             return HighlightPrep {
                 plain_from: None,
                 want_catch_up: false,
-                invalidate: false,
+                rebuild: 0..0,
             };
         }
         let step = highlight_step(self.checkpoint, first, last, PAINT_LINE_BUDGET);
-        let plain_from = if !colorize {
-            Some(first)
+        let (plain_from, rebuild) = if !colorize {
+            (Some(first), 0..0)
         } else {
             match step.ensure_through {
-                Some(through) if through >= last => None,
-                Some(through) => Some(through.saturating_add(1).max(first)),
-                // `None` with `plain_from: None` means the viewport is already highlighted.
-                None => step.plain_from,
+                Some(through) if through >= last => (None, first..last.saturating_add(1)),
+                Some(through) => (
+                    Some(through.saturating_add(1).max(first)),
+                    first..through.saturating_add(1),
+                ),
+                // `plain_from: None` means the viewport is already highlighted.
+                None if step.plain_from.is_none() => self.color_chunk(first, last),
+                None => (step.plain_from, 0..0),
             }
         };
         // A plain viewport inside an already highlighted region must be drawn again in color.
         let drew_plain = plain_from.is_some_and(|start| start <= last);
-        if drew_plain && self.checkpoint > last {
+        if drew_plain && self.checkpoint > last && !colorize {
             self.colorize_visible = true;
+            self.color_at = first;
         }
         let want_catch_up = self.checkpoint <= last;
         if want_catch_up {
@@ -216,8 +226,30 @@ impl ColorGate {
         HighlightPrep {
             plain_from,
             want_catch_up,
-            invalidate: colorize,
+            rebuild,
         }
+    }
+
+    /// Color at most [`COLOR_LINE_BUDGET`] lines of an already highlighted viewport.
+    fn color_chunk(&mut self, first: u32, last: u32) -> (Option<u32>, Range<u32>) {
+        let start = if (first..=last).contains(&self.color_at) {
+            self.color_at
+        } else {
+            first
+        };
+        let end = start
+            .saturating_add(COLOR_LINE_BUDGET.saturating_sub(1))
+            .min(last);
+        self.color_at = end.saturating_add(1);
+        if end < last {
+            self.colorize_visible = true;
+        }
+        let plain_from = if end >= last {
+            None
+        } else {
+            Some(end.saturating_add(1))
+        };
+        (plain_from, start..end.saturating_add(1))
     }
 
     /// Cover at most [`CATCH_UP_LINE_BUDGET`] lines.
@@ -243,6 +275,7 @@ impl ColorGate {
             self.checkpoint >= self.visible_last && self.visible_last > self.visible_first;
         if idle && covered {
             self.colorize_visible = true;
+            self.color_at = self.visible_first;
         }
         let again = self.checkpoint <= self.catch_up_to;
         if !again {
@@ -617,8 +650,8 @@ impl EntityInputHandler for WindowRoot {
 pub(crate) struct HighlightPrep {
     pub plain_from: Option<u32>,
     pub want_catch_up: bool,
-    /// Drop shaped lines in the viewport and draw them from the theme.
-    pub invalidate: bool,
+    /// Half-open line span to drop from the shape cache before planning.
+    pub rebuild: Range<u32>,
 }
 
 fn push_plans(
@@ -902,10 +935,8 @@ fn catch_up_viewport(view: &mut Viewport<'_>) {
 #[cfg(test)]
 fn paint_viewport(view: &mut Viewport<'_>, first: u32, last: u32) -> Vec<paint::LinePlan> {
     let prep = view.gate.prepare(first, last, view.revision, true);
-    if prep.invalidate {
-        view.shaped
-            .invalidate_range(first, last.saturating_add(1), view.revision);
-    }
+    view.shaped
+        .invalidate_range(prep.rebuild.start, prep.rebuild.end, view.revision);
     let lines: Vec<u32> = (first..=last)
         .filter(|line| view.shaped.get(*line, view.revision).is_none())
         .collect();
@@ -970,10 +1001,11 @@ fn open_viewport<'a>(
 #[cfg(test)]
 mod tests {
     use super::{
-        CATCH_UP_LINE_BUDGET, ColorGate, catch_up_viewport, open_viewport, paint_viewport,
-        rust_buffer,
+        CATCH_UP_LINE_BUDGET, ColorGate, Viewport, catch_up_viewport, open_viewport,
+        paint_viewport, rust_buffer,
     };
     use kate_text::Revision;
+    use std::collections::HashMap;
 
     #[test]
     fn open_and_catch_up_colors_the_visible_lines() {
@@ -997,14 +1029,7 @@ mod tests {
             "the first paint is plain"
         );
         catch_up_viewport(&mut view);
-        let colored = paint_viewport(&mut view, 0, 39);
-        for line in 0..40 {
-            let plan = colored
-                .iter()
-                .find(|plan| plan.index == line)
-                .unwrap_or_else(|| panic!("line {line}"));
-            assert!(plan.runs.len() > 1, "line {line} has no theme spans");
-        }
+        assert_theme_spans(&mut view, 0, 39);
     }
 
     #[test]
@@ -1040,14 +1065,7 @@ mod tests {
             scrolling.iter().all(|plan| plan.runs.len() <= 1),
             "a scroll frame stays plain"
         );
-        let colored = paint_viewport(&mut view, 0, 39);
-        for line in 0..40 {
-            let plan = colored
-                .iter()
-                .find(|plan| plan.index == line)
-                .unwrap_or_else(|| panic!("line {line}"));
-            assert!(plan.runs.len() > 1, "line {line} stays plain");
-        }
+        assert_theme_spans(&mut view, 0, 39);
     }
 
     #[test]
@@ -1064,5 +1082,18 @@ mod tests {
         let step = gate.step_catch_up(revision).expect("more");
         assert_eq!(step.through, CATCH_UP_LINE_BUDGET * 2 - 1);
         assert_eq!(gate.checkpoint(), CATCH_UP_LINE_BUDGET * 2);
+    }
+
+    fn assert_theme_spans(view: &mut Viewport<'_>, first: u32, last: u32) {
+        let mut runs = HashMap::new();
+        for _ in 0..8 {
+            for plan in paint_viewport(view, first, last) {
+                runs.insert(plan.index, plan.runs.len());
+            }
+            if (first..=last).all(|line| runs.get(&line).copied().unwrap_or(0) > 1) {
+                return;
+            }
+        }
+        panic!("lines {first}..={last} stayed plain");
     }
 }

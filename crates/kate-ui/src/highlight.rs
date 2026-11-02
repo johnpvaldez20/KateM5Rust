@@ -15,6 +15,11 @@ pub(crate) const PAINT_LINE_BUDGET: u32 = 128;
 /// Lines one catch-up turn may cover outside paint.
 pub(crate) const CATCH_UP_LINE_BUDGET: u32 = 512;
 
+/// Lines one paint may recolor after they were drawn plain.
+///
+/// A full viewport of theme spans is too slow for one frame.
+pub(crate) const COLOR_LINE_BUDGET: u32 = 12;
+
 /// What one paint should do with the syntax cache.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct HighlightStep {
