@@ -603,6 +603,26 @@ mod tests {
     const BREEZE_LIGHT: &str = include_str!("../themes/breeze-light.theme");
     const BREEZE_DARK: &str = include_str!("../themes/breeze-dark.theme");
 
+    fn editor_color_theme(pairs: &[(&str, &str)]) -> Theme {
+        let colors = pairs
+            .iter()
+            .map(|(name, value)| format!("\"{name}\": \"{value}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let json = format!(
+            r#"{{
+                "metadata": {{
+                    "name": "Fixture",
+                    "revision": 1,
+                    "license": "SPDX-License-Identifier: MIT"
+                }},
+                "text-styles": {{}},
+                "editor-colors": {{ {colors} }}
+            }}"#
+        );
+        Theme::from_json(&json).expect("fixture parses")
+    }
+
     fn keyword_format(
         name: &str,
         color: Option<Rgb>,
@@ -739,5 +759,55 @@ mod tests {
             Err(other) => panic!("expected BadColor, got {other}"),
             Ok(_) => panic!("bad color returned a theme"),
         }
+    }
+
+    #[test]
+    fn selection_color_differs_from_the_line_background() {
+        let fallback = Rgba(0x94, 0xCA, 0xEF, 0xFF);
+        let light = Theme::from_json(BREEZE_LIGHT).expect("breeze light parses");
+        assert_eq!(light.selection_color(), fallback);
+
+        let clash = editor_color_theme(&[
+            ("BackgroundColor", "#112233"),
+            ("CurrentLine", "#445566"),
+            ("TextSelection", "#112233"),
+        ]);
+        let background = clash
+            .editor_color(EditorColor::BackgroundColor)
+            .expect("background");
+        let current_line = clash
+            .editor_color(EditorColor::CurrentLine)
+            .expect("current line");
+        assert_eq!(
+            clash.editor_color(EditorColor::TextSelection),
+            Some(background)
+        );
+        assert_eq!(clash.selection_color(), fallback);
+        assert_ne!(fallback, background);
+        assert_ne!(fallback, current_line);
+
+        let line_clash = editor_color_theme(&[
+            ("BackgroundColor", "#112233"),
+            ("CurrentLine", "#445566"),
+            ("TextSelection", "#445566"),
+        ]);
+        assert_eq!(line_clash.selection_color(), fallback);
+
+        let distinct = editor_color_theme(&[
+            ("BackgroundColor", "#112233"),
+            ("CurrentLine", "#445566"),
+            ("TextSelection", "#abcdef"),
+        ]);
+        assert_eq!(distinct.selection_color(), Rgba(0xab, 0xcd, 0xef, 0xff));
+
+        let absent =
+            editor_color_theme(&[("BackgroundColor", "#112233"), ("CurrentLine", "#445566")]);
+        assert_eq!(absent.selection_color(), fallback);
+
+        let selection_only = editor_color_theme(&[("TextSelection", "#abcdef")]);
+        assert_eq!(
+            selection_only.selection_color(),
+            Rgba(0xab, 0xcd, 0xef, 0xff)
+        );
     }
 }
