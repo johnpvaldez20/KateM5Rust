@@ -33,6 +33,7 @@ pub(crate) struct Colors {
     pub gutter_text: Hsla,
     pub current_line: Hsla,
     pub marked: Hsla,
+    pub selection: Hsla,
 }
 
 pub(crate) struct LinePlan {
@@ -90,6 +91,7 @@ pub(crate) fn colors_from_theme(theme: &Theme) -> Colors {
         gutter_text: color_or(theme, EditorColor::LineNumbers, gpui::rgb(0x0085_8585)),
         current_line: color_or(theme, EditorColor::CurrentLine, background),
         marked: color_or(theme, EditorColor::TextSelection, gpui::rgba(0x3344_88AA)),
+        selection: hsla_from_rgba(theme.selection_color()),
     }
 }
 
@@ -636,7 +638,7 @@ fn paint_selection_quads(
     let Some(draw) = draw else {
         return;
     };
-    paint_line_selections(window, draw, &snap.selection_spans, snap.colors.marked);
+    paint_line_selections(window, draw, &snap.selection_spans, snap.colors.selection);
 }
 
 fn paint_line_glyphs(
