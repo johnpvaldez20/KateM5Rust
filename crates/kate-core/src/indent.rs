@@ -212,7 +212,9 @@ fn short_spaces(body: &str, config: &DocumentConfig) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{indent_lines, newline_insertion, python_newline, unindent_lines};
+    use super::{
+        indent_lines, newline_for_indenter, newline_insertion, python_newline, unindent_lines,
+    };
     use crate::DocumentConfig;
     use kate_text::{Edit, Offset, TextBuffer, Transaction};
 
@@ -307,6 +309,30 @@ mod tests {
         assert_eq!(python_newline(&note, note.len(), &config), "\n");
         let indented = TextBuffer::from_str("    # note:");
         assert_eq!(python_newline(&indented, indented.len(), &config), "\n    ");
+    }
+
+    #[test]
+    fn newline_for_indenter_picks_python() {
+        let config = DocumentConfig::default();
+        let python = TextBuffer::from_str("def f():");
+        assert_eq!(
+            newline_for_indenter(Some("python"), &python, python.len(), &config),
+            "\n    "
+        );
+        let braced = TextBuffer::from_str("    foo{");
+        assert_eq!(
+            newline_for_indenter(Some("cstyle"), &braced, braced.len(), &config),
+            "\n        "
+        );
+        let plain = TextBuffer::from_str("foo");
+        assert_eq!(
+            newline_for_indenter(None, &plain, plain.len(), &config),
+            "\n"
+        );
+        assert_eq!(
+            newline_for_indenter(Some("normal"), &braced, braced.len(), &config),
+            "\n    "
+        );
     }
 
     #[test]
