@@ -33,6 +33,7 @@ pub(crate) struct Colors {
     pub gutter_text: Hsla,
     pub current_line: Hsla,
     pub marked: Hsla,
+    pub selection: Hsla,
 }
 
 pub(crate) struct LinePlan {
@@ -90,6 +91,7 @@ pub(crate) fn colors_from_theme(theme: &Theme) -> Colors {
         gutter_text: color_or(theme, EditorColor::LineNumbers, gpui::rgb(0x0085_8585)),
         current_line: color_or(theme, EditorColor::CurrentLine, background),
         marked: color_or(theme, EditorColor::TextSelection, gpui::rgba(0x3344_88AA)),
+        selection: hsla_from_rgba(theme.selection_color()),
     }
 }
 
@@ -636,7 +638,7 @@ fn paint_selection_quads(
     let Some(draw) = draw else {
         return;
     };
-    paint_line_selections(window, draw, &snap.selection_spans, snap.colors.marked);
+    paint_line_selections(window, draw, &snap.selection_spans, snap.colors.selection);
 }
 
 fn paint_line_glyphs(
@@ -887,7 +889,9 @@ fn hsla_from_rgba(color: Rgba) -> Hsla {
 
 #[cfg(test)]
 mod tests {
-    use super::{LinePaintStep, line_paint_steps};
+    use kate_syntax::{EditorColor, Rgba, Theme};
+
+    use super::{LinePaintStep, colors_from_theme, hsla_from_rgba, line_paint_steps};
 
     #[cfg(target_os = "macos")]
     #[test]
@@ -917,5 +921,31 @@ mod tests {
             .expect("text");
         assert!(selection > background);
         assert!(selection < text);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn selection_uses_the_theme_selection_color() {
+        let theme = Theme::from_json(
+            r##"{
+                "metadata": {"name": "Fixture", "revision": 1, "license": "MIT"},
+                "text-styles": {},
+                "editor-colors": {
+                    "BackgroundColor": "#94CAEF",
+                    "TextSelection": "#94CAEF"
+                }
+            }"##,
+        )
+        .expect("fixture parses");
+        let second = Rgba(0x00, 0x5F, 0xA8, 0xFF);
+        assert_eq!(theme.selection_color(), second);
+        let colors = colors_from_theme(&theme);
+        assert_eq!(colors.selection, hsla_from_rgba(second));
+        let text_selection = theme
+            .editor_color(EditorColor::TextSelection)
+            .expect("text selection");
+        assert_eq!(text_selection, Rgba(0x94, 0xCA, 0xEF, 0xFF));
+        assert_eq!(colors.marked, hsla_from_rgba(text_selection));
+        assert_ne!(colors.selection, colors.marked);
     }
 }
