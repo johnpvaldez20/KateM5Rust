@@ -30,6 +30,7 @@ use crate::highlight::{
     CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, PAINT_LINE_BUDGET, highlight_step,
 };
 use crate::keys::{CaretMark, SelSpan};
+use crate::layout::notice_from;
 use crate::paint::{
     self, Colors, DrawnFrame, EditorSurface, byte_at_char, line_text, runs_for_line,
 };
@@ -604,7 +605,8 @@ impl WindowRoot {
         let view = self.view;
         let model = self.model.clone();
         with_app(&model, cx, |app| {
-            let _ = app.workspace.execute(view, command);
+            let result = app.workspace.execute(view, command);
+            let _ = notice_from(result);
         });
         self.reveal_caret(window, cx);
         cx.notify();
@@ -881,7 +883,8 @@ impl EntityInputHandler for WindowRoot {
             let view = self.view;
             let model = self.model.clone();
             with_app(&model, cx, |app| {
-                let _ = app.workspace.execute(view, command);
+                let result = app.workspace.execute(view, command);
+                let _ = notice_from(result);
             });
             self.reveal_caret(window, cx);
         }
