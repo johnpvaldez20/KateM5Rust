@@ -127,6 +127,7 @@ pub fn reload_prompt_line(file: Option<&FileState>, dirty: bool) -> Option<&'sta
     let file = file?;
     match file.disk_change {
         Some(DiskChange::Deleted) => Some("The file on disk is gone."),
+        Some(DiskChange::Created) => Some("The file on disk came back."),
         _ => file.reload_choice(dirty).sentence(),
     }
 }
@@ -439,6 +440,20 @@ end_of_line = lf
         assert_eq!(
             super::reload_prompt_line(Some(&file), true),
             Some("The file on disk is gone.")
+        );
+    }
+
+    #[test]
+    fn a_created_file_says_the_file_came_back() {
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+        file.disk_change = Some(DiskChange::Created);
+        assert_eq!(
+            super::reload_prompt_line(Some(&file), false),
+            Some("The file on disk came back.")
+        );
+        assert_eq!(
+            super::reload_prompt_line(Some(&file), true),
+            Some("The file on disk came back.")
         );
     }
 }
