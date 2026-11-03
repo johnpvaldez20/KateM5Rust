@@ -121,6 +121,21 @@ fn close_one(ws: &mut kate_core::Workspace, view: kate_core::ViewId) -> FileEffe
     }
 }
 
+/// Return one sentence for an open or save failure.
+///
+/// Ready has no sentence.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn file_effect_line(effect: &FileEffect) -> Option<&'static str> {
+    match effect {
+        FileEffect::OpenFailed => Some("The file could not be opened."),
+        FileEffect::SaveFailed => Some("The save failed."),
+        FileEffect::NeedsPath => Some("This document has no path."),
+        FileEffect::AlreadyOpen => Some("Another document has that path."),
+        FileEffect::UnknownView => Some("The view is not open."),
+        FileEffect::Ready | FileEffect::RefusedModified(_) => None,
+    }
+}
+
 /// Return the reload prompt sentence for `choice`.
 ///
 /// Quiet has no sentence.
@@ -270,8 +285,8 @@ mod effect_tests {
 /// The helper has no workspace. Linux CI can build this module.
 #[cfg(test)]
 mod prompt_tests {
-    use super::reload_choice_line;
-    use kate_core::ReloadChoice;
+    use super::{FileEffect, file_effect_line, reload_choice_line};
+    use kate_core::{DocumentId, ReloadChoice};
 
     #[test]
     fn reload_choice_line_names_the_prompt() {
@@ -283,6 +298,35 @@ mod prompt_tests {
         assert_eq!(
             reload_choice_line(ReloadChoice::Ask),
             Some("The file on disk changed.")
+        );
+    }
+
+    #[test]
+    fn file_effect_line_names_a_failure() {
+        assert_eq!(
+            file_effect_line(&FileEffect::OpenFailed),
+            Some("The file could not be opened.")
+        );
+        assert_eq!(
+            file_effect_line(&FileEffect::SaveFailed),
+            Some("The save failed.")
+        );
+        assert_eq!(
+            file_effect_line(&FileEffect::NeedsPath),
+            Some("This document has no path.")
+        );
+        assert_eq!(
+            file_effect_line(&FileEffect::AlreadyOpen),
+            Some("Another document has that path.")
+        );
+        assert_eq!(
+            file_effect_line(&FileEffect::UnknownView),
+            Some("The view is not open.")
+        );
+        assert_eq!(file_effect_line(&FileEffect::Ready), None);
+        assert_eq!(
+            file_effect_line(&FileEffect::RefusedModified(DocumentId::default())),
+            None
         );
     }
 }
