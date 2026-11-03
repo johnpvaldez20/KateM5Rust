@@ -321,6 +321,7 @@ fn edit_binding(name: &str) -> Option<Command> {
         "cmd-z" => Some(Command::Undo),
         "shift-cmd-z" => Some(Command::Redo),
         "cmd-s" => Some(Command::Save),
+        "ctrl-s" => Some(Command::Save),
         "alt-shift-down" => Some(Command::AddCursorBelow),
         "alt-shift-up" => Some(Command::AddCursorAbove),
         "escape" => Some(Command::RemoveSecondaryCursors),
@@ -638,6 +639,13 @@ mod tests {
             command_for_binding("ctrl-space"),
             Some(Command::CompleteWord)
         );
+    }
+
+    #[test]
+    fn ctrl_s_saves() {
+        assert_eq!(command_for_binding("ctrl-s"), Some(Command::Save));
+        assert_eq!(command_for_binding("control-s"), Some(Command::Save));
+        assert_eq!(command_for_binding("cmd-s"), Some(Command::Save));
     }
 
     #[test]
