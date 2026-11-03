@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 1,
     "branch": "pkt/PKT-0096-reload-choice-line",
-    "base_sha": "96a712a5e1cff72373f57cf275d87956baf4c1e8"
+    "base_sha": "7a8824524a6a132a37203d561d156134956066b7"
   },
   "handoff_artifact": {
     "kind": "ISSUE",

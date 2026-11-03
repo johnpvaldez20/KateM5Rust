@@ -216,7 +216,8 @@ The index is `docs/design/WAVE-0085.md`.
 ## Wave PKT-0093
 
 These packets leave `theme.rs`, `paint.rs`, `layout.rs`, and `session.rs` unchanged.
-PKT-0085, PKT-0088, and PKT-0089 still own those files.
+PKT-0085 and PKT-0088 are on main.
+PKT-0089 still owns `layout.rs` and `session.rs`.
 The `gpui-tests` feature stays an owner Mac step.
 Their files do not overlap.
 The index is `docs/design/WAVE-0093.md`.
