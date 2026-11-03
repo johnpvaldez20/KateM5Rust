@@ -356,6 +356,29 @@ mod tests {
     }
 
     #[test]
+    fn indenter_names_match_in_either_case() {
+        let config = DocumentConfig::default();
+        let python = TextBuffer::from_str("def f():");
+        assert_eq!(
+            newline_for_indenter(Some("Python"), &python, python.len(), &config),
+            "\n    "
+        );
+        assert_eq!(
+            newline_for_indenter(Some("PYTHON"), &python, python.len(), &config),
+            "\n    "
+        );
+        let braced = TextBuffer::from_str("    foo{");
+        assert_eq!(
+            newline_for_indenter(Some("CStyle"), &braced, braced.len(), &config),
+            "\n        "
+        );
+        assert_eq!(
+            newline_for_indenter(Some("CSTYLE"), &braced, braced.len(), &config),
+            "\n        "
+        );
+    }
+
+    #[test]
     fn indent_lines_edits_each_touched_line_once() {
         let config = DocumentConfig::default();
         let buf = TextBuffer::from_str("ab\n  cd");
