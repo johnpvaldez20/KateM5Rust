@@ -114,4 +114,20 @@ mod tests {
         assert_eq!(view.folds, vec![CharRange::new(Offset(1), Offset(6))]);
         assert!(!view.folds[0].contains(Offset(0)));
     }
+
+    #[test]
+    fn the_header_text_is_outside_the_fold() {
+        let mut view = View {
+            document: DocumentId::default(),
+            selections: Selections::single(Selection::caret(Offset(0))),
+            scroll: Scroll::default(),
+            folds: Vec::new(),
+            dynamic_wrap: false,
+        };
+        view.apply_indent_folds("a\n  b\n", 4);
+        assert!(!view.offset_is_folded(Offset(0)));
+        assert!(view.offset_is_folded(Offset(1)));
+        assert!(view.offset_is_folded(Offset(5)));
+        assert!(!view.offset_is_folded(Offset(6)));
+    }
 }
