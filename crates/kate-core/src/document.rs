@@ -395,4 +395,22 @@ end_of_line = lf
             Some("The file on disk changed.")
         );
     }
+
+    #[test]
+    fn reload_prompt_line_names_a_dirty_change() {
+        assert_eq!(super::reload_prompt_line(None, false), None);
+
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+        assert_eq!(
+            super::reload_prompt_line(Some(&file), false),
+            Some("Reload the file from disk.")
+        );
+        assert_eq!(
+            super::reload_prompt_line(Some(&file), true),
+            Some("The file on disk changed.")
+        );
+
+        file.disk_change = None;
+        assert_eq!(super::reload_prompt_line(Some(&file), true), None);
+    }
 }
