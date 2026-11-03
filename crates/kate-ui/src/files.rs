@@ -121,6 +121,21 @@ fn close_one(ws: &mut kate_core::Workspace, view: kate_core::ViewId) -> FileEffe
     }
 }
 
+/// Return one sentence for an open or save failure.
+///
+/// Ready has no sentence.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn file_effect_line(effect: &FileEffect) -> Option<&'static str> {
+    match effect {
+        FileEffect::OpenFailed => Some("The file could not be opened."),
+        FileEffect::SaveFailed => Some("The save failed."),
+        FileEffect::NeedsPath => Some("This document has no path."),
+        FileEffect::AlreadyOpen => Some("Another document has that path."),
+        FileEffect::UnknownView => Some("The view is not open."),
+        FileEffect::Ready | FileEffect::RefusedModified(_) => None,
+    }
+}
+
 /// Return the reload prompt sentence for `choice`.
 ///
 /// Quiet has no sentence.
