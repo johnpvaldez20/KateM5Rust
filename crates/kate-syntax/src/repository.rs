@@ -137,7 +137,11 @@ impl Repository {
     }
 
     pub fn for_mime_type(&self, mime: &str) -> Option<DefId> {
-        self.best_match(|def| def.mime_types.iter().any(|item| item == mime))
+        self.best_match(|def| {
+            def.mime_types
+                .iter()
+                .any(|item| item.eq_ignore_ascii_case(mime))
+        })
     }
 
     fn best_match(&self, pred: impl Fn(&Definition) -> bool) -> Option<DefId> {
