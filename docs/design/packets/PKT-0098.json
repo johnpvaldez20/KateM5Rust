@@ -55,7 +55,7 @@
     "repository": "johnpvaldez20/KateM5Rust",
     "issue_number": 98,
     "branch": "pkt/PKT-0098-empty-plain-find",
-    "base_sha": "7a8824524a6a132a37203d561d156134956066b7"
+    "base_sha": "676d53a6e22f3223c0f4151cfcc92b8ec7135eff"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
@@ -106,7 +106,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "A Pattern::Plain whose text is empty returns Ok(None) before the search. find_all stays as it is for that pattern. A non-empty plain pattern still finds a hit. Leave bar.rs and literal.rs unchanged. Leave theme.rs, paint.rs, layout.rs, and session.rs unchanged. PKT-0085, PKT-0088, and PKT-0089 own those files. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+    "schema_diff_summary": "A Pattern::Plain whose text is empty returns Ok(None) before the search. find_all stays as it is for that pattern. A non-empty plain pattern still finds a hit. Leave bar.rs and literal.rs unchanged. WAVE-0085 is on main. theme.rs, paint.rs, layout.rs, and session.rs are free. This wave still leaves those four files unchanged. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
   },
   "verification_plan": {
     "commands": [
