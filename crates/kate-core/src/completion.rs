@@ -41,6 +41,24 @@ pub fn word_completions(
     found
 }
 
+/// Return the suffix the first matching word would insert.
+///
+/// The call uses `word_completions` with a limit of 1.
+/// The suffix is that match without the prefix before the caret.
+/// An empty prefix returns `None`.
+/// A match equal to the prefix returns `None`.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn completion_suffix(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> Option<String> {
+    let word = word_completions(buf, at, 1).into_iter().next()?;
+    let len = buf.text().len_chars();
+    let caret = at.0.min(len);
+    let start = rewind_word(buf, caret);
+    let prefix = buf.text().slice(start..caret).to_string();
+    word.strip_prefix(&prefix)
+        .filter(|suffix| !suffix.is_empty())
+        .map(str::to_string)
+}
+
 fn is_word_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_'
 }
