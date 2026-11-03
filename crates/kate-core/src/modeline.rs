@@ -725,6 +725,54 @@ mod tests {
     }
 
     #[test]
+    fn yes_and_no_set_a_modeline_flag() {
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs yes;\n").indent_with_spaces,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs no;\n").indent_with_spaces,
+            Some(false)
+        );
+        assert_eq!(
+            modeline_overrides("kate: space-indent yes;\n").indent_with_spaces,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: newline-at-eof no;\n").ensure_trailing_newline,
+            Some(false)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs on;\n").indent_with_spaces,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs off;\n").indent_with_spaces,
+            Some(false)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs true;\n").indent_with_spaces,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs false;\n").indent_with_spaces,
+            Some(false)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs 1;\n").indent_with_spaces,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs 0;\n").indent_with_spaces,
+            Some(false)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs maybe;\n").indent_with_spaces,
+            None
+        );
+    }
+
+    #[test]
     fn modeline_uses_each_edge_line_once_in_file_order() {
         let mut lines = Vec::new();
         lines.push("// kate: indent-width 2;".to_string());
