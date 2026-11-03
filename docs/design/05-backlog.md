@@ -233,6 +233,27 @@ The index is `docs/design/WAVE-0093.md`.
 | PKT-0099 | `kate-core`: suffix a completion would insert | CLOUD | 0082 |
 | PKT-0100 | `kate-syntax`: match a mime type in either case | CLOUD | 0007 |
 
+## Wave PKT-0101
+
+PKT-0093 is on main.
+`workspace.rs` is free.
+These packets still leave `workspace.rs`, `keys.rs`, and `repository.rs` unchanged.
+PKT-0100 still owns `repository.rs`.
+Each packet owns one file.
+The `gpui-tests` feature stays an owner Mac step.
+The index is `docs/design/WAVE-0101.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0101 | `kate-core`: name a deleted file in the reload sentence | CLOUD | 0090, 0094 |
+| PKT-0102 | `kate-core`: offset inside an indent fold | CLOUD | 0073, 0087 |
+| PKT-0103 | `kate-core`: indenter name in either case | CLOUD | 0097 |
+| PKT-0104 | `kate-core`: skip a completion that copies the tail | CLOUD | 0099 |
+| PKT-0105 | `kate-ui`: clamp a span window to the buffer | CLOUD | 0068, 0089 |
+| PKT-0106 | `kate-core`: accept yes and no in a modeline | CLOUD | 0017, 0061 |
+| PKT-0107 | `kate-core`: offset inside a selection | CLOUD | 0011 |
+| PKT-0108 | `kate-ui`: name an open or save failure | CLOUD | 0078, 0096 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
