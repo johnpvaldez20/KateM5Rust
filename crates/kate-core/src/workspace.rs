@@ -193,6 +193,7 @@ impl Workspace {
         let near = self.active_view;
         self.layout.insert_tab(id, near);
         self.active_view = Some(id);
+        refresh_indent_folds(self, doc);
         Some(id)
     }
 
@@ -715,7 +716,28 @@ fn apply_change(
         },
     );
     place_views(ws, doc_id, view, &tx, acting_after);
+    refresh_indent_folds(ws, doc_id);
     Ok(())
+}
+
+/// Fill indent folds on every view of `doc_id`.
+///
+/// The text and the tab width come from that document.
+/// An empty buffer stores an empty fold list.
+/// A missing document changes nothing.
+fn refresh_indent_folds(ws: &mut Workspace, doc_id: DocumentId) {
+    let loaded = ws
+        .documents
+        .get(doc_id)
+        .map(|doc| (doc.buffer.text().to_string(), doc.config.tab_width));
+    let Some((text, tab_width)) = loaded else {
+        return;
+    };
+    for id in ws.views_of(doc_id) {
+        if let Some(view) = ws.views.get_mut(id) {
+            view.apply_indent_folds(&text, tab_width);
+        }
+    }
 }
 
 struct HistoryParts {
@@ -1336,6 +1358,7 @@ fn replace_from_load(
     ws.extra.insert(doc_id, DocExtra::default());
     let ids = ws.views_of(doc_id);
     clamp_ids(ws, doc_id, &ids);
+    refresh_indent_folds(ws, doc_id);
     Ok(new_text)
 }
 
