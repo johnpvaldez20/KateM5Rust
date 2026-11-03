@@ -636,4 +636,11 @@ mod tests {
             Some(Command::CompleteWord)
         );
     }
+
+    #[test]
+    fn ctrl_bracket_indents_and_f5_reloads() {
+        assert_eq!(command_for_binding("ctrl-]"), Some(Command::Indent));
+        assert_eq!(command_for_binding("ctrl-["), Some(Command::Unindent));
+        assert_eq!(command_for_binding("f5"), Some(Command::Reload));
+    }
 }
