@@ -28,7 +28,8 @@ pub use config::{
     save_editor_config, user_config_path,
 };
 pub use document::{
-    DiskChange, Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, TrailingSpaces,
+    DiskChange, Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, ReloadChoice,
+    TrailingSpaces,
 };
 pub use fanout::{delete_backward, delete_forward, fan_out, insert_text};
 pub use fuzzy::{FuzzyHit, fuzzy_match};
