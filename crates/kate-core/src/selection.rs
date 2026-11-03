@@ -41,6 +41,13 @@ impl Selection {
         self.anchor == self.head
     }
 
+    /// Return true when `at` sits in this range.
+    ///
+    /// A caret covers nothing. The end offset is outside.
+    pub fn covers(&self, at: Offset) -> bool {
+        self.range().contains(at)
+    }
+
     /// Return the smaller of `anchor` and `head`.
     pub fn min(&self) -> Offset {
         self.anchor.min(self.head)
