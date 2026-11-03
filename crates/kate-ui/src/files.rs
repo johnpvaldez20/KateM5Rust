@@ -121,6 +121,14 @@ fn close_one(ws: &mut kate_core::Workspace, view: kate_core::ViewId) -> FileEffe
     }
 }
 
+/// Return the reload prompt sentence for `choice`.
+///
+/// Quiet has no sentence.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn reload_choice_line(choice: kate_core::ReloadChoice) -> Option<&'static str> {
+    choice.sentence()
+}
+
 /// File-effect tests need `kate_syntax` to build a workspace.
 /// `kate-ui` links that crate only on macOS.
 /// `rust (macos-15)` runs these tests.
@@ -255,6 +263,26 @@ mod effect_tests {
         assert_eq!(
             effect_for_new_view(Some(kate_core::ViewId::default())),
             FileEffect::Ready
+        );
+    }
+}
+
+/// The helper has no workspace. Linux CI can build this module.
+#[cfg(test)]
+mod prompt_tests {
+    use super::reload_choice_line;
+    use kate_core::ReloadChoice;
+
+    #[test]
+    fn reload_choice_line_names_the_prompt() {
+        assert_eq!(reload_choice_line(ReloadChoice::Quiet), None);
+        assert_eq!(
+            reload_choice_line(ReloadChoice::Reload),
+            Some("Reload the file from disk.")
+        );
+        assert_eq!(
+            reload_choice_line(ReloadChoice::Ask),
+            Some("The file on disk changed.")
         );
     }
 }
