@@ -213,6 +213,25 @@ The index is `docs/design/WAVE-0085.md`.
 | PKT-0091 | `kate-core`: reload prompt for one view | CLOUD | 0074, 0080 |
 | PKT-0092 | `kate-core`: export `ReloadChoice` | CLOUD | 0080 |
 
+## Wave PKT-0093
+
+These packets leave `theme.rs`, `paint.rs`, `layout.rs`, and `session.rs` unchanged.
+PKT-0085, PKT-0088, and PKT-0089 still own those files.
+The `gpui-tests` feature stays an owner Mac step.
+Their files do not overlap.
+The index is `docs/design/WAVE-0093.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0093 | `kate-core`: fill indent folds after an edit | CLOUD | 0073, 0074, 0087, 0091 |
+| PKT-0094 | `kate-core`: sentence for a file reload prompt | CLOUD | 0080, 0090 |
+| PKT-0095 | `kate-ui`: bind indent, unindent, and reload | CLOUD | 0079 |
+| PKT-0096 | `kate-ui`: return the reload prompt sentence | CLOUD | 0078, 0090, 0092 |
+| PKT-0097 | `kate-core`: choose a newline from the indenter name | CLOUD | 0084, 0086 |
+| PKT-0098 | `kate-search`: skip a find for an empty plain pattern | CLOUD | 0010, 0050 |
+| PKT-0099 | `kate-core`: suffix a completion would insert | CLOUD | 0082 |
+| PKT-0100 | `kate-syntax`: match a mime type in either case | CLOUD | 0007 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
