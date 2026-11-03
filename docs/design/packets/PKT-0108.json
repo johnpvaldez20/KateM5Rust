@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 107,
     "branch": "pkt/PKT-0108-file-effect-line",
     "base_sha": "3db8b477d9dfae3796251d8619da04cf23ce9116"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/107"
   },
   "lane": {
     "runtime": "CLOUD",
