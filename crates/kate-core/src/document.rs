@@ -120,10 +120,15 @@ impl FileState {
 /// Return the reload sentence for one file.
 ///
 /// A missing file has no sentence.
-/// A file uses [`FileState::reload_choice`] and then [`ReloadChoice::sentence`].
+/// A deleted file says the file is gone.
+/// Any other file uses [`FileState::reload_choice`] and then [`ReloadChoice::sentence`].
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn reload_prompt_line(file: Option<&FileState>, dirty: bool) -> Option<&'static str> {
-    file?.reload_choice(dirty).sentence()
+    let file = file?;
+    match file.disk_change {
+        Some(DiskChange::Deleted) => Some("The file on disk is gone."),
+        _ => file.reload_choice(dirty).sentence(),
+    }
 }
 
 /// A mark anchored at a line start.
