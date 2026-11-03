@@ -121,6 +121,14 @@ fn close_one(ws: &mut kate_core::Workspace, view: kate_core::ViewId) -> FileEffe
     }
 }
 
+/// Return the reload prompt sentence for `choice`.
+///
+/// Quiet has no sentence.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn reload_choice_line(choice: kate_core::ReloadChoice) -> Option<&'static str> {
+    choice.sentence()
+}
+
 /// File-effect tests need `kate_syntax` to build a workspace.
 /// `kate-ui` links that crate only on macOS.
 /// `rust (macos-15)` runs these tests.
