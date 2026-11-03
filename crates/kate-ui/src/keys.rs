@@ -325,6 +325,9 @@ fn edit_binding(name: &str) -> Option<Command> {
         "alt-shift-up" => Some(Command::AddCursorAbove),
         "escape" => Some(Command::RemoveSecondaryCursors),
         "ctrl-space" => Some(Command::CompleteWord),
+        "ctrl-]" => Some(Command::Indent),
+        "ctrl-[" => Some(Command::Unindent),
+        "f5" => Some(Command::Reload),
         _ => None,
     }
 }
@@ -635,5 +638,12 @@ mod tests {
             command_for_binding("ctrl-space"),
             Some(Command::CompleteWord)
         );
+    }
+
+    #[test]
+    fn ctrl_bracket_indents_and_f5_reloads() {
+        assert_eq!(command_for_binding("ctrl-]"), Some(Command::Indent));
+        assert_eq!(command_for_binding("ctrl-["), Some(Command::Unindent));
+        assert_eq!(command_for_binding("f5"), Some(Command::Reload));
     }
 }
