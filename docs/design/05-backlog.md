@@ -254,6 +254,26 @@ The index is `docs/design/WAVE-0101.md`.
 | PKT-0107 | `kate-core`: offset inside a selection | CLOUD | 0011 |
 | PKT-0108 | `kate-ui`: name an open or save failure | CLOUD | 0078, 0096 |
 
+## Wave PKT-0109
+
+WAVE-0101 is on main.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+The `gpui-tests` feature stays an owner Mac step.
+The index is `docs/design/WAVE-0109.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0109 | `kate-ui`: leave a live view after the last close | LOCAL | 0108 |
+| PKT-0110 | `kate-core`: shift folds on a same-line insert | LOCAL | 0093 |
+| PKT-0111 | `kate-core`: open an editorconfig without blocking | LOCAL | 0106 |
+| PKT-0112 | `kate-ui`: show an open or save failure | LOCAL | 0089 |
+| PKT-0113 | `kate-core`: name a file that came back | LOCAL | 0101 |
+| PKT-0114 | `kate-ui`: bind ctrl-s to save | LOCAL | 0095 |
+| PKT-0115 | `kate-core`: test an offset against every selection | LOCAL | 0107 |
+| PKT-0116 | `kate-search`: skip a find for an empty escape | LOCAL | 0098 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
