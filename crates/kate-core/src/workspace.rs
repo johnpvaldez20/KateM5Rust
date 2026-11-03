@@ -193,6 +193,7 @@ impl Workspace {
         let near = self.active_view;
         self.layout.insert_tab(id, near);
         self.active_view = Some(id);
+        refresh_indent_folds(self, doc);
         Some(id)
     }
 
@@ -715,7 +716,28 @@ fn apply_change(
         },
     );
     place_views(ws, doc_id, view, &tx, acting_after);
+    refresh_indent_folds(ws, doc_id);
     Ok(())
+}
+
+/// Fill indent folds on every view of `doc_id`.
+///
+/// The text and the tab width come from that document.
+/// An empty buffer stores an empty fold list.
+/// A missing document changes nothing.
+fn refresh_indent_folds(ws: &mut Workspace, doc_id: DocumentId) {
+    let loaded = ws
+        .documents
+        .get(doc_id)
+        .map(|doc| (doc.buffer.text().to_string(), doc.config.tab_width));
+    let Some((text, tab_width)) = loaded else {
+        return;
+    };
+    for id in ws.views_of(doc_id) {
+        if let Some(view) = ws.views.get_mut(id) {
+            view.apply_indent_folds(&text, tab_width);
+        }
+    }
 }
 
 struct HistoryParts {
@@ -1336,6 +1358,7 @@ fn replace_from_load(
     ws.extra.insert(doc_id, DocExtra::default());
     let ids = ws.views_of(doc_id);
     clamp_ids(ws, doc_id, &ids);
+    refresh_indent_folds(ws, doc_id);
     Ok(new_text)
 }
 
@@ -1981,7 +2004,7 @@ mod tests {
     use crate::selection::{Selection, Selections};
     use crate::view::ViewId;
     use kate_syntax::{DefId, Repository, Theme};
-    use kate_text::{Edit, Offset, Transaction};
+    use kate_text::{CharRange, Edit, Offset, Transaction};
     use proptest::prelude::*;
     use proptest::test_runner::RngSeed;
     use std::path::Path;
@@ -2033,6 +2056,23 @@ mod tests {
 
     fn indent_width(ws: &Workspace, doc: crate::DocumentId) -> u8 {
         ws.documents.get(doc).expect("document").config.indent_width
+    }
+
+    #[test]
+    fn an_edit_fills_indent_folds() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let first = add_view(&mut ws, doc);
+        assert!(ws.views.get(first).expect("first view").folds.is_empty());
+        ws.execute(first, Command::InsertText("a\n  b\n".into()))
+            .expect("insert the folded lines");
+        let range = CharRange::new(Offset(1), Offset(6));
+        assert_eq!(ws.views.get(first).expect("first view").folds, vec![range]);
+        let second = add_view(&mut ws, doc);
+        assert_eq!(
+            ws.views.get(second).expect("second view").folds,
+            vec![range]
+        );
     }
 
     #[test]
