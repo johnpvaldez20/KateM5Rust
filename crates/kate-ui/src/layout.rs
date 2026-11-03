@@ -77,7 +77,7 @@ pub(crate) fn visual_row_count(line: &str, columns: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{notice_from, visible_line_range, visual_row_count};
+    use super::{notice_from, span_line_window, visible_line_range, visual_row_count};
     use crate::{ShapedLine, ShapedLineCache};
     use kate_core::{CommandError, Scroll};
     use kate_text::Revision;
@@ -129,6 +129,15 @@ mod tests {
             visible_line_range(px(100.0), px(0.0), scroll(0, 0), 10),
             0..0
         );
+    }
+
+    #[test]
+    fn span_line_window_clamps_to_the_buffer() {
+        assert_eq!(span_line_window(10, 2, 100), 10..12);
+        assert_eq!(span_line_window(98, 10, 100), 98..100);
+        assert_eq!(span_line_window(10, 0, 100), 10..10);
+        assert_eq!(span_line_window(150, 4, 100), 100..100);
+        assert_eq!(span_line_window(4, 8, 0), 0..0);
     }
 
     #[test]
