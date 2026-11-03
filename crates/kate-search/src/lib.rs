@@ -123,6 +123,12 @@ pub fn find_next(
     if matches!(&q.pattern, Pattern::Plain(pattern) if pattern.is_empty()) {
         return Ok(None);
     }
+    if let Pattern::EscapeSequences(pattern) = &q.pattern {
+        let expanded = escape::expand_pattern(pattern)?;
+        if expanded.is_empty() {
+            return Ok(None);
+        }
+    }
     let found = find_all(buf, q)?;
     let from = Offset(from.0.min(buf.len().0));
     let hit = if backwards {
@@ -254,6 +260,35 @@ mod find_tests {
 
         assert_eq!(
             find_next(&buf, &empty, Offset(0), false, false).expect("plain search does not fail"),
+            None
+        );
+
+        let hit = find_next(&buf, &plain("a"), Offset(0), false, false)
+            .expect("plain search does not fail")
+            .expect("a plain pattern a returns the hit");
+        assert_eq!(hit.range, CharRange::new(Offset(0), Offset(1)));
+    }
+
+    #[test]
+    fn an_empty_escape_pattern_returns_none() {
+        let buf = TextBuffer::from_str("abc");
+        let empty = SearchQuery {
+            pattern: Pattern::EscapeSequences(String::new()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let spans = find_all(&buf, &empty).expect("escape search does not fail");
+        assert_eq!(
+            spans
+                .iter()
+                .map(|hit| (hit.range.start().0, hit.range.end().0))
+                .collect::<Vec<_>>(),
+            vec![(0, 0), (1, 1), (2, 2), (3, 3)]
+        );
+
+        assert_eq!(
+            find_next(&buf, &empty, Offset(0), false, false).expect("escape search does not fail"),
             None
         );
 
