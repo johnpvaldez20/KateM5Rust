@@ -1956,7 +1956,7 @@ mod tests {
     use super::{EditorConfig, Workspace};
     use crate::CloseResult;
     use crate::command::{Command, CommandError};
-    use crate::document::{DocumentConfig, TrailingSpaces};
+    use crate::document::{DocumentConfig, ReloadChoice, TrailingSpaces};
     use crate::selection::{Selection, Selections};
     use crate::view::ViewId;
     use kate_syntax::{DefId, Repository, Theme};
@@ -3117,6 +3117,47 @@ indent_size = 8
         assert_eq!(text_of(&ws, doc), "alphabet alphabet");
         ws.execute(view, Command::Undo).expect("undo");
         assert_eq!(text_of(&ws, doc), "alpha alphabet");
+    }
+
+    #[test]
+    fn reload_choice_for_asks_after_an_edit() {
+        let mut ws = workspace();
+        assert_eq!(ws.reload_choice_for(ViewId::default()), ReloadChoice::Quiet);
+
+        let blank = ws.new_document();
+        let blank_view = add_view(&mut ws, blank);
+        assert!(ws.documents.get(blank).expect("doc").file.is_none());
+        assert_eq!(ws.reload_choice_for(blank_view), ReloadChoice::Quiet);
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        pin_editorconfig(dir.path());
+        let path = dir.path().join("note.txt");
+        std::fs::write(&path, b"hello\n").expect("write");
+        let doc = ws.open(&path).expect("open");
+        let view = add_view(&mut ws, doc);
+        assert!(!ws.documents.get(doc).expect("doc").history.is_modified());
+        assert_eq!(ws.reload_choice_for(view), ReloadChoice::Quiet);
+
+        std::fs::write(&path, b"hello!\n").expect("change the file");
+        let loaded = kate_fileio::load(&path, &ws.decode_options()).expect("read the file");
+        {
+            let file = ws
+                .documents
+                .get_mut(doc)
+                .expect("doc")
+                .file
+                .as_mut()
+                .expect("file");
+            assert_ne!(loaded.digest, file.digest_on_disk);
+            file.note_disk(true, loaded.digest);
+        }
+        assert!(!ws.documents.get(doc).expect("doc").history.is_modified());
+        assert_eq!(ws.reload_choice_for(view), ReloadChoice::Reload);
+
+        ws.execute(view, Command::InsertText("X".into()))
+            .expect("edit");
+        assert!(ws.documents.get(doc).expect("doc").history.is_modified());
+        assert_eq!(ws.reload_choice_for(view), ReloadChoice::Ask);
     }
 
     fn arb_text() -> impl Strategy<Value = String> {
