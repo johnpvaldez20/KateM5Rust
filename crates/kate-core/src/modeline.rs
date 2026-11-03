@@ -337,8 +337,8 @@ fn width_in_range(value: &str) -> Option<u8> {
 
 fn kate_bool(value: &str) -> Option<bool> {
     match value {
-        "on" | "true" | "1" => Some(true),
-        "off" | "false" | "0" => Some(false),
+        "on" | "true" | "1" | "yes" => Some(true),
+        "off" | "false" | "0" | "no" => Some(false),
         _ => None,
     }
 }
