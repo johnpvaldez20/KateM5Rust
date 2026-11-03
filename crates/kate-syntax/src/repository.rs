@@ -137,7 +137,11 @@ impl Repository {
     }
 
     pub fn for_mime_type(&self, mime: &str) -> Option<DefId> {
-        self.best_match(|def| def.mime_types.iter().any(|item| item == mime))
+        self.best_match(|def| {
+            def.mime_types
+                .iter()
+                .any(|item| item.eq_ignore_ascii_case(mime))
+        })
     }
 
     fn best_match(&self, pred: impl Fn(&Definition) -> bool) -> Option<DefId> {
@@ -897,6 +901,19 @@ mod tests {
 </language>
 "##;
 
+    const PLAIN_TEXT: &str = r##"
+<language name="Plain" section="Test" version="1" kateversion="5.0" extensions="*.txt" mimetype="text/plain" license="MIT">
+  <highlighting>
+    <contexts>
+      <context name="Normal" attribute="Normal" lineEndContext="#stay"/>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal" defStyleNum="dsNormal"/>
+    </itemDatas>
+  </highlighting>
+</language>
+"##;
+
     const MISSING_DEF: &str = r##"
 <language name="Host" section="Test" version="1" kateversion="5.0" extensions="*.host" license="MIT">
   <highlighting>
@@ -1047,5 +1064,20 @@ mod tests {
         let context = repo.context(repo.definition(host).initial_context);
         assert_eq!(context.line_end, ContextSwitch::Stay);
         assert_eq!(context.rules[0].switch, ContextSwitch::Stay);
+    }
+
+    #[test]
+    fn mime_type_matches_either_case() {
+        let mut repo = Repository::empty();
+        repo.add_xml(PLAIN_TEXT).expect("plain");
+        repo.link().expect("link");
+        let exact = repo.for_mime_type("text/plain").expect("text/plain");
+        assert_eq!(repo.definition(exact).name, "Plain");
+        assert_eq!(repo.definition(exact).mime_types, ["text/plain"]);
+        let file = repo.for_file_name("notes.txt").expect("txt");
+        assert_eq!(file, exact);
+        assert_eq!(repo.for_file_name("notes.TXT"), None);
+        let folded = repo.for_mime_type("Text/Plain").expect("Text/Plain");
+        assert_eq!(folded, exact);
     }
 }
