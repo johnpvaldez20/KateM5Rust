@@ -117,6 +117,15 @@ impl FileState {
     }
 }
 
+/// Return the reload sentence for one file.
+///
+/// A missing file has no sentence.
+/// A file uses [`FileState::reload_choice`] and then [`ReloadChoice::sentence`].
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn reload_prompt_line(file: Option<&FileState>, dirty: bool) -> Option<&'static str> {
+    file?.reload_choice(dirty).sentence()
+}
+
 /// A mark anchored at a line start.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Mark {
