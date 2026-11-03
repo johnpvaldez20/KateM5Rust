@@ -91,7 +91,7 @@ fn matches_between(
 mod tests {
     use kate_text::{Offset, TextBuffer};
 
-    use super::word_completions;
+    use super::{completion_suffix, word_completions};
 
     #[test]
     fn prefix_lists_later_words_once() {
@@ -128,6 +128,15 @@ mod tests {
         let buf = TextBuffer::from_str("Alphabet alpha");
         let got = word_completions(&buf, Offset(13), 8);
         assert_eq!(got, Vec::<String>::new());
+    }
+
+    #[test]
+    fn completion_suffix_is_the_rest_of_the_word() {
+        let buf = TextBuffer::from_str("alpha alphabet");
+        assert_eq!(completion_suffix(&buf, Offset(4)), Some("abet".to_string()));
+        assert_eq!(completion_suffix(&buf, Offset(0)), None);
+        let same = TextBuffer::from_str("alpha alpha");
+        assert_eq!(completion_suffix(&same, Offset(5)), None);
     }
 
     #[test]
