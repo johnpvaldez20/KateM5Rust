@@ -46,7 +46,8 @@ pub struct Scroll {
 impl View {
     /// Store one character range for each indent fold.
     ///
-    /// A span starts at the first scalar of its start line.
+    /// A span starts at the line break that ends its header line.
+    /// The header text stays outside the range.
     /// A span ends at the first scalar of its end line.
     /// When the end line is the line count, the end is the scalar count.
     pub fn apply_indent_folds(&mut self, text: &str, tab_width: u8) {
@@ -59,9 +60,16 @@ impl View {
 
 fn char_range_for_span(text: &str, span: fold::FoldSpan) -> CharRange {
     CharRange::new(
-        Offset(line_scalar(text, span.start)),
+        Offset(header_line_break(text, span.start)),
         Offset(line_scalar(text, span.end)),
     )
+}
+
+/// Return the line break that ends the header `line`.
+///
+/// The header text stays before this scalar.
+fn header_line_break(text: &str, line: u32) -> usize {
+    line_scalar(text, line.saturating_add(1)).saturating_sub(1)
 }
 
 /// Return the first scalar of `line`.
@@ -103,6 +111,7 @@ mod tests {
             dynamic_wrap: false,
         };
         view.apply_indent_folds("a\n  b\n", 4);
-        assert_eq!(view.folds, vec![CharRange::new(Offset(0), Offset(6))]);
+        assert_eq!(view.folds, vec![CharRange::new(Offset(1), Offset(6))]);
+        assert!(!view.folds[0].contains(Offset(0)));
     }
 }
