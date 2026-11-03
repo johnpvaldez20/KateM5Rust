@@ -158,6 +158,12 @@ mod tests {
     }
 
     #[test]
+    fn completion_suffix_skips_a_copied_tail() {
+        let buf = TextBuffer::from_str("alphabet alphabet");
+        assert_eq!(completion_suffix(&buf, Offset(4)), None);
+    }
+
+    #[test]
     fn an_empty_prefix_and_a_zero_limit_stay_empty() {
         let buf = TextBuffer::from_str("alphabet alpha");
         assert_eq!(word_completions(&buf, Offset(9), 8), Vec::<String>::new());
