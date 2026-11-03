@@ -56,6 +56,16 @@ impl View {
             .map(|span| char_range_for_span(text, span))
             .collect();
     }
+
+    /// Return true when `at` is inside a stored fold range.
+    ///
+    /// The check uses the ranges from `apply_indent_folds`.
+    /// A caret on the header text is false.
+    /// The line break that starts the range is true.
+    /// The end offset is false.
+    pub fn offset_is_folded(&self, at: Offset) -> bool {
+        self.folds.iter().any(|range| range.contains(at))
+    }
 }
 
 fn char_range_for_span(text: &str, span: fold::FoldSpan) -> CharRange {
