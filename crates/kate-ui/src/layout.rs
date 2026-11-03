@@ -75,6 +75,18 @@ pub(crate) fn visual_row_count(line: &str, columns: u32) -> u32 {
     u32::try_from(rows).unwrap_or(u32::MAX)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+/// Return the half-open line range a viewport can show.
+///
+/// The start is `first_line` clamped to `line_count`.
+/// The end is the start plus `row_count`, clamped to `line_count`.
+/// A row count of 0 returns an empty range at that start.
+/// A line count of 0 returns `0..0`.
+pub(crate) fn span_line_window(first_line: u32, row_count: u32, line_count: u32) -> Range<u32> {
+    let start = first_line.min(line_count);
+    start..start.saturating_add(row_count).min(line_count)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{notice_from, span_line_window, visible_line_range, visual_row_count};
