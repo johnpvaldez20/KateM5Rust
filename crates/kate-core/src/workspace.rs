@@ -1981,7 +1981,7 @@ mod tests {
     use crate::selection::{Selection, Selections};
     use crate::view::ViewId;
     use kate_syntax::{DefId, Repository, Theme};
-    use kate_text::{Edit, Offset, Transaction};
+    use kate_text::{CharRange, Edit, Offset, Transaction};
     use proptest::prelude::*;
     use proptest::test_runner::RngSeed;
     use std::path::Path;
@@ -2033,6 +2033,23 @@ mod tests {
 
     fn indent_width(ws: &Workspace, doc: crate::DocumentId) -> u8 {
         ws.documents.get(doc).expect("document").config.indent_width
+    }
+
+    #[test]
+    fn an_edit_fills_indent_folds() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let first = add_view(&mut ws, doc);
+        assert!(ws.views.get(first).expect("first view").folds.is_empty());
+        ws.execute(first, Command::InsertText("a\n  b\n".into()))
+            .expect("insert the folded lines");
+        let range = CharRange::new(Offset(1), Offset(6));
+        assert_eq!(ws.views.get(first).expect("first view").folds, vec![range]);
+        let second = add_view(&mut ws, doc);
+        assert_eq!(
+            ws.views.get(second).expect("second view").folds,
+            vec![range]
+        );
     }
 
     #[test]
