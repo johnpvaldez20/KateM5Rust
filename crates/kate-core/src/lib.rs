@@ -28,7 +28,8 @@ pub use config::{
     save_editor_config, user_config_path,
 };
 pub use document::{
-    DiskChange, Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, TrailingSpaces,
+    DiskChange, Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, ReloadChoice,
+    TrailingSpaces,
 };
 pub use fanout::{delete_backward, delete_forward, fan_out, insert_text};
 pub use fuzzy::{FuzzyHit, fuzzy_match};
@@ -37,3 +38,19 @@ pub use selection::{Selection, Selections};
 pub use syntax_cache::SyntaxCache;
 pub use view::{Scroll, View, ViewId};
 pub use workspace::{Axis, CloseResult, EditorConfig, OpenError, SplitTree, Workspace};
+
+#[cfg(test)]
+mod lib_tests {
+    #[test]
+    fn reload_choice_is_exported() {
+        let choices = [
+            crate::ReloadChoice::Quiet,
+            crate::ReloadChoice::Reload,
+            crate::ReloadChoice::Ask,
+        ];
+        assert_eq!(choices.len(), 3);
+        assert_ne!(choices[0], choices[1]);
+        assert_ne!(choices[1], choices[2]);
+        assert_ne!(choices[0], choices[2]);
+    }
+}
