@@ -23,7 +23,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::command::{Command, CommandError};
 use crate::completion::word_completions;
 use crate::document::{
-    Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, TrailingSpaces,
+    Document, DocumentConfig, DocumentId, FileState, Mark, MarkKind, ReloadChoice, TrailingSpaces,
 };
 use crate::fanout::{delete_backward, delete_forward, fan_out, insert_text};
 use crate::movement::{
@@ -296,6 +296,27 @@ impl Workspace {
             .filter(|(_, view)| view.document == doc)
             .map(|(id, _)| id)
             .collect()
+    }
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+impl Workspace {
+    /// Choose the reload prompt for one view.
+    ///
+    /// An unknown view returns `Quiet`.
+    /// A document with no file returns `Quiet`.
+    /// Otherwise the file state uses the dirty flag.
+    pub(crate) fn reload_choice_for(&self, view: ViewId) -> ReloadChoice {
+        let Some(view) = self.views.get(view) else {
+            return ReloadChoice::Quiet;
+        };
+        let Some(doc) = self.documents.get(view.document) else {
+            return ReloadChoice::Quiet;
+        };
+        let Some(file) = doc.file.as_ref() else {
+            return ReloadChoice::Quiet;
+        };
+        file.reload_choice(doc.history.is_modified())
     }
 }
 
