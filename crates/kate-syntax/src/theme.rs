@@ -105,32 +105,29 @@ impl Theme {
     ///
     /// Use `TextSelection` when the file sets that color.
     /// That color must differ from `BackgroundColor` and from `CurrentLine`.
-    /// Return the fixed blue when `TextSelection` is absent.
-    /// Return that same blue when `TextSelection` matches a set color.
-    /// When `BackgroundColor` is set and the chosen color matches it,
-    /// return `Rgba(0x00, 0x5F, 0xA8, 0xFF)`.
-    /// When that second color also matches, return white when white differs from the background.
-    /// Otherwise return black.
+    /// Otherwise walk the fallback colors in order.
+    /// Accept a fallback only when it differs from the set background and the set current line.
+    /// The first fallback is `Rgba(0x94, 0xCA, 0xEF, 0xFF)`.
+    /// The next fallback is `Rgba(0x00, 0x5F, 0xA8, 0xFF)`.
+    /// The next fallback is white.
+    /// The last fallback is black.
+    /// Return black when every fallback matches a set color.
     pub fn selection_color(&self) -> Rgba {
-        const FIRST: Rgba = Rgba(0x94, 0xCA, 0xEF, 0xFF);
-        const NEXT: [Rgba; 3] = [
+        const FALLBACKS: [Rgba; 4] = [
+            Rgba(0x94, 0xCA, 0xEF, 0xFF),
             Rgba(0x00, 0x5F, 0xA8, 0xFF),
             Rgba(0xFF, 0xFF, 0xFF, 0xFF),
             Rgba(0x00, 0x00, 0x00, 0xFF),
         ];
-        let chosen = match self.editor_color(EditorColor::TextSelection) {
-            Some(selection) if !self.color_matches_line(selection) => selection,
-            _ => FIRST,
-        };
-        let Some(background) = self.editor_color(EditorColor::BackgroundColor) else {
-            return chosen;
-        };
-        if chosen != background {
-            return chosen;
+        if let Some(selection) = self.editor_color(EditorColor::TextSelection)
+            && !self.color_matches_line(selection)
+        {
+            return selection;
         }
-        NEXT.into_iter()
-            .find(|color| *color != background)
-            .unwrap_or(NEXT[2])
+        FALLBACKS
+            .into_iter()
+            .find(|color| !self.color_matches_line(*color))
+            .unwrap_or(FALLBACKS[3])
     }
 
     /// Return true when `color` matches a set background or current line.
