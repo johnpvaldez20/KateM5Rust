@@ -105,6 +105,7 @@ pub fn find_all(buf: &TextBuffer, q: &SearchQuery) -> Result<Vec<Match>, SearchE
 
 /// Find the next hit after `from`.
 ///
+/// An empty plain pattern returns no hit.
 /// A non-empty hit that starts at `from` is a result.
 /// An empty hit that starts at `from` is not a result.
 /// When `wrap` is true and no hit remains, the search continues from the other end of the range.
@@ -119,6 +120,9 @@ pub fn find_next(
     backwards: bool,
     wrap: bool,
 ) -> Result<Option<Match>, SearchError> {
+    if matches!(&q.pattern, Pattern::Plain(pattern) if pattern.is_empty()) {
+        return Ok(None);
+    }
     let found = find_all(buf, q)?;
     let from = Offset(from.0.min(buf.len().0));
     let hit = if backwards {
