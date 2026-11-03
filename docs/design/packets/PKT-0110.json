@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 116,
     "branch": "pkt/PKT-0110-shift-same-line-folds",
     "base_sha": "9bafdef88157a62714c26fb1bc655e3f21542179"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/116"
   },
   "lane": {
     "runtime": "LOCAL",
