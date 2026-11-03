@@ -16,6 +16,17 @@ use shim::Pixels;
 #[path = "notice.rs"]
 mod notice;
 
+#[cfg_attr(not(test), allow(dead_code))]
+/// Return the sentence for a failed command.
+///
+/// An Ok result has no sentence.
+pub(crate) fn notice_from(result: Result<(), kate_core::CommandError>) -> Option<String> {
+    match result {
+        Ok(()) => None,
+        Err(error) => Some(notice::command_notice(&error)),
+    }
+}
+
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 /// Return the half-open line range that intersects the viewport.
 ///
@@ -66,9 +77,9 @@ pub(crate) fn visual_row_count(line: &str, columns: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{visible_line_range, visual_row_count};
+    use super::{notice_from, visible_line_range, visual_row_count};
     use crate::{ShapedLine, ShapedLineCache};
-    use kate_core::Scroll;
+    use kate_core::{CommandError, Scroll};
     use kate_text::Revision;
 
     #[cfg(not(target_os = "macos"))]
@@ -163,6 +174,15 @@ mod tests {
         assert_eq!(visual_row_count("", 4), 1);
         assert_eq!(visual_row_count("abcdef", 0), 1);
         assert_eq!(visual_row_count("éééé", 4), 1);
+    }
+
+    #[test]
+    fn notice_from_names_a_missing_path() {
+        assert_eq!(notice_from(Ok(())), None);
+        assert_eq!(
+            notice_from(Err(CommandError::NoFile)),
+            Some("This document has no path.".to_string())
+        );
     }
 
     fn shaped_line() -> ShapedLine {
