@@ -325,6 +325,9 @@ fn edit_binding(name: &str) -> Option<Command> {
         "alt-shift-up" => Some(Command::AddCursorAbove),
         "escape" => Some(Command::RemoveSecondaryCursors),
         "ctrl-space" => Some(Command::CompleteWord),
+        "ctrl-]" => Some(Command::Indent),
+        "ctrl-[" => Some(Command::Unindent),
+        "f5" => Some(Command::Reload),
         _ => None,
     }
 }
