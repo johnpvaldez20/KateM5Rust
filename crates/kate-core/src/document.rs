@@ -81,6 +81,20 @@ pub enum ReloadChoice {
     Ask,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+impl ReloadChoice {
+    /// Return one sentence for this reload choice.
+    ///
+    /// Quiet has no sentence.
+    pub fn sentence(self) -> Option<&'static str> {
+        match self {
+            Self::Quiet => None,
+            Self::Reload => Some("Reload the file from disk."),
+            Self::Ask => Some("The file on disk changed."),
+        }
+    }
+}
+
 impl FileState {
     /// Set `disk_change` from the file that is now on disk.
     pub fn note_disk(&mut self, exists: bool, digest: [u8; 32]) {
