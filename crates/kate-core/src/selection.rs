@@ -608,6 +608,38 @@ mod tests {
         assert_eq!(empty.primary(), Selection::caret(Offset(0)));
     }
 
+    /// A caret covers nothing. A range covers the offsets before its end.
+    #[test]
+    fn covers_is_half_open() {
+        let caret = Selection::caret(Offset(1));
+        assert!(!caret.covers(Offset(0)));
+        assert!(!caret.covers(Offset(1)));
+        assert!(!caret.covers(Offset(2)));
+        assert!(!caret.covers(Offset(4)));
+
+        let forward = Selection {
+            anchor: Offset(1),
+            head: Offset(4),
+            goal_col: None,
+        };
+        assert!(!forward.covers(Offset(0)));
+        assert!(forward.covers(Offset(1)));
+        assert!(forward.covers(Offset(2)));
+        assert!(forward.covers(Offset(3)));
+        assert!(!forward.covers(Offset(4)));
+
+        let backward = Selection {
+            anchor: Offset(4),
+            head: Offset(1),
+            goal_col: None,
+        };
+        assert!(!backward.covers(Offset(0)));
+        assert!(backward.covers(Offset(1)));
+        assert!(backward.covers(Offset(2)));
+        assert!(backward.covers(Offset(3)));
+        assert!(!backward.covers(Offset(4)));
+    }
+
     #[test]
     fn push_becomes_primary_and_merges_overlap() {
         let mut sel = Selections::single(Selection {
