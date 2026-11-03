@@ -81,6 +81,20 @@ pub enum ReloadChoice {
     Ask,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+impl ReloadChoice {
+    /// Return one sentence for this reload choice.
+    ///
+    /// Quiet has no sentence.
+    pub fn sentence(self) -> Option<&'static str> {
+        match self {
+            Self::Quiet => None,
+            Self::Reload => Some("Reload the file from disk."),
+            Self::Ask => Some("The file on disk changed."),
+        }
+    }
+}
+
 impl FileState {
     /// Set `disk_change` from the file that is now on disk.
     pub fn note_disk(&mut self, exists: bool, digest: [u8; 32]) {
@@ -367,5 +381,18 @@ end_of_line = lf
         file.disk_change = Some(DiskChange::Deleted);
         assert_eq!(file.reload_choice(false), ReloadChoice::Ask);
         assert_eq!(file.reload_choice(true), ReloadChoice::Ask);
+    }
+
+    #[test]
+    fn reload_choice_sentence_names_the_prompt() {
+        assert_eq!(ReloadChoice::Quiet.sentence(), None);
+        assert_eq!(
+            ReloadChoice::Reload.sentence(),
+            Some("Reload the file from disk.")
+        );
+        assert_eq!(
+            ReloadChoice::Ask.sentence(),
+            Some("The file on disk changed.")
+        );
     }
 }
