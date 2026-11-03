@@ -1,0 +1,133 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0115",
+  "title": "kate-core: test an offset against every selection",
+  "summary": "Selections::any_covers is true when one stored selection covers the offset. A caret covers nothing. Linux CI runs the test.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-03T13:40:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0115-any-covers",
+    "base_sha": "9bafdef88157a62714c26fb1bc655e3f21542179"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/selection.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-search/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0107"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/selection.rs",
+        "definition": "impl Selections {\n    pub fn any_covers(&self, at: kate_text::Offset) -> bool\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add any_covers on Selections. Return true when iter finds a selection whose covers method returns true. A caret covers nothing, so a caret-only set returns false. A range covers an offset at the minimum and before the maximum. The maximum is outside. Use the existing covers method. Leave Selection::covers unchanged. The test any_covers_is_half_open uses Selections::single for a caret at offset 1 and asserts false for offset 1. It then builds Selections::new with ranges 1..3 and 5..7 and primary 0. Offsets 1 and 6 return true. Offsets 3, 4, and 0 return false. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep this change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked selection::tests::any_covers_is_half_open"
+    ],
+    "regression_tests": [
+      {
+        "name": "selection::tests::any_covers_is_half_open",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because any_covers does not exist. A caret at 1 covers nothing. The range 1..3 covers 1 and 2. The range 5..7 covers 6. Offsets 0, 3, and 4 return false."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
