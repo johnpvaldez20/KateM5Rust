@@ -9,6 +9,7 @@
 //! It adds one unit when that text ends in `:`.
 //! A comment line does not gain that unit.
 //! `newline_for_indenter` picks one of those two results from the indenter name.
+//! The name match ignores ASCII case.
 
 use std::collections::BTreeSet;
 
@@ -72,6 +73,7 @@ pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> 
 
 /// Return the newline text for one indenter name.
 ///
+/// The comparison uses ASCII case folding.
 /// `python` calls [`python_newline`].
 /// `cstyle` calls [`newline_insertion`] with the cstyle flag true.
 /// `None` and any other name call [`newline_insertion`] with that flag false.
@@ -83,8 +85,10 @@ pub fn newline_for_indenter(
     config: &DocumentConfig,
 ) -> String {
     match indenter {
-        Some("python") => python_newline(buf, at, config),
-        Some("cstyle") => newline_insertion(buf, at, config, true),
+        Some(name) if name.eq_ignore_ascii_case("python") => python_newline(buf, at, config),
+        Some(name) if name.eq_ignore_ascii_case("cstyle") => {
+            newline_insertion(buf, at, config, true)
+        }
         _ => newline_insertion(buf, at, config, false),
     }
 }
@@ -352,6 +356,29 @@ mod tests {
         assert_eq!(
             newline_for_indenter(Some("normal"), &braced, braced.len(), &config),
             "\n    "
+        );
+    }
+
+    #[test]
+    fn indenter_names_match_in_either_case() {
+        let config = DocumentConfig::default();
+        let python = TextBuffer::from_str("def f():");
+        assert_eq!(
+            newline_for_indenter(Some("Python"), &python, python.len(), &config),
+            "\n    "
+        );
+        assert_eq!(
+            newline_for_indenter(Some("PYTHON"), &python, python.len(), &config),
+            "\n    "
+        );
+        let braced = TextBuffer::from_str("    foo{");
+        assert_eq!(
+            newline_for_indenter(Some("CStyle"), &braced, braced.len(), &config),
+            "\n        "
+        );
+        assert_eq!(
+            newline_for_indenter(Some("CSTYLE"), &braced, braced.len(), &config),
+            "\n        "
         );
     }
 
