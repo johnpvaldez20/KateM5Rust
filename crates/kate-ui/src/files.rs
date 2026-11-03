@@ -258,3 +258,23 @@ mod effect_tests {
         );
     }
 }
+
+/// The helper has no workspace. Linux CI can build this module.
+#[cfg(test)]
+mod prompt_tests {
+    use super::reload_choice_line;
+    use kate_core::ReloadChoice;
+
+    #[test]
+    fn reload_choice_line_names_the_prompt() {
+        assert_eq!(reload_choice_line(ReloadChoice::Quiet), None);
+        assert_eq!(
+            reload_choice_line(ReloadChoice::Reload),
+            Some("Reload the file from disk.")
+        );
+        assert_eq!(
+            reload_choice_line(ReloadChoice::Ask),
+            Some("The file on disk changed.")
+        );
+    }
+}
