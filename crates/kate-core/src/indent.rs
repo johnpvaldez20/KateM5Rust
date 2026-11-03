@@ -5,7 +5,9 @@
 //!
 //! A newline copies the indent of the caret line.
 //! When cstyle is on, a line that ends in `{`, `(`, or `[` adds one unit.
-//! A Python newline adds one unit when the line ends in `:`.
+//! A Python newline reads the text before the caret.
+//! It adds one unit when that text ends in `:`.
+//! A comment line does not gain that unit.
 
 use std::collections::BTreeSet;
 
@@ -49,15 +51,19 @@ pub fn newline_insertion(
 /// Return the text a Python newline inserts at `at`.
 ///
 /// The result starts with a newline.
-/// It copies the leading spaces and tabs on that line.
-/// When the last scalar that is not a space or a tab is a colon, the result adds one unit.
+/// It copies the leading spaces and tabs before the caret.
+/// It ignores the text after the caret.
+/// Spaces and tabs at the end of that prefix do not hide a colon.
+/// When the last scalar of the prefix is a colon, the result adds one unit.
+/// A comment line does not gain that unit.
+/// A comment line is a line whose first non-indent scalar is `#`.
 /// A width of 0 counts as 1.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> String {
-    let body = line_body(buf, buf.line_col(at).line);
+    let prefix = text_before_caret(buf, at);
     let mut text = String::from("\n");
-    text.push_str(leading_indent(&body));
-    if ends_with_colon(&body) {
+    text.push_str(leading_indent(&prefix));
+    if ends_with_colon(&prefix) && !is_comment_line(&prefix) {
         text.push_str(&indent_unit(config));
     }
     text
@@ -156,6 +162,31 @@ fn ends_with_colon(body: &str) -> bool {
         body.trim_end_matches([' ', '\t']).chars().next_back(),
         Some(':')
     )
+}
+
+/// A comment line is a line whose first non-indent scalar is `#`.
+fn is_comment_line(body: &str) -> bool {
+    matches!(
+        body.trim_start_matches(is_indent_char).chars().next(),
+        Some('#')
+    )
+}
+
+/// Return the line text from the line start up to the caret.
+///
+/// The result ignores the text after the caret.
+/// A trailing carriage return is not part of the result.
+fn text_before_caret(buf: &TextBuffer, at: Offset) -> String {
+    let line = buf.line_col(at).line;
+    let start = buf.offset(LineCol { line, col: 0 });
+    let line_end = buf.offset(LineCol {
+        line,
+        col: u32::MAX,
+    });
+    buf.slice(CharRange::new(start, at.min(line_end)))
+        .to_string()
+        .trim_end_matches('\r')
+        .to_string()
 }
 
 fn remove_unit(body: &str, config: &DocumentConfig) -> String {
