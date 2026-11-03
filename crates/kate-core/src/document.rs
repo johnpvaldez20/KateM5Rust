@@ -422,4 +422,18 @@ end_of_line = lf
         file.disk_change = None;
         assert_eq!(super::reload_prompt_line(Some(&file), true), None);
     }
+
+    #[test]
+    fn a_deleted_file_says_the_file_is_gone() {
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+        file.disk_change = Some(DiskChange::Deleted);
+        assert_eq!(
+            super::reload_prompt_line(Some(&file), false),
+            Some("The file on disk is gone.")
+        );
+        assert_eq!(
+            super::reload_prompt_line(Some(&file), true),
+            Some("The file on disk is gone.")
+        );
+    }
 }
