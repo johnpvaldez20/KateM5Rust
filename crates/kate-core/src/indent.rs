@@ -268,6 +268,17 @@ mod tests {
     }
 
     #[test]
+    fn python_newline_reads_only_the_text_before_the_caret() {
+        let config = DocumentConfig::default();
+        let buf = TextBuffer::from_str("def f(): pass");
+        assert_eq!(python_newline(&buf, Offset(8), &config), "\n    ");
+        let note = TextBuffer::from_str("# note:");
+        assert_eq!(python_newline(&note, note.len(), &config), "\n");
+        let indented = TextBuffer::from_str("    # note:");
+        assert_eq!(python_newline(&indented, indented.len(), &config), "\n    ");
+    }
+
+    #[test]
     fn indent_lines_edits_each_touched_line_once() {
         let config = DocumentConfig::default();
         let buf = TextBuffer::from_str("ab\n  cd");
