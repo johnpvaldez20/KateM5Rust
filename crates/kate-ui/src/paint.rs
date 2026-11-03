@@ -887,7 +887,9 @@ fn hsla_from_rgba(color: Rgba) -> Hsla {
 
 #[cfg(test)]
 mod tests {
-    use super::{LinePaintStep, line_paint_steps};
+    use kate_syntax::{EditorColor, Rgba, Theme};
+
+    use super::{LinePaintStep, colors_from_theme, hsla_from_rgba, line_paint_steps};
 
     #[cfg(target_os = "macos")]
     #[test]
@@ -917,5 +919,31 @@ mod tests {
             .expect("text");
         assert!(selection > background);
         assert!(selection < text);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn selection_uses_the_theme_selection_color() {
+        let theme = Theme::from_json(
+            r##"{
+                "metadata": {"name": "Fixture", "revision": 1, "license": "MIT"},
+                "text-styles": {},
+                "editor-colors": {
+                    "BackgroundColor": "#94CAEF",
+                    "TextSelection": "#94CAEF"
+                }
+            }"##,
+        )
+        .expect("fixture parses");
+        let second = Rgba(0x00, 0x5F, 0xA8, 0xFF);
+        assert_eq!(theme.selection_color(), second);
+        let colors = colors_from_theme(&theme);
+        assert_eq!(colors.selection, hsla_from_rgba(second));
+        let text_selection = theme
+            .editor_color(EditorColor::TextSelection)
+            .expect("text selection");
+        assert_eq!(text_selection, Rgba(0x94, 0xCA, 0xEF, 0xFF));
+        assert_eq!(colors.marked, hsla_from_rgba(text_selection));
+        assert_ne!(colors.selection, colors.marked);
     }
 }
