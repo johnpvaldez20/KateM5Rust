@@ -107,6 +107,13 @@ impl Selections {
         self.ranges.len()
     }
 
+    /// Return true when any stored selection covers `at`.
+    ///
+    /// A caret covers nothing, so a caret-only set always returns false.
+    pub fn any_covers(&self, at: Offset) -> bool {
+        self.ranges.iter().any(|s| s.covers(at))
+    }
+
     /// Add `s` and make it the primary selection. Then normalize.
     pub fn push(&mut self, s: Selection) {
         let mut ranges = std::mem::take(&mut self.ranges);
@@ -645,6 +652,33 @@ mod tests {
         assert!(backward.covers(Offset(2)));
         assert!(backward.covers(Offset(3)));
         assert!(!backward.covers(Offset(4)));
+    }
+
+    #[test]
+    fn any_covers_is_half_open() {
+        let caret = Selections::single(Selection::caret(Offset(1)));
+        assert!(!caret.any_covers(Offset(1)));
+
+        let ranges = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(1),
+                    head: Offset(3),
+                    goal_col: None,
+                },
+                Selection {
+                    anchor: Offset(5),
+                    head: Offset(7),
+                    goal_col: None,
+                },
+            ],
+            0,
+        );
+        assert!(ranges.any_covers(Offset(1)));
+        assert!(ranges.any_covers(Offset(6)));
+        assert!(!ranges.any_covers(Offset(3)));
+        assert!(!ranges.any_covers(Offset(4)));
+        assert!(!ranges.any_covers(Offset(0)));
     }
 
     #[test]
