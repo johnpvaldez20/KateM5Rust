@@ -8,6 +8,7 @@
 //! A Python newline reads the text before the caret.
 //! It adds one unit when that text ends in `:`.
 //! A comment line does not gain that unit.
+//! `newline_for_indenter` picks one of those two results from the indenter name.
 
 use std::collections::BTreeSet;
 
@@ -67,6 +68,25 @@ pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> 
         text.push_str(&indent_unit(config));
     }
     text
+}
+
+/// Return the newline text for one indenter name.
+///
+/// `python` calls [`python_newline`].
+/// `cstyle` calls [`newline_insertion`] with the cstyle flag true.
+/// `None` and any other name call [`newline_insertion`] with that flag false.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn newline_for_indenter(
+    indenter: Option<&str>,
+    buf: &TextBuffer,
+    at: Offset,
+    config: &DocumentConfig,
+) -> String {
+    match indenter {
+        Some("python") => python_newline(buf, at, config),
+        Some("cstyle") => newline_insertion(buf, at, config, true),
+        _ => newline_insertion(buf, at, config, false),
+    }
 }
 
 /// Build one insert of [`indent_unit`] for each touched line.
