@@ -16,6 +16,17 @@ use shim::Pixels;
 #[path = "notice.rs"]
 mod notice;
 
+#[cfg_attr(not(test), allow(dead_code))]
+/// Return the sentence for a failed command.
+///
+/// An Ok result has no sentence.
+pub(crate) fn notice_from(result: Result<(), kate_core::CommandError>) -> Option<String> {
+    match result {
+        Ok(()) => None,
+        Err(error) => Some(notice::command_notice(&error)),
+    }
+}
+
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 /// Return the half-open line range that intersects the viewport.
 ///
