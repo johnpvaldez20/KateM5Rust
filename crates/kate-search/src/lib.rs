@@ -220,3 +220,42 @@ fn pick_back(found: &[Match], from: Offset, wrap: bool) -> Option<Match> {
     }
     found.iter().rev().find(|hit| !empty_at(hit, from)).cloned()
 }
+
+#[cfg(test)]
+mod find_tests {
+    use crate::{Pattern, SearchQuery, find_all, find_next};
+    use kate_text::{CharRange, Offset, TextBuffer};
+
+    fn plain(text: &str) -> SearchQuery {
+        SearchQuery {
+            pattern: Pattern::Plain(text.to_string()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        }
+    }
+
+    #[test]
+    fn an_empty_plain_pattern_returns_none() {
+        let buf = TextBuffer::from_str("abc");
+        let empty = plain("");
+        let spans = find_all(&buf, &empty).expect("plain search does not fail");
+        assert_eq!(
+            spans
+                .iter()
+                .map(|hit| (hit.range.start().0, hit.range.end().0))
+                .collect::<Vec<_>>(),
+            vec![(0, 0), (1, 1), (2, 2), (3, 3)]
+        );
+
+        assert_eq!(
+            find_next(&buf, &empty, Offset(0), false, false).expect("plain search does not fail"),
+            None
+        );
+
+        let hit = find_next(&buf, &plain("a"), Offset(0), false, false)
+            .expect("plain search does not fail")
+            .expect("a plain pattern a returns the hit");
+        assert_eq!(hit.range, CharRange::new(Offset(0), Offset(1)));
+    }
+}
