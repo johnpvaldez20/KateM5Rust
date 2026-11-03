@@ -25,7 +25,7 @@ use kate_syntax::{DefId, Highlighter, LineHighlight, Repository, Theme};
 use kate_text::Revision;
 
 use crate::cache::KeyedCache;
-use crate::files::{FileEffect, FileRequest, apply_file_request};
+use crate::files::{FileEffect, FileRequest, apply_file_request, file_effect_line};
 use crate::highlight::{
     CATCH_UP_LINE_BUDGET, COLOR_LINE_BUDGET, PAINT_LINE_BUDGET, highlight_step,
 };
@@ -91,6 +91,7 @@ pub(crate) struct WindowRoot {
     pub(crate) shaped: ShapedLineCache,
     pub(crate) gutter: KeyedCache<ShapedLine>,
     gate: ColorGate,
+    notice: Option<String>,
 }
 
 pub(crate) fn launch(path: Option<PathBuf>) {
@@ -394,6 +395,7 @@ impl WindowRoot {
             shaped: ShapedLineCache::default(),
             gutter: KeyedCache::default(),
             gate: ColorGate::default(),
+            notice: None,
         }
     }
 
@@ -634,6 +636,7 @@ impl WindowRoot {
         let effect = with_app(&model, cx, |app| {
             apply_file_request(&mut app.workspace, view, FileRequest::Close)
         });
+        remember_effect(&mut self.notice, &effect);
         // A modified document stays open. Do not show a sheet.
         if matches!(effect, FileEffect::RefusedModified(_)) {
             cx.notify();
@@ -648,6 +651,7 @@ impl WindowRoot {
         let effect = with_app(&model, cx, |app| {
             apply_file_request(&mut app.workspace, view, FileRequest::Save)
         });
+        remember_effect(&mut self.notice, &effect);
         if effect == FileEffect::NeedsPath {
             self.ask_for_save_path(window, cx);
             return;
@@ -658,9 +662,10 @@ impl WindowRoot {
     fn apply_request(&mut self, request: FileRequest, window: &mut Window, cx: &mut Context<Self>) {
         let view = self.view;
         let model = self.model.clone();
-        with_app(&model, cx, |app| {
-            let _ = apply_file_request(&mut app.workspace, view, request);
+        let effect = with_app(&model, cx, |app| {
+            apply_file_request(&mut app.workspace, view, request)
         });
+        remember_effect(&mut self.notice, &effect);
         self.finish_file(window, cx);
     }
 
@@ -821,6 +826,11 @@ impl Render for WindowRoot {
             .on_action(cx.listener(Self::on_save_file_as))
             .on_action(cx.listener(Self::on_close_file))
             .child(EditorSurface { root: cx.entity() })
+            .child(
+                div()
+                    .text_color(self.colors.foreground)
+                    .child(self.notice.clone().unwrap_or_default()),
+            )
     }
 }
 
@@ -967,6 +977,10 @@ pub(crate) struct HighlightPrep {
 thread_local! {
     static ANIMATION_FRAMES: Cell<u32> = const { Cell::new(0) };
     static PANIC_IN_MODEL: Cell<bool> = const { Cell::new(false) };
+}
+
+fn remember_effect(slot: &mut Option<String>, effect: &crate::files::FileEffect) {
+    *slot = file_effect_line(effect).map(str::to_string);
 }
 
 /// Ask GPUI for one more frame after this paint returns.
@@ -1416,6 +1430,41 @@ fn open_viewport<'a>(
         font,
         foreground,
         revision,
+    }
+}
+
+#[cfg(test)]
+mod notice_tests {
+    use super::remember_effect;
+    use crate::files::FileEffect;
+    use kate_core::DocumentId;
+
+    #[test]
+    fn an_open_failure_keeps_a_sentence() {
+        let mut notice = None;
+        remember_effect(&mut notice, &FileEffect::OpenFailed);
+        assert_eq!(notice.as_deref(), Some("The file could not be opened."));
+
+        remember_effect(&mut notice, &FileEffect::SaveFailed);
+        assert_eq!(notice.as_deref(), Some("The save failed."));
+
+        remember_effect(&mut notice, &FileEffect::Ready);
+        assert_eq!(notice, None);
+
+        remember_effect(&mut notice, &FileEffect::NeedsPath);
+        assert_eq!(notice.as_deref(), Some("This document has no path."));
+
+        remember_effect(&mut notice, &FileEffect::AlreadyOpen);
+        assert_eq!(notice.as_deref(), Some("Another document has that path."));
+
+        remember_effect(&mut notice, &FileEffect::UnknownView);
+        assert_eq!(notice.as_deref(), Some("The view is not open."));
+
+        remember_effect(
+            &mut notice,
+            &FileEffect::RefusedModified(DocumentId::default()),
+        );
+        assert_eq!(notice, None);
     }
 }
 
