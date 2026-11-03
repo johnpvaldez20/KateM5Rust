@@ -47,6 +47,8 @@ pub fn word_completions(
 /// The suffix is that match without the prefix before the caret.
 /// An empty prefix returns `None`.
 /// A match equal to the prefix returns `None`.
+/// The tail is the word characters after the caret.
+/// A tail equal to the suffix returns `None`.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn completion_suffix(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> Option<String> {
     let word = word_completions(buf, at, 1).into_iter().next()?;
@@ -54,9 +56,14 @@ pub fn completion_suffix(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> 
     let caret = at.0.min(len);
     let start = rewind_word(buf, caret);
     let prefix = buf.text().slice(start..caret).to_string();
-    word.strip_prefix(&prefix)
-        .filter(|suffix| !suffix.is_empty())
-        .map(str::to_string)
+    let suffix = word
+        .strip_prefix(&prefix)
+        .filter(|suffix| !suffix.is_empty())?;
+    let tail_end = forward_word(buf, caret, len);
+    if buf.text().slice(caret..tail_end) == suffix {
+        return None;
+    }
+    Some(suffix.to_string())
 }
 
 fn is_word_char(ch: char) -> bool {
@@ -155,6 +162,12 @@ mod tests {
         assert_eq!(completion_suffix(&buf, Offset(0)), None);
         let same = TextBuffer::from_str("alpha alpha");
         assert_eq!(completion_suffix(&same, Offset(5)), None);
+    }
+
+    #[test]
+    fn completion_suffix_skips_a_copied_tail() {
+        let buf = TextBuffer::from_str("alphabet alphabet");
+        assert_eq!(completion_suffix(&buf, Offset(4)), None);
     }
 
     #[test]
