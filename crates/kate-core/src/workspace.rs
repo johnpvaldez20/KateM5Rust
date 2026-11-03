@@ -716,8 +716,70 @@ fn apply_change(
         },
     );
     place_views(ws, doc_id, view, &tx, acting_after);
-    refresh_indent_folds(ws, doc_id);
+    if let Some((at, delta)) = pure_text_insert(&tx) {
+        shift_document_folds(ws, doc_id, at, delta);
+    } else {
+        refresh_indent_folds(ws, doc_id);
+    }
     Ok(())
+}
+
+/// Return `(start, delta)` for a pure same-line insert.
+///
+/// The transaction must have one edit with an empty `old` and a non-empty `new`
+/// that contains no newline, carriage return, space, or tab.
+fn pure_text_insert(tx: &Transaction) -> Option<(Offset, isize)> {
+    let edit = single_edit(tx)?;
+    if edit.old.is_empty() && !edit.new.is_empty() && !edit.new.contains(['\n', '\r', ' ', '\t']) {
+        Some((edit.start, edit.delta()))
+    } else {
+        None
+    }
+}
+
+/// Shift `offset` by `delta` when the position is at (or past, for ends) `at`.
+///
+/// A negative result clamps to 0.
+fn shift_bound(offset: usize, at: usize, delta: isize, exclusive_end: bool) -> usize {
+    let move_it = if exclusive_end {
+        offset > at
+    } else {
+        offset >= at
+    };
+    if !move_it {
+        return offset;
+    }
+    (offset as i64 + delta as i64).max(0) as usize
+}
+
+/// Shift every range in `folds` by the insert at `at` with length change `delta`.
+///
+/// A range whose end is at or before its start is dropped.
+/// A delta of 0 returns the same ranges.
+fn shift_stored_folds(folds: &mut Vec<kate_text::CharRange>, at: kate_text::Offset, delta: isize) {
+    if delta == 0 {
+        return;
+    }
+    let at = at.0;
+    folds.retain_mut(|range| {
+        let start = shift_bound(range.start().0, at, delta, false);
+        let end = shift_bound(range.end().0, at, delta, true);
+        if end <= start {
+            false
+        } else {
+            *range = kate_text::CharRange::new(Offset(start), Offset(end));
+            true
+        }
+    });
+}
+
+/// Shift stored folds on every view of `doc_id`.
+fn shift_document_folds(ws: &mut Workspace, doc_id: DocumentId, at: Offset, delta: isize) {
+    for id in ws.views_of(doc_id) {
+        if let Some(view) = ws.views.get_mut(id) {
+            shift_stored_folds(&mut view.folds, at, delta);
+        }
+    }
 }
 
 /// Fill indent folds on every view of `doc_id`.
@@ -2056,6 +2118,26 @@ mod tests {
 
     fn indent_width(ws: &Workspace, doc: crate::DocumentId) -> u8 {
         ws.documents.get(doc).expect("document").config.indent_width
+    }
+
+    #[test]
+    fn a_same_line_insert_shifts_the_stored_fold() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let first = add_view(&mut ws, doc);
+        ws.execute(first, Command::InsertText("a\n  b\n".into()))
+            .expect("seed");
+        let second = add_view(&mut ws, doc);
+        let sentinel = CharRange::new(Offset(1), Offset(2));
+        for view in [first, second] {
+            ws.views.get_mut(view).expect("view").folds = vec![sentinel];
+        }
+        set_caret(&mut ws, first, 0);
+        ws.execute(first, Command::InsertText("X".into()))
+            .expect("insert");
+        let expected = CharRange::new(Offset(2), Offset(3));
+        assert_eq!(ws.views.get(first).expect("first").folds, vec![expected]);
+        assert_eq!(ws.views.get(second).expect("second").folds, vec![expected]);
     }
 
     #[test]

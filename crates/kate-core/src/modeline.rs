@@ -508,6 +508,33 @@ fn directory_of(start: &Path) -> Option<PathBuf> {
     }
 }
 
+#[cfg(unix)]
+fn open_config_handle(path: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.read(true);
+    #[cfg(target_os = "linux")]
+    let flag = 0x800;
+    #[cfg(not(target_os = "linux"))]
+    let flag = 0x4;
+    opts.custom_flags(flag);
+    opts.open(path)
+}
+
+#[cfg(not(unix))]
+fn open_config_handle(path: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::File::open(path)
+}
+
+fn open_config_file(path: &Path) -> Option<std::fs::File> {
+    let file = open_config_handle(path).ok()?;
+    let meta = file.metadata().ok()?;
+    if !meta.is_file() || meta.len() > MAX_EDITORCONFIG_BYTES {
+        return None;
+    }
+    Some(file)
+}
+
 fn read_capped(file: &mut std::fs::File) -> std::io::Result<Option<String>> {
     use std::io::Read;
 
@@ -526,13 +553,7 @@ fn read_capped(file: &mut std::fs::File) -> std::io::Result<Option<String>> {
 
 fn push_layer(dir: &Path, file_name: &str, layers: &mut Vec<ModeOverride>) -> bool {
     let path = dir.join(".editorconfig");
-    let Ok(meta) = std::fs::metadata(&path) else {
-        return false;
-    };
-    if !meta.is_file() {
-        return false;
-    }
-    let Ok(mut file) = std::fs::File::open(&path) else {
+    let Some(mut file) = open_config_file(&path) else {
         return false;
     };
     let Ok(Some(text)) = read_capped(&mut file) else {
@@ -588,7 +609,8 @@ mod tests {
 
     use super::{
         DocumentConfig, FileState, MAX_EDITORCONFIG_BYTES, TrailingSpaces, apply_mode,
-        editorconfig_overrides, modeline_overrides, read_capped, read_editorconfig,
+        editorconfig_overrides, modeline_overrides, open_config_file, read_capped,
+        read_editorconfig,
     };
 
     /// One byte past [`MAX_EDITORCONFIG_BYTES`].
@@ -912,6 +934,46 @@ indent_size = 3
         let mut big = std::fs::File::open(&big_path).expect("open big");
         let got = read_capped(&mut big).expect("read big");
         assert_eq!(got, None);
+    }
+
+    #[test]
+    fn open_config_file_returns_a_small_file() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let small = root.path().join(".editorconfig");
+        std::fs::write(&small, "root = true\n").expect("write");
+        let mut file = open_config_file(&small).expect("open small");
+        let text = read_capped(&mut file).expect("read").expect("some");
+        assert_eq!(text, "root = true\n");
+
+        let big = root.path().join("big.editorconfig");
+        std::fs::write(&big, oversized_editorconfig_body()).expect("big");
+        assert!(open_config_file(&big).is_none());
+
+        let dir_path = root.path().join("somedir");
+        std::fs::create_dir(&dir_path).expect("dir");
+        assert!(open_config_file(&dir_path).is_none());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_fifo_config_open_returns_none() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let fifo = root.path().join(".editorconfig");
+        let made = std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .expect("mkfifo");
+        assert!(made.success());
+        let (send, recv) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let result = open_config_file(&fifo);
+            let _ = send.send(result);
+        });
+        let result = recv
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("timeout");
+        worker.join().expect("worker");
+        assert!(result.is_none());
     }
 
     #[test]
