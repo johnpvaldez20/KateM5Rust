@@ -116,7 +116,13 @@ fn close_one(ws: &mut kate_core::Workspace, view: kate_core::ViewId) -> FileEffe
         return FileEffect::UnknownView;
     }
     match ws.close_view(view) {
-        kate_core::CloseResult::Closed => FileEffect::Ready,
+        kate_core::CloseResult::Closed => {
+            if ws.views.is_empty() {
+                let doc = ws.new_document();
+                ws.new_view(doc);
+            }
+            FileEffect::Ready
+        }
         kate_core::CloseResult::RefusedModified(doc) => FileEffect::RefusedModified(doc),
     }
 }
@@ -264,6 +270,42 @@ mod tests {
         let effect = apply_file_request(&mut ws, view, FileRequest::OpenPath(missing));
         assert_eq!(effect, FileEffect::OpenFailed);
         assert_eq!(ws.documents.len(), before);
+    }
+
+    #[test]
+    fn close_of_the_last_view_leaves_a_live_view() {
+        // One view: closing it leaves a fresh live view.
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let view = ws.new_view(doc).expect("view");
+        let effect = apply_file_request(&mut ws, view, FileRequest::Close);
+        assert_eq!(effect, FileEffect::Ready);
+        assert!(!ws.views.contains_key(view));
+        assert!(!ws.documents.contains_key(doc));
+        let new_view = ws.active_view.expect("active view after last close");
+        assert!(ws.views.contains_key(new_view));
+        assert_ne!(new_view, view);
+        assert_eq!(ws.views.len(), 1);
+        assert_eq!(ws.documents.len(), 1);
+
+        // Two views: closing one leaves the other, no blank added.
+        let mut ws = workspace();
+        let d1 = ws.new_document();
+        let d2 = ws.new_document();
+        let v1 = ws.new_view(d1).expect("view 1");
+        let v2 = ws.new_view(d2).expect("view 2");
+        let effect = apply_file_request(&mut ws, v1, FileRequest::Close);
+        assert_eq!(effect, FileEffect::Ready);
+        assert_eq!(ws.views.len(), 1);
+        assert!(ws.views.contains_key(v2));
+        assert_eq!(ws.documents.len(), 1);
+        assert!(ws.documents.contains_key(d2));
+
+        // Unknown view: no document added.
+        let mut ws = workspace();
+        let effect = apply_file_request(&mut ws, kate_core::ViewId::default(), FileRequest::Close);
+        assert_eq!(effect, FileEffect::UnknownView);
+        assert_eq!(ws.documents.len(), 0);
     }
 }
 
