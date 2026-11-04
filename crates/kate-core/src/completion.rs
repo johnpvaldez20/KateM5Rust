@@ -67,7 +67,7 @@ pub fn completion_suffix(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> 
 }
 
 fn is_word_char(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() || ch == '_'
+    ch == '\'' || ch.is_ascii_alphanumeric() || ch == '_'
 }
 
 fn rewind_word(buf: &kate_text::TextBuffer, at: usize) -> usize {
@@ -177,5 +177,13 @@ mod tests {
         assert_eq!(word_completions(&buf, Offset(13), 0), Vec::<String>::new());
         let only = TextBuffer::from_str("alpha");
         assert_eq!(word_completions(&only, Offset(4), 8), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_apostrophe_stays_inside_the_word() {
+        let buf = TextBuffer::from_str("don't don");
+        let got = word_completions(&buf, Offset(9), 4);
+        assert_eq!(got, vec!["don't".to_string()]);
+        assert_eq!(completion_suffix(&buf, Offset(9)), Some("'t".to_string()));
     }
 }
