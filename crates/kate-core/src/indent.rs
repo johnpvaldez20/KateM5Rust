@@ -59,14 +59,21 @@ pub fn newline_insertion(
 /// When the last scalar of the prefix is a colon, the result adds one unit.
 /// A comment line does not gain that unit.
 /// A comment line is a line whose first non-indent scalar is `#`.
+/// When the first word is return, pass, break, continue, or raise, the indent
+/// drops one unit. A comment line does not drop.
 /// A width of 0 counts as 1.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> String {
     let prefix = text_before_caret(buf, at);
     let mut text = String::from("\n");
-    text.push_str(leading_indent(&prefix));
-    if ends_with_colon(&prefix) && !is_comment_line(&prefix) {
+    let indent = leading_indent(&prefix);
+    if !is_comment_line(&prefix) && is_dedent_word(&prefix, indent) {
+        text.push_str(without_one_unit(indent, config));
+    } else if ends_with_colon(&prefix) && !is_comment_line(&prefix) {
+        text.push_str(indent);
         text.push_str(&indent_unit(config));
+    } else {
+        text.push_str(indent);
     }
     text
 }
@@ -194,6 +201,26 @@ fn is_comment_line(body: &str) -> bool {
         body.trim_start_matches(is_indent_char).chars().next(),
         Some('#')
     )
+}
+
+fn is_dedent_word(prefix: &str, indent: &str) -> bool {
+    let after = &prefix[indent.len()..];
+    let end = after
+        .find(|c: char| c.is_ascii_whitespace())
+        .unwrap_or(after.len());
+    matches!(
+        &after[..end],
+        "return" | "pass" | "break" | "continue" | "raise"
+    )
+}
+
+fn without_one_unit<'a>(indent: &'a str, config: &DocumentConfig) -> &'a str {
+    let unit = remove_unit(indent, config);
+    if unit.is_empty() {
+        indent
+    } else {
+        &indent[unit.len()..]
+    }
 }
 
 /// Return the line text from the line start up to the caret.
@@ -444,5 +471,27 @@ mod tests {
         let one = unindent_lines(&TextBuffer::from_str("  ab"), &[0], &narrow).expect("narrow");
         assert_eq!(one.edits().len(), 1);
         assert_eq!(one.edits()[0].old, " ");
+    }
+
+    #[test]
+    fn a_return_line_drops_one_indent_unit() {
+        let config = DocumentConfig::default();
+        assert_eq!(python_inserted("    return", &config), "\n");
+        assert_eq!(python_inserted("        return", &config), "\n    ");
+        assert_eq!(python_inserted("    return x", &config), "\n");
+        assert_eq!(python_inserted("    returning", &config), "\n    ");
+        assert_eq!(python_inserted("    # return", &config), "\n    ");
+        assert_eq!(python_inserted("def f():", &config), "\n    ");
+        assert_eq!(python_inserted("def f(): pass", &config), "\n");
+
+        let tabs = DocumentConfig {
+            indent_with_spaces: false,
+            ..DocumentConfig::default()
+        };
+        assert_eq!(python_inserted("\t\tpass", &tabs), "\n\t");
+
+        assert_eq!(python_inserted("    break", &config), "\n");
+        assert_eq!(python_inserted("    continue", &config), "\n");
+        assert_eq!(python_inserted("    raise", &config), "\n");
     }
 }
