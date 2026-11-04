@@ -60,7 +60,9 @@ fn same_fold(candidate_char: char, pattern_char: char) -> bool {
 }
 
 fn score_one(chars: &[char], index: usize, previous_match: Option<usize>) -> i32 {
-    16 + boundary_bonus(chars, index) + gap_adjust(previous_match, index)
+    16 + boundary_bonus(chars, index)
+        + gap_adjust(previous_match, index)
+        + camel_bonus(chars, index)
 }
 
 fn boundary_bonus(chars: &[char], index: usize) -> i32 {
@@ -80,6 +82,19 @@ fn gap_adjust(previous_match: Option<usize>, index: usize) -> i32 {
     consecutive.saturating_sub(skipped)
 }
 
+fn camel_bonus(chars: &[char], index: usize) -> i32 {
+    if index == 0 {
+        return 0;
+    }
+    let previous = chars[index - 1];
+    let current = chars[index];
+    if previous.is_ascii_lowercase() && current.is_ascii_uppercase() {
+        8
+    } else {
+        0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{FuzzyHit, fuzzy_match, gap_adjust};
@@ -96,8 +111,26 @@ mod tests {
         assert_eq!(
             fuzzy_match("FB", "fooBar"),
             Some(FuzzyHit {
-                score: 38,
+                score: 46,
                 positions: vec![0, 3],
+            })
+        );
+    }
+
+    #[test]
+    fn a_camel_hump_adds_eight() {
+        assert_eq!(
+            fuzzy_match("FB", "fooBar"),
+            Some(FuzzyHit {
+                score: 46,
+                positions: vec![0, 3],
+            })
+        );
+        assert_eq!(
+            fuzzy_match("fb", "foo_bar"),
+            Some(FuzzyHit {
+                score: 45,
+                positions: vec![0, 4],
             })
         );
     }
