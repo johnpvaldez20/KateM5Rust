@@ -49,7 +49,7 @@ pub(crate) fn resume_color_line(
     if !cursor_in_view {
         visible_first
     } else if plain_line < color_at {
-        plain_line
+        plain_line.max(visible_first)
     } else {
         color_at
     }
@@ -152,5 +152,19 @@ mod tests {
         // Line 20 is the first plain miss. Lines above it can still be plain cache hits.
         assert_eq!(resume_color_line(40, 0, 40, 20), 0);
         assert_eq!(resume_color_line(640, 10, 50, 40), 10);
+    }
+
+    #[test]
+    fn resume_color_line_clamps_a_hole_to_the_viewport() {
+        // Hole at line 0, viewport 10..50, cursor at 20 (inside).
+        // The hole is before the viewport, so clamp to visible_first.
+        assert_eq!(resume_color_line(20, 10, 50, 0), 10);
+        // Hole at line 10, viewport 0..40, cursor at 24 (inside).
+        // The hole is inside the viewport, so it stays.
+        assert_eq!(resume_color_line(24, 0, 40, 10), 10);
+        // Plain line at 30 is at or after cursor 24; cursor stays.
+        assert_eq!(resume_color_line(24, 0, 40, 30), 24);
+        // Cursor at the exclusive end 40 is outside 0..40; return visible_first.
+        assert_eq!(resume_color_line(40, 0, 40, 20), 0);
     }
 }
