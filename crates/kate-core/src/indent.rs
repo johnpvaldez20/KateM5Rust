@@ -67,7 +67,7 @@ pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> 
     let prefix = text_before_caret(buf, at);
     let mut text = String::from("\n");
     let indent = leading_indent(&prefix);
-    if !is_comment_line(&prefix) && is_dedent_word(&prefix, indent) {
+    if !is_comment_line(&prefix) && is_dedent_word(&prefix, indent) && !ends_with_colon(&prefix) {
         text.push_str(without_one_unit(indent, config));
     } else if ends_with_colon(&prefix) && !is_comment_line(&prefix) {
         text.push_str(indent);
@@ -210,7 +210,7 @@ fn is_dedent_word(prefix: &str, indent: &str) -> bool {
         .unwrap_or(after.len());
     matches!(
         &after[..end],
-        "return" | "pass" | "break" | "continue" | "raise"
+        "return" | "pass" | "break" | "continue" | "raise" | "else" | "elif" | "except" | "finally"
     )
 }
 
@@ -471,6 +471,18 @@ mod tests {
         let one = unindent_lines(&TextBuffer::from_str("  ab"), &[0], &narrow).expect("narrow");
         assert_eq!(one.edits().len(), 1);
         assert_eq!(one.edits()[0].old, " ");
+    }
+
+    #[test]
+    fn a_bare_else_drops_one_indent() {
+        let config = DocumentConfig::default();
+        assert_eq!(python_inserted("    else", &config), "\n");
+        assert_eq!(python_inserted("    else:", &config), "\n        ");
+        assert_eq!(python_inserted("    elif x:", &config), "\n        ");
+        assert_eq!(python_inserted("    except:", &config), "\n        ");
+        assert_eq!(python_inserted("    finally:", &config), "\n        ");
+        assert_eq!(python_inserted("    # else", &config), "\n    ");
+        assert_eq!(python_inserted("def f():", &config), "\n    ");
     }
 
     #[test]
