@@ -82,6 +82,13 @@ impl View {
             })
             .copied()
     }
+
+    /// Return how many stored ranges contain `at`.
+    ///
+    /// The end offset of a range does not count.
+    pub fn fold_covering_count(&self, at: Offset) -> usize {
+        self.folds.iter().filter(|range| range.contains(at)).count()
+    }
 }
 
 fn char_range_for_span(text: &str, span: fold::FoldSpan) -> CharRange {
@@ -200,5 +207,29 @@ mod tests {
             view.folded_range_at(Offset(2)),
             Some(CharRange::new(Offset(1), Offset(5)))
         );
+    }
+
+    #[test]
+    fn fold_covering_count_counts_every_range() {
+        let mut view = View {
+            document: DocumentId::default(),
+            selections: Selections::single(Selection::caret(Offset(0))),
+            scroll: Scroll::default(),
+            folds: Vec::new(),
+            dynamic_wrap: false,
+        };
+        view.apply_indent_folds("a\n  b\n", 4);
+        assert_eq!(view.fold_covering_count(Offset(0)), 0);
+        assert_eq!(view.fold_covering_count(Offset(1)), 1);
+        assert_eq!(view.fold_covering_count(Offset(5)), 1);
+        assert_eq!(view.fold_covering_count(Offset(6)), 0);
+
+        view.folds = vec![
+            CharRange::new(Offset(0), Offset(10)),
+            CharRange::new(Offset(2), Offset(5)),
+        ];
+        assert_eq!(view.fold_covering_count(Offset(3)), 2);
+        assert_eq!(view.fold_covering_count(Offset(1)), 1);
+        assert_eq!(view.fold_covering_count(Offset(10)), 0);
     }
 }
