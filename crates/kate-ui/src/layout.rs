@@ -64,15 +64,24 @@ pub(crate) fn visible_line_range(
 #[cfg_attr(not(test), allow(dead_code))]
 /// Count the visual rows for one logical line.
 ///
-/// Each Unicode scalar has width 1.
+/// Each Unicode scalar has width 1. A tab advances to the next multiple of
+/// `tab_width`. A `tab_width` of 0 counts as 1.
 /// An empty line returns 1.
-/// A width of 0 returns 1.
-pub(crate) fn visual_row_count(line: &str, columns: u32) -> u32 {
+/// A column count of 0 returns 1.
+pub(crate) fn visual_row_count(line: &str, columns: u32, tab_width: u8) -> u32 {
     if columns == 0 || line.is_empty() {
         return 1;
     }
-    let rows = line.chars().count().div_ceil(columns as usize);
-    u32::try_from(rows).unwrap_or(u32::MAX)
+    let step = tab_width.max(1) as u32;
+    let mut width: u32 = 0;
+    for scalar in line.chars() {
+        if scalar == '\t' {
+            width = width.saturating_add(step - (width % step));
+        } else {
+            width = width.saturating_add(1);
+        }
+    }
+    width.div_ceil(columns).max(1)
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -191,10 +200,10 @@ mod tests {
 
     #[test]
     fn visual_row_count_splits_a_long_line() {
-        assert_eq!(visual_row_count("abcdef", 4), 2);
-        assert_eq!(visual_row_count("", 4), 1);
-        assert_eq!(visual_row_count("abcdef", 0), 1);
-        assert_eq!(visual_row_count("éééé", 4), 1);
+        assert_eq!(visual_row_count("abcdef", 4, 4), 2);
+        assert_eq!(visual_row_count("", 4, 4), 1);
+        assert_eq!(visual_row_count("abcdef", 0, 4), 1);
+        assert_eq!(visual_row_count("éééé", 4, 4), 1);
     }
 
     #[test]
@@ -215,6 +224,14 @@ mod tests {
         {
             ShapedLine
         }
+    }
+
+    #[test]
+    fn a_tab_uses_the_tab_width() {
+        assert_eq!(visual_row_count("\t", 4, 4), 1);
+        assert_eq!(visual_row_count("\t\t", 4, 4), 2);
+        assert_eq!(visual_row_count("a\t", 4, 4), 1);
+        assert_eq!(visual_row_count("\t", 4, 0), 1);
     }
 }
 

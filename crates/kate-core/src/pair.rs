@@ -88,7 +88,13 @@ fn is_type_over(buf: &kate_text::TextBuffer, selection: crate::Selection, ch: ch
 }
 
 fn quote_stays_plain(buf: &kate_text::TextBuffer, selection: crate::Selection, ch: char) -> bool {
-    is_quote(ch) && char_before(buf, selection.min()).is_some_and(is_ascii_word)
+    if !is_quote(ch) {
+        return false;
+    }
+    let Some(prev) = char_before(buf, selection.min()) else {
+        return false;
+    };
+    prev == '\\' || is_ascii_word(prev)
 }
 
 fn char_before(buf: &kate_text::TextBuffer, at: Offset) -> Option<char> {
@@ -286,5 +292,20 @@ mod tests {
         let buf = TextBuffer::from_str("a`");
         let selection = Selection::caret(Offset(1));
         assert_eq!(plan_pair(&buf, selection, "`"), PairPlan::TypeOver);
+    }
+
+    #[test]
+    fn a_quote_after_a_backslash_stays_plain() {
+        let buf = TextBuffer::from_str("\\");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+        assert_eq!(plan_pair(&buf, selection, "'"), PairPlan::Plain);
+        assert_eq!(plan_pair(&buf, selection, "`"), PairPlan::Plain);
+        assert_eq!(
+            plan_pair(&buf, selection, "("),
+            PairPlan::Wrap {
+                caret_after_open: true
+            }
+        );
     }
 }
