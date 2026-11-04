@@ -1,0 +1,146 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0140",
+  "title": "kate-fileio: refuse a save onto a directory",
+  "summary": "save returns a CreateTemp Io error when the target exists and is not a file. A missing path still creates the file. The test goes in the existing save tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-04T12:56:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0140-save-refuses-directory",
+    "base_sha": "a2b3c9f769848fbce96a503ea9a56eb73c866160"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-fileio/src/save.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-fileio/src/decode.rs"
+    ],
+    "crates_touched": [
+      "kate-fileio"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0005",
+      "PKT-0006"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/save.rs",
+        "definition": "pub fn save(path: &Path, text: &Rope, opts: &EncodeOptions) -> Result<Saved, SaveError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "save.rs has one test module named tests.  Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not add a second module with the same name. At the start of save, before encode, write this exact check. Do not use the ? operator on metadata. A missing path is not an error. if let Ok(meta) = std::fs::metadata(path) { if !meta.is_file() { return Err(SaveError::Io { step: SaveStep::CreateTemp, source: std::io::Error::new(std::io::ErrorKind::InvalidInput, \"not a regular file\") }); } } Do not touch do_save, the encode call, the temp name, or the cleanup after do_save. The existing tests rename_over_existing_preserves_mode_bits and failed_write_leaves_target_untouched stay green. The test save_refuses_a_directory creates a directory named folder. save of the text x and a newline onto that directory returns SaveError::Io with step CreateTemp. The path is still a directory. A missing file note.txt in the same temp directory still saves. The bytes on disk are x and a newline. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-fileio --all-targets --locked -- -D warnings",
+      "cargo test -p kate-fileio --locked save::tests::save_refuses_a_directory"
+    ],
+    "regression_tests": [
+      {
+        "name": "save::tests::save_refuses_a_directory",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. Saving onto a directory returns SaveStep::Rename. After the change the step is CreateTemp and the directory remains. A missing note.txt still saves the bytes x and a newline."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -318,6 +318,30 @@ The index is `docs/design/WAVE-0125.md`.
 | PKT-0131 | `kate-ui`: keep catch-up coloring inside the viewport | LOCAL | 0045 |
 | PKT-0132 | `kate-core`: dedent a bare Python else | LOCAL | 0120 |
 
+## Wave PKT-0133
+
+WAVE-0125 is in review.
+This wave leaves `keys.rs`, `pair.rs`, `replace.rs`, `document.rs`, `layout.rs`, `encode.rs`, `highlight.rs`, and `indent.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+`literal.rs` gets one new `mod tests`.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+The index is `docs/design/WAVE-0133.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0133 | `kate-fileio`: open a load without blocking | LOCAL | 0081 |
+| PKT-0134 | `kate-search`: keep an apostrophe inside a word | LOCAL | 0010 |
+| PKT-0135 | `kate-core`: complete a word that contains an apostrophe | LOCAL | 0104 |
+| PKT-0136 | `kate-core`: score a digit before a capital | LOCAL | 0124 |
+| PKT-0137 | `kate-core`: count the folds that cover an offset | LOCAL | 0123 |
+| PKT-0138 | `kate-core`: test a line inside a fold span | LOCAL | 0122 |
+| PKT-0139 | `kate-search`: count hits and skip an empty pattern | LOCAL | 0067 |
+| PKT-0140 | `kate-fileio`: refuse a save onto a directory | LOCAL | 0006 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
