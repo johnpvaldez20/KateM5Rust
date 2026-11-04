@@ -295,6 +295,29 @@ The index is `docs/design/WAVE-0117.md`.
 | PKT-0123 | `kate-core`: return the fold range at an offset | LOCAL | 0102 |
 | PKT-0124 | `kate-core`: score a camel-case hump | LOCAL | 0060 |
 
+## Wave PKT-0125
+
+WAVE-0117 is on main.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+`replace.rs` gets one new `mod tests`.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+The index is `docs/design/WAVE-0125.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0125 | `kate-ui`: bind ctrl-z to undo | LOCAL | 0118 |
+| PKT-0126 | `kate-core`: keep a quote after a backslash plain | LOCAL | 0083 |
+| PKT-0127 | `kate-search`: skip replace-all for an empty pattern | LOCAL | 0010 |
+| PKT-0128 | `kate-core`: a changed file after delete is modified | LOCAL | 0113 |
+| PKT-0129 | `kate-ui`: count a tab stop in a wrapped line | LOCAL | 0105 |
+| PKT-0130 | `kate-fileio`: write one ending for a CR LF pair | LOCAL | 0006 |
+| PKT-0131 | `kate-ui`: keep catch-up coloring inside the viewport | LOCAL | 0045 |
+| PKT-0132 | `kate-core`: dedent a bare Python else | LOCAL | 0120 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

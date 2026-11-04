@@ -1,0 +1,140 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0130",
+  "title": "kate-fileio: write one ending for a CR LF pair",
+  "summary": "to_wire_form turns a CR LF pair in the text into one target line ending. A lone CR stays a CR. The test goes in the existing encode tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-04T03:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 134,
+    "branch": "pkt/PKT-0130-crlf-one-ending",
+    "base_sha": "dd37a0adc8eced677ba0f1a5d582b6abf782e516"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/134"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-fileio/src/encode.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-fileio/src/save.rs"
+    ],
+    "crates_touched": [
+      "kate-fileio"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0005",
+      "PKT-0006"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/encode.rs",
+        "definition": "fn to_wire_form(s: &str, opts: &EncodeOptions) -> String"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "encode.rs has one test module named tests.  Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not add a second module with the same name. Edit only to_wire_form. Collect the scalars. Walk them by index. When the scalar is CR and the next scalar is LF, add 1 to the index and continue. Do not push that CR. When the scalar is LF, push opts.line_ending.as_str(). Every other scalar is pushed as itself. Keep the ensure_trailing_newline check exactly as it is. It still looks at s.ends_with of LF. Do not touch encode, encode_utf16_bytes, line_col_at, or the unmappable-position walk. The test a_crlf_pair_becomes_one_ending calls encode on Rope::from_str of a, CR, LF, b. UTF-8, bom false, line ending CrLf, ensure_trailing_newline false returns the bytes a, CR, LF, b. The same text with line ending Lf returns the bytes a, LF, b. The text a, LF, b with line ending CrLf returns the bytes a, CR, LF, b. The text a, CR, b with line ending CrLf returns the bytes a, CR, b. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-fileio --all-targets --locked -- -D warnings",
+      "cargo test -p kate-fileio --locked encode::tests::a_crlf_pair_becomes_one_ending"
+    ],
+    "regression_tests": [
+      {
+        "name": "encode::tests::a_crlf_pair_becomes_one_ending",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. a, CR, LF, b with a CR LF ending becomes a, CR, CR, LF, b. After the change it is a, CR, LF, b. The LF ending of that text is a, LF, b. A lone LF still becomes CR LF. A lone CR stays a CR."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
