@@ -1,0 +1,139 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0119",
+  "title": "kate-search: skip a find for an empty regex",
+  "summary": "find_next returns Ok(None) when the regex pattern is empty. find_all still runs. An invalid regex still returns the error. The test goes in the existing find_tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-03T23:57:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 125,
+    "branch": "pkt/PKT-0119-empty-regex-find",
+    "base_sha": "d316f8a9b03b9c9d699d78ec58146501e8fb4e0d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/125"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-search/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/regex_find.rs"
+    ],
+    "crates_touched": [
+      "kate-search"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0010",
+      "PKT-0043",
+      "PKT-0050",
+      "PKT-0098",
+      "PKT-0116"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-search/src/lib.rs",
+        "definition": "pub fn find_next(\n    buf: &TextBuffer,\n    q: &SearchQuery,\n    from: Offset,\n    backwards: bool,\n    wrap: bool,\n) -> Result<Option<Match>, SearchError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "lib.rs has one test module named find_tests. Add the new function at the end of that module, before its closing brace. Do not add mod tests. Do not add a second find_tests module. In find_next, after the empty escape check, return Ok(None) when the pattern is Pattern::Regex and the string is empty. An invalid regex still returns Err. A non-empty regex still searches. The empty Plain check and the empty escape check stay as they are. find_all stays as it is. Leave bar.rs and regex_find.rs unchanged. The test an_empty_regex_pattern_returns_none uses the buffer abc. An empty Regex pattern makes find_next from offset 0, backwards false, and wrap false return None. find_all on that query returns Ok. The regex a from offset 0 returns the hit 0..1. The regex ( returns Err. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-search --all-targets --locked -- -D warnings",
+      "cargo test -p kate-search --locked find_tests::an_empty_regex_pattern_returns_none"
+    ],
+    "regression_tests": [
+      {
+        "name": "find_tests::an_empty_regex_pattern_returns_none",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. find_next returns a hit for an empty regex. After the change it returns None. find_all still returns Ok. The regex a returns the hit 0..1. The regex ( returns Err."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
