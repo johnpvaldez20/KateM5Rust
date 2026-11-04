@@ -575,12 +575,13 @@ fn insert_cmd(ws: &mut Workspace, view: ViewId, text: &str) -> Result<(), Comman
 fn newline_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError> {
     let doc_id = ws.doc_id(view)?;
     let sel = snapped_selections(ws, view, doc_id)?;
-    let cstyle = uses_cstyle(ws, doc_ref(ws, doc_id, view)?);
+    let indenter = indenter_name(ws, doc_ref(ws, doc_id, view)?);
     let (tx, mut after) = {
         let doc = doc_ref(ws, doc_id, view)?;
         let config = doc.config.clone();
         fan_out(&doc.buffer, &sel, |buffer, selection| {
-            let text = indent::newline_insertion(buffer, selection.min(), &config, cstyle);
+            let text =
+                indent::newline_for_indenter(indenter.as_deref(), buffer, selection.min(), &config);
             Some(span_edit(buffer, selection.min(), selection.max(), &text))
         })
         .map_err(CommandError::Transaction)?
@@ -615,11 +616,9 @@ fn indent_cmd(ws: &mut Workspace, view: ViewId, out: bool) -> Result<(), Command
     apply_change(ws, view, tx, None, EditKind::Indent)
 }
 
-fn uses_cstyle(ws: &Workspace, doc: &crate::Document) -> bool {
-    let Some(id) = doc.syntax.definition else {
-        return false;
-    };
-    ws.syntax.definition(id).indenter.as_deref() == Some("cstyle")
+fn indenter_name(ws: &Workspace, doc: &crate::Document) -> Option<String> {
+    let id = doc.syntax.definition?;
+    ws.syntax.definition(id).indenter.clone()
 }
 
 fn touched_lines(buf: &TextBuffer, sel: &Selections) -> Vec<u32> {
@@ -2446,6 +2445,25 @@ indent_size = 8
         assert_eq!(
             newline_on(&mut ws, Some(plain), "    foo{"),
             "    foo{\n    "
+        );
+    }
+
+    #[test]
+    fn python_definition_indents_after_a_colon() {
+        const PY: &str = r##"<language name="Py" section="Test" version="1" kateversion="5.0" extensions="*.py" indenter="python" license="MIT"><highlighting><contexts><context name="Normal" attribute="Normal" lineEndContext="#stay"><DetectChar char="x" context="#stay"/></context></contexts><itemDatas><itemData name="Normal" defStyleNum="dsNormal"/></itemDatas></highlighting></language>"##;
+        const CSTYLE_LANG: &str = r##"<language name="CStyleLang" section="Test" version="1" kateversion="5.0" extensions="*.csx" indenter="CStyle" license="MIT"><highlighting><contexts><context name="Normal" attribute="Normal" lineEndContext="#stay"><DetectChar char="x" context="#stay"/></context></contexts><itemDatas><itemData name="Normal" defStyleNum="dsNormal"/></itemDatas></highlighting></language>"##;
+        let mut ws = workspace();
+        ws.syntax.add_xml(PY).expect("py xml");
+        ws.syntax.add_xml(CSTYLE_LANG).expect("cstyle lang xml");
+        ws.syntax.link().expect("link");
+        let py = ws.syntax.by_name("Py").expect("Py");
+        let cstyle_lang = ws.syntax.by_name("CStyleLang").expect("CStyleLang");
+        assert_eq!(newline_on(&mut ws, Some(py), "def f():"), "def f():\n    ");
+        assert_eq!(newline_on(&mut ws, Some(py), "def f()"), "def f()\n");
+        assert_eq!(newline_on(&mut ws, None, "def f():"), "def f():\n");
+        assert_eq!(
+            newline_on(&mut ws, Some(cstyle_lang), "    foo{"),
+            "    foo{\n        "
         );
     }
 
