@@ -330,7 +330,7 @@ fn has_cased(chars: impl Iterator<Item = char>) -> bool {
 }
 
 fn is_word_char(ch: char) -> bool {
-    char_matches(ch, class_re(r"\A\w\z", 0))
+    ch == '\'' || char_matches(ch, class_re(r"\A\w\z", 0))
 }
 
 fn is_cased(ch: char) -> bool {
@@ -350,4 +350,24 @@ fn class_re(pattern: &'static str, slot: usize) -> &'static regex::Regex {
     static SLOTS: [OnceLock<regex::Regex>; 3] = [OnceLock::new(), OnceLock::new(), OnceLock::new()];
     SLOTS[slot]
         .get_or_init(|| regex::Regex::new(pattern).expect("character class pattern is valid"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_whole_word;
+    use ropey::Rope;
+
+    #[test]
+    fn an_apostrophe_is_inside_a_word() {
+        let rope = Rope::from_str("don't");
+        // Span 0..3 ("don") is NOT a whole word because the apostrophe at 3
+        // is a word character, so position 3 is not a boundary.
+        assert!(!is_whole_word(&rope, 0, 3));
+        // Span 0..5 ("don't") IS a whole word: both ends are string boundaries.
+        assert!(is_whole_word(&rope, 0, 5));
+
+        let rope = Rope::from_str("cat.");
+        // Span 0..3 ("cat") IS a whole word: period is not a word character.
+        assert!(is_whole_word(&rope, 0, 3));
+    }
 }
