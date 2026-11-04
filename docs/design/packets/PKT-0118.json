@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 125,
     "branch": "pkt/PKT-0118-word-movement-keys",
     "base_sha": "d316f8a9b03b9c9d699d78ec58146501e8fb4e0d"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/125"
   },
   "lane": {
     "runtime": "LOCAL",
