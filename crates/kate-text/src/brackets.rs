@@ -17,7 +17,7 @@ enum Hit {
 }
 
 /// Opener and closer for each pair.
-const PAIRS: [(char, char); 3] = [('(', ')'), ('[', ']'), ('{', '}')];
+const PAIRS: [(char, char); 4] = [('(', ')'), ('[', ']'), ('{', '}'), ('<', '>')];
 
 /// Returns the offset of the bracket that pairs with the scalar at `at`.
 ///
@@ -196,5 +196,19 @@ mod tests {
         assert_eq!(matching_bracket(&same_depth, Offset(0)), None);
 
         assert_eq!(matching_bracket(&TextBuffer::from_str(""), Offset(0)), None);
+    }
+
+    #[test]
+    fn angle_brackets_match() {
+        let buf = TextBuffer::from_str("a<b>");
+        assert_eq!(matching_bracket(&buf, Offset(1)), Some(Offset(3)));
+        assert_eq!(matching_bracket(&buf, Offset(3)), Some(Offset(1)));
+
+        let nested = TextBuffer::from_str("<<>>");
+        assert_eq!(matching_bracket(&nested, Offset(0)), Some(Offset(3)));
+        assert_eq!(matching_bracket(&nested, Offset(1)), Some(Offset(2)));
+
+        let spaced = TextBuffer::from_str("a < b");
+        assert_eq!(matching_bracket(&spaced, Offset(2)), None);
     }
 }
