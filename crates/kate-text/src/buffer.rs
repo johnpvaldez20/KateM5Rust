@@ -87,6 +87,14 @@ impl TextBuffer {
         self.text.slice(range.start().0..range.end().0)
     }
 
+    /// Returns the scalar at `at`, or `None` when `at` is at or past the end.
+    pub fn char_at(&self, at: Offset) -> Option<char> {
+        if at.0 >= self.len().0 {
+            return None;
+        }
+        Some(self.text.char(at.0))
+    }
+
     /// Validates every edit against the current text, applies all, bumps revision by exactly 1.
     pub fn apply(&mut self, tx: &Transaction) -> Result<Revision, ApplyError> {
         validate(&self.text, tx)?;
@@ -617,5 +625,13 @@ mod tests {
             prop_assert_eq!(sample.offset(LineCol { line: 0, col: 100 }), Offset(2));
             prop_assert_eq!(sample.offset(LineCol { line: 1, col: 100 }), sample.len());
         }
+    }
+
+    #[test]
+    fn char_at_is_none_past_the_end() {
+        let buf = TextBuffer::from_str("ab");
+        assert_eq!(buf.char_at(Offset(0)), Some('a'));
+        assert_eq!(buf.char_at(Offset(1)), Some('b'));
+        assert_eq!(buf.char_at(Offset(2)), None);
     }
 }
