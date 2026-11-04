@@ -1,0 +1,148 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0142",
+  "title": "kate-core: wrap a quote after an even backslash run",
+  "summary": "A quote after one backslash stays plain. A quote after two backslashes wraps. A quote after a letter stays plain. The test goes in the existing pair tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-04T14:43:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0142-even-backslash-quote",
+    "base_sha": "bef6c22635d32aae00455d9d2d370198d40aeafe"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/pair.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/fanout.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0019",
+      "PKT-0083",
+      "PKT-0126"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/pair.rs",
+        "definition": "fn odd_backslashes_before(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "pair.rs is a private module of fanout.rs. Its one test module is mod tests.  Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not add a second module with the same name. Add odd_backslashes_before. Count the backslash scalars immediately before at. Return true when that count is odd. Use let-else inside the walk: let Some(ch) = char_at(buf, index - 1) else { break; }; Do not match Option by hand. Replace the last line of quote_stays_plain with this exact return. Do not nest an if inside another if. return is_ascii_word(prev) || (prev is a backslash && odd_backslashes_before(buf, selection.min())); Write that as one boolean expression with || and &&. Do not touch plan_pair, is_type_over, is_opener, is_closer, is_quote, closer_for, one_scalar, char_before, or char_at. The existing test a_quote_after_a_backslash_stays_plain stays green. The test an_even_backslash_run_wraps_a_quote uses a buffer of two backslash scalars and a caret at Offset(2). plan_pair of a double quote returns Wrap with caret_after_open true. A buffer of one backslash and a caret at Offset(1) still returns Plain for a double quote. A buffer of the letter a and a caret at Offset(1) still returns Plain for a double quote. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked fanout::pair::tests::an_even_backslash_run_wraps_a_quote"
+    ],
+    "regression_tests": [
+      {
+        "name": "fanout::pair::tests::an_even_backslash_run_wraps_a_quote",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. A quote after two backslashes returns Plain. After the change it returns Wrap with caret_after_open true. A quote after one backslash stays Plain. A quote after the letter a stays Plain."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
