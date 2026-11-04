@@ -66,6 +66,22 @@ impl View {
     pub fn offset_is_folded(&self, at: Offset) -> bool {
         self.folds.iter().any(|range| range.contains(at))
     }
+
+    /// Return the shortest stored range that contains `at`.
+    ///
+    /// When two ranges have the same length, the one with the later start wins.
+    /// Returns `None` when no stored range contains `at`.
+    pub fn folded_range_at(&self, at: Offset) -> Option<CharRange> {
+        self.folds
+            .iter()
+            .filter(|range| range.contains(at))
+            .min_by(|a, b| {
+                a.len()
+                    .cmp(&b.len())
+                    .then_with(|| b.start().cmp(&a.start()))
+            })
+            .copied()
+    }
 }
 
 fn char_range_for_span(text: &str, span: fold::FoldSpan) -> CharRange {
@@ -139,5 +155,50 @@ mod tests {
         assert!(view.offset_is_folded(Offset(1)));
         assert!(view.offset_is_folded(Offset(5)));
         assert!(!view.offset_is_folded(Offset(6)));
+    }
+
+    #[test]
+    fn folded_range_at_picks_the_shortest() {
+        let mut view = View {
+            document: DocumentId::default(),
+            selections: Selections::single(Selection::caret(Offset(0))),
+            scroll: Scroll::default(),
+            folds: Vec::new(),
+            dynamic_wrap: false,
+        };
+        view.apply_indent_folds("a\n  b\n", 4);
+        assert_eq!(view.folded_range_at(Offset(0)), None);
+        assert_eq!(
+            view.folded_range_at(Offset(1)),
+            Some(CharRange::new(Offset(1), Offset(6)))
+        );
+        assert_eq!(
+            view.folded_range_at(Offset(5)),
+            Some(CharRange::new(Offset(1), Offset(6)))
+        );
+        assert_eq!(view.folded_range_at(Offset(6)), None);
+
+        view.folds = vec![
+            CharRange::new(Offset(0), Offset(10)),
+            CharRange::new(Offset(2), Offset(5)),
+        ];
+        assert_eq!(
+            view.folded_range_at(Offset(3)),
+            Some(CharRange::new(Offset(2), Offset(5)))
+        );
+        assert_eq!(
+            view.folded_range_at(Offset(1)),
+            Some(CharRange::new(Offset(0), Offset(10)))
+        );
+        assert_eq!(view.folded_range_at(Offset(10)), None);
+
+        view.folds = vec![
+            CharRange::new(Offset(0), Offset(4)),
+            CharRange::new(Offset(1), Offset(5)),
+        ];
+        assert_eq!(
+            view.folded_range_at(Offset(2)),
+            Some(CharRange::new(Offset(1), Offset(5)))
+        );
     }
 }

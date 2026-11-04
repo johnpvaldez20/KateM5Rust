@@ -296,6 +296,26 @@ const MOVE_BINDINGS: &[MoveBinding] = &[
         movement: Movement::ToMatch,
         extend: Extend::Yes,
     },
+    MoveBinding {
+        name: "alt-left",
+        movement: Movement::WordLeft,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "alt-right",
+        movement: Movement::WordRight,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "alt-shift-left",
+        movement: Movement::WordLeft,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "alt-shift-right",
+        movement: Movement::WordRight,
+        extend: Extend::Yes,
+    },
 ];
 
 fn move_binding(name: &str) -> Option<Command> {
@@ -653,5 +673,37 @@ mod tests {
         assert_eq!(command_for_binding("ctrl-]"), Some(Command::Indent));
         assert_eq!(command_for_binding("ctrl-["), Some(Command::Unindent));
         assert_eq!(command_for_binding("f5"), Some(Command::Reload));
+    }
+
+    #[test]
+    fn alt_arrow_moves_by_word() {
+        assert_eq!(
+            command_for_binding("alt-left"),
+            Some(Command::Move(Movement::WordLeft, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("option-left"),
+            Some(Command::Move(Movement::WordLeft, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("alt-right"),
+            Some(Command::Move(Movement::WordRight, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("shift-alt-left"),
+            Some(Command::Move(Movement::WordLeft, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("alt-shift-left"),
+            Some(Command::Move(Movement::WordLeft, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("alt-shift-right"),
+            Some(Command::Move(Movement::WordRight, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("left"),
+            Some(Command::Move(Movement::Left, Extend::No))
+        );
     }
 }
