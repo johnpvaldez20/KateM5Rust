@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 134,
     "branch": "pkt/PKT-0126-quote-after-backslash",
     "base_sha": "dd37a0adc8eced677ba0f1a5d582b6abf782e516"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/134"
   },
   "lane": {
     "runtime": "LOCAL",
