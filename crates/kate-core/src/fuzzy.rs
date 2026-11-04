@@ -63,6 +63,7 @@ fn score_one(chars: &[char], index: usize, previous_match: Option<usize>) -> i32
     16 + boundary_bonus(chars, index)
         + gap_adjust(previous_match, index)
         + camel_bonus(chars, index)
+        + digit_hump(chars, index)
 }
 
 fn boundary_bonus(chars: &[char], index: usize) -> i32 {
@@ -89,6 +90,17 @@ fn camel_bonus(chars: &[char], index: usize) -> i32 {
     let previous = chars[index - 1];
     let current = chars[index];
     if previous.is_ascii_lowercase() && current.is_ascii_uppercase() {
+        8
+    } else {
+        0
+    }
+}
+
+fn digit_hump(chars: &[char], index: usize) -> i32 {
+    let Some(previous) = index.checked_sub(1).and_then(|at| chars.get(at).copied()) else {
+        return 0;
+    };
+    if previous.is_ascii_digit() && chars[index].is_ascii_uppercase() {
         8
     } else {
         0
@@ -152,6 +164,17 @@ mod tests {
         assert_eq!(
             gap_adjust(Some(0), usize::MAX),
             0i32.saturating_sub(i32::MAX)
+        );
+    }
+
+    #[test]
+    fn a_digit_hump_adds_eight() {
+        assert_eq!(
+            fuzzy_match("ab", "a2B"),
+            Some(FuzzyHit {
+                score: 47,
+                positions: vec![0, 2],
+            })
         );
     }
 }
