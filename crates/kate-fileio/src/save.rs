@@ -49,6 +49,15 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Returns `Saved` with the byte count, SHA-256 digest, and mtime of the
 /// written file.
 pub fn save(path: &Path, text: &Rope, opts: &EncodeOptions) -> Result<Saved, SaveError> {
+    if let Ok(meta) = std::fs::metadata(path)
+        && !meta.is_file()
+    {
+        return Err(SaveError::Io {
+            step: SaveStep::CreateTemp,
+            source: std::io::Error::new(std::io::ErrorKind::InvalidInput, "not a regular file"),
+        });
+    }
+
     let bytes = encode(text, opts).map_err(SaveError::Encode)?;
 
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
@@ -205,5 +214,37 @@ mod tests {
         // Original content is unchanged.
         let on_disk = std::fs::read(&target).expect("read target");
         assert_eq!(&on_disk, original);
+    }
+
+    #[test]
+    fn save_refuses_a_directory() {
+        let dir = tempdir().expect("tempdir");
+
+        // Creating a directory where the file should go.
+        let folder = dir.path().join("folder");
+        std::fs::create_dir(&folder).expect("create directory");
+
+        // Saving onto the directory must fail with CreateTemp.
+        let rope = Rope::from_str("x\n");
+        let err = save(&folder, &rope, &utf8_opts(LineEnding::Lf)).unwrap_err();
+        match err {
+            SaveError::Io {
+                step: SaveStep::CreateTemp,
+                ..
+            } => {}
+            other => panic!("expected CreateTemp error, got {other:?}"),
+        }
+
+        // The path is still a directory.
+        assert!(folder.is_dir(), "path must remain a directory");
+
+        // A missing file in the same temp directory still saves.
+        let note = dir.path().join("note.txt");
+        let saved = save(&note, &rope, &utf8_opts(LineEnding::Lf)).expect("save");
+        assert_eq!(saved.bytes_written, 2);
+
+        // The bytes on disk are "x\n".
+        let on_disk = std::fs::read(&note).expect("read note.txt");
+        assert_eq!(&on_disk, b"x\n");
     }
 }
