@@ -43,6 +43,22 @@ fn pair_of(ch: char) -> Option<(char, bool)> {
     None
 }
 
+/// Returns the other side of the bracket for `ch`.
+///
+/// An opener returns its closer. A closer returns its opener.
+/// A non-bracket scalar returns `None`.
+#[allow(dead_code)]
+pub fn bracket_mate(ch: char) -> Option<char> {
+    for (open, close) in PAIRS {
+        if ch == open {
+            return Some(close);
+        } else if ch == close {
+            return Some(open);
+        }
+    }
+    None
+}
+
 /// Returns the bracket scalar the scan starts on.
 fn bracket_at(buf: &TextBuffer, at: Offset) -> Option<(usize, char)> {
     let len = buf.len().0;
@@ -210,5 +226,15 @@ mod tests {
 
         let spaced = TextBuffer::from_str("a < b");
         assert_eq!(matching_bracket(&spaced, Offset(2)), None);
+    }
+
+    #[test]
+    fn bracket_mate_names_the_other_side() {
+        assert_eq!(super::bracket_mate('('), Some(')'));
+        assert_eq!(super::bracket_mate(')'), Some('('));
+        assert_eq!(super::bracket_mate('<'), Some('>'));
+        assert_eq!(super::bracket_mate('>'), Some('<'));
+        assert_eq!(super::bracket_mate('a'), None);
+        assert_eq!(super::bracket_mate('"'), None);
     }
 }
