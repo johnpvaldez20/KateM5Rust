@@ -94,12 +94,28 @@ fn quote_stays_plain(buf: &kate_text::TextBuffer, selection: crate::Selection, c
     let Some(prev) = char_before(buf, selection.min()) else {
         return false;
     };
-    prev == '\\' || is_ascii_word(prev)
+    is_ascii_word(prev) || (prev == '\\' && odd_backslashes_before(buf, selection.min()))
 }
 
 fn char_before(buf: &kate_text::TextBuffer, at: Offset) -> Option<char> {
     let index = at.0.checked_sub(1)?;
     char_at(buf, index)
+}
+
+fn odd_backslashes_before(buf: &kate_text::TextBuffer, at: Offset) -> bool {
+    let mut count = 0;
+    let mut index = at.0;
+    while index > 0 {
+        let Some(ch) = char_at(buf, index - 1) else {
+            break;
+        };
+        if ch != '\\' {
+            break;
+        }
+        count += 1;
+        index -= 1;
+    }
+    count % 2 == 1
 }
 
 fn char_at(buf: &kate_text::TextBuffer, index: usize) -> Option<char> {
@@ -307,5 +323,25 @@ mod tests {
                 caret_after_open: true
             }
         );
+    }
+
+    #[test]
+    fn an_even_backslash_run_wraps_a_quote() {
+        let buf = TextBuffer::from_str("\\\\");
+        let selection = Selection::caret(Offset(2));
+        assert_eq!(
+            plan_pair(&buf, selection, "\""),
+            PairPlan::Wrap {
+                caret_after_open: true
+            }
+        );
+
+        let buf = TextBuffer::from_str("\\");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+
+        let buf = TextBuffer::from_str("a");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
     }
 }
