@@ -58,10 +58,16 @@ pub(crate) fn resume_color_line(
 /// `checkpoint` is the first line that has not been highlighted yet.
 /// `first` and `last` are inclusive viewport lines.
 pub(crate) fn highlight_step(checkpoint: u32, first: u32, last: u32, budget: u32) -> HighlightStep {
-    if last < first || budget == 0 {
+    if last < first {
         return HighlightStep {
             ensure_through: None,
             plain_from: Some(first),
+        };
+    }
+    if budget == 0 {
+        return HighlightStep {
+            ensure_through: None,
+            plain_from: if last < checkpoint { None } else { Some(first) },
         };
     }
     if last < checkpoint {
@@ -166,5 +172,22 @@ mod tests {
         assert_eq!(resume_color_line(24, 0, 40, 30), 24);
         // Cursor at the exclusive end 40 is outside 0..40; return visible_first.
         assert_eq!(resume_color_line(40, 0, 40, 20), 0);
+    }
+
+    #[test]
+    fn a_zero_budget_keeps_color_behind_the_checkpoint() {
+        // Viewport is behind the checkpoint: lines are already colored.
+        let step = highlight_step(1000, 10, 50, 0);
+        assert_eq!(step.ensure_through, None);
+        assert_eq!(step.plain_from, None);
+
+        // Viewport at the checkpoint with zero budget: lines still need color.
+        let step = highlight_step(0, 0, 39, 0);
+        assert_eq!(step.ensure_through, None);
+        assert_eq!(step.plain_from, Some(0));
+
+        // Empty viewport (last < first) still returns plain_from Some(first).
+        let step = highlight_step(0, 10, 5, 0);
+        assert_eq!(step.plain_from, Some(10));
     }
 }
