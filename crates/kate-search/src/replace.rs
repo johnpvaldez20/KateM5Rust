@@ -28,11 +28,15 @@ pub(crate) fn replace_all(
         } else {
             escape::expand(replacement, hit, rope, names.as_deref())
         };
-        edits.push(Edit {
+        let edit = Edit {
             start: hit.range.start(),
             old: slice_text(rope, hit.range),
             new,
-        });
+        };
+        if edit.old == edit.new {
+            continue;
+        }
+        edits.push(edit);
     }
     edits.sort_by_key(|edit| edit.start);
     let edits = keep_disjoint(edits);
@@ -135,5 +139,37 @@ mod tests {
         let (tx, count) = replace_all(&buf, &q, "b").unwrap();
         assert_eq!(count, 1);
         assert!(!tx.is_empty());
+    }
+
+    #[test]
+    fn a_same_replacement_inserts_nothing() {
+        let buf = TextBuffer::from_str("aba");
+
+        // Pattern "a" replaced by "a": count 0, empty transaction.
+        let q = SearchQuery {
+            pattern: Pattern::Plain("a".to_string()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let (tx, count) = replace_all(&buf, &q, "a").unwrap();
+        assert_eq!(count, 0);
+        assert!(tx.is_empty());
+
+        // Pattern "a" replaced by "b": count 2.
+        let (tx, count) = replace_all(&buf, &q, "b").unwrap();
+        assert_eq!(count, 2);
+        assert!(!tx.is_empty());
+
+        // Empty plain pattern replaced by "x": count 0.
+        let q = SearchQuery {
+            pattern: Pattern::Plain(String::new()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let (tx, count) = replace_all(&buf, &q, "x").unwrap();
+        assert_eq!(count, 0);
+        assert!(tx.is_empty());
     }
 }
