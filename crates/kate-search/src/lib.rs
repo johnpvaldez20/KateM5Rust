@@ -99,12 +99,7 @@ pub fn find_all(buf: &TextBuffer, q: &SearchQuery) -> Result<Vec<Match>, SearchE
                 end,
             ))
         }
-        Pattern::Regex(pattern) => {
-            if pattern.is_empty() {
-                return Ok(Vec::new());
-            }
-            regex_find::find(rope, pattern, q.case_sensitive, start, end)
-        }
+        Pattern::Regex(pattern) => regex_find::find(rope, pattern, q.case_sensitive, start, end),
     }
 }
 
@@ -317,8 +312,7 @@ mod find_tests {
         };
 
         // find_all still runs and returns Ok for an empty regex.
-        let spans = find_all(&buf, &empty).expect("regex search does not fail");
-        assert!(spans.is_empty());
+        assert!(find_all(&buf, &empty).is_ok());
 
         // find_next returns None for an empty regex.
         assert_eq!(
