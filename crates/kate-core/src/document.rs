@@ -100,8 +100,8 @@ impl FileState {
     pub fn note_disk(&mut self, exists: bool, digest: [u8; 32]) {
         self.disk_change = match exists {
             false => Some(DiskChange::Deleted),
-            true if self.disk_change == Some(DiskChange::Deleted) => Some(DiskChange::Created),
             true if digest != self.digest_on_disk => Some(DiskChange::Modified),
+            true if self.disk_change == Some(DiskChange::Deleted) => Some(DiskChange::Created),
             true => None,
         };
     }
@@ -455,5 +455,25 @@ end_of_line = lf
             super::reload_prompt_line(Some(&file), true),
             Some("The file on disk came back.")
         );
+    }
+
+    #[test]
+    fn a_changed_file_after_delete_is_modified() {
+        let mut file = file_state(PathBuf::from("plain.txt"), LineEnding::Lf);
+        let stored = file.digest_on_disk;
+
+        file.note_disk(false, stored);
+        assert_eq!(file.disk_change, Some(DiskChange::Deleted));
+
+        let mut other = stored;
+        other[0] = other[0].wrapping_add(1);
+        file.note_disk(true, other);
+        assert_eq!(file.disk_change, Some(DiskChange::Modified));
+        assert_eq!(file.digest_on_disk, stored);
+
+        file.note_disk(false, other);
+        file.note_disk(true, stored);
+        assert_eq!(file.disk_change, Some(DiskChange::Created));
+        assert_eq!(file.digest_on_disk, stored);
     }
 }
