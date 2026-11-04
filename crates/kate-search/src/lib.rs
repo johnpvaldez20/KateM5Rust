@@ -99,7 +99,12 @@ pub fn find_all(buf: &TextBuffer, q: &SearchQuery) -> Result<Vec<Match>, SearchE
                 end,
             ))
         }
-        Pattern::Regex(pattern) => regex_find::find(rope, pattern, q.case_sensitive, start, end),
+        Pattern::Regex(pattern) => {
+            if pattern.is_empty() {
+                return Ok(Vec::new());
+            }
+            regex_find::find(rope, pattern, q.case_sensitive, start, end)
+        }
     }
 }
 
@@ -128,6 +133,9 @@ pub fn find_next(
         if expanded.is_empty() {
             return Ok(None);
         }
+    }
+    if matches!(&q.pattern, Pattern::Regex(pattern) if pattern.is_empty()) {
+        return Ok(None);
     }
     let found = find_all(buf, q)?;
     let from = Offset(from.0.min(buf.len().0));
@@ -296,5 +304,47 @@ mod find_tests {
             .expect("plain search does not fail")
             .expect("a plain pattern a returns the hit");
         assert_eq!(hit.range, CharRange::new(Offset(0), Offset(1)));
+    }
+
+    #[test]
+    fn an_empty_regex_pattern_returns_none() {
+        let buf = TextBuffer::from_str("abc");
+        let empty = SearchQuery {
+            pattern: Pattern::Regex(String::new()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+
+        // find_all still runs and returns Ok for an empty regex.
+        let spans = find_all(&buf, &empty).expect("regex search does not fail");
+        assert!(spans.is_empty());
+
+        // find_next returns None for an empty regex.
+        assert_eq!(
+            find_next(&buf, &empty, Offset(0), false, false).expect("regex search does not fail"),
+            None
+        );
+
+        // A non-empty regex still finds a hit.
+        let re = SearchQuery {
+            pattern: Pattern::Regex("a".to_string()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let hit = find_next(&buf, &re, Offset(0), false, false)
+            .expect("regex search does not fail")
+            .expect("regex a returns a hit");
+        assert_eq!(hit.range, CharRange::new(Offset(0), Offset(1)));
+
+        // An invalid regex still returns an error.
+        let bad = SearchQuery {
+            pattern: Pattern::Regex("(".to_string()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        assert!(find_next(&buf, &bad, Offset(0), false, false).is_err());
     }
 }
