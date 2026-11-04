@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 143,
     "branch": "pkt/PKT-0135-apostrophe-completion",
     "base_sha": "a2b3c9f769848fbce96a503ea9a56eb73c866160"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/143"
   },
   "lane": {
     "runtime": "LOCAL",
