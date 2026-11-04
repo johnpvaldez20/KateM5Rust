@@ -100,6 +100,19 @@ impl FindBar {
     pub fn replace_all(&self, buf: &TextBuffer) -> Result<(Transaction, usize), SearchError> {
         crate::replace_all(buf, &self.query(), &self.replacement)
     }
+
+    /// Counts hits in `buf`. An empty pattern yields zero.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`crate::find_all`].
+    pub fn hit_count(&self, buf: &kate_text::TextBuffer) -> Result<usize, SearchError> {
+        if self.pattern.is_empty() {
+            return Ok(0);
+        }
+        let hits = crate::find_all(buf, &self.query())?;
+        Ok(hits.len())
+    }
 }
 
 /// A plain pattern copies the replacement.
@@ -282,5 +295,18 @@ mod tests {
         assert_eq!(tx.edits()[0].new, "\n${head}");
         buf.apply(&tx).expect("the transaction matches the buffer");
         assert_eq!(buf.text().to_string(), "\n${head}");
+    }
+
+    #[test]
+    fn hit_count_skips_an_empty_pattern() {
+        let buf = TextBuffer::from_str("aba");
+        let empty = sample("", "", FindMode::Plain, false);
+        assert_eq!(empty.hit_count(&buf).expect("no error"), 0);
+
+        let bar = sample("a", "", FindMode::Plain, false);
+        assert_eq!(bar.hit_count(&buf).expect("no error"), 2);
+
+        let bad = sample("(", "", FindMode::Regex, false);
+        assert!(bad.hit_count(&buf).is_err());
     }
 }
