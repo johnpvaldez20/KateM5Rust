@@ -136,7 +136,7 @@ fn to_wire_form(s: &str, opts: &EncodeOptions) -> String {
         }
         i += 1;
     }
-    if opts.ensure_trailing_newline && !s.is_empty() && !s.ends_with('\n') {
+    if opts.ensure_trailing_newline && !s.is_empty() && !s.ends_with('\n') && !s.ends_with('\r') {
         out.push_str(opts.line_ending.as_str());
     }
     out
@@ -453,6 +453,61 @@ mod tests {
             };
             let bytes = encode(&rope, &opts).unwrap();
             assert_eq!(&bytes, b"a\rb");
+        }
+    }
+
+    #[test]
+    fn a_trailing_cr_counts_as_an_ending() {
+        // "a\r" with Lf ending and ensure_trailing_newline → "a\r" (CR is an ending).
+        {
+            let rope = Rope::from_str("a\r");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\r");
+        }
+
+        // "a" with Lf ending and ensure_trailing_newline → "a\n" (no ending, add one).
+        {
+            let rope = Rope::from_str("a");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\n");
+        }
+
+        // "a\n" with Lf ending and ensure_trailing_newline → "a\n" (already has ending).
+        {
+            let rope = Rope::from_str("a\n");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\n");
+        }
+
+        // "a\r\n" with CrLf ending and ensure_trailing_newline → "a\r\n" (already ends with LF).
+        {
+            let rope = Rope::from_str("a\r\n");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::CrLf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\r\n");
         }
     }
 }
