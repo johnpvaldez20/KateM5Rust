@@ -316,6 +316,26 @@ const MOVE_BINDINGS: &[MoveBinding] = &[
         movement: Movement::WordRight,
         extend: Extend::Yes,
     },
+    MoveBinding {
+        name: "ctrl-a",
+        movement: Movement::LineStart,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "ctrl-e",
+        movement: Movement::LineEnd,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "ctrl-shift-a",
+        movement: Movement::LineStart,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "ctrl-shift-e",
+        movement: Movement::LineEnd,
+        extend: Extend::Yes,
+    },
 ];
 
 fn move_binding(name: &str) -> Option<Command> {
@@ -718,5 +738,30 @@ mod tests {
         assert_eq!(command_for_binding("ctrl-y"), Some(Command::Redo));
         assert_eq!(command_for_binding("cmd-z"), Some(Command::Undo));
         assert_eq!(command_for_binding("shift-cmd-z"), Some(Command::Redo));
+    }
+
+    #[test]
+    fn ctrl_a_moves_to_the_line_start() {
+        assert_eq!(
+            command_for_binding("ctrl-a"),
+            Some(Command::Move(Movement::LineStart, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("ctrl-e"),
+            Some(Command::Move(Movement::LineEnd, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("ctrl-shift-a"),
+            Some(Command::Move(Movement::LineStart, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("shift-ctrl-a"),
+            Some(Command::Move(Movement::LineStart, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("ctrl-shift-e"),
+            Some(Command::Move(Movement::LineEnd, Extend::Yes))
+        );
+        assert_eq!(command_for_binding("cmd-a"), Some(Command::SelectAll));
     }
 }
