@@ -158,6 +158,13 @@ pub enum MarkKind {
     Error,
 }
 
+impl MarkKind {
+    /// `true` when this is an active or disabled breakpoint.
+    pub fn is_breakpoint(self) -> bool {
+        matches!(self, Self::BreakpointActive | Self::BreakpointDisabled)
+    }
+}
+
 /// Indent and trailing-space policy for one document.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DocumentConfig {
@@ -248,7 +255,9 @@ mod tests {
 
     use kate_fileio::{DecodeOptions, LineEnding};
 
-    use super::{DiskChange, Document, DocumentConfig, FileState, ReloadChoice, TrailingSpaces};
+    use super::{
+        DiskChange, Document, DocumentConfig, FileState, MarkKind, ReloadChoice, TrailingSpaces,
+    };
 
     fn file_state(path: PathBuf, ending: LineEnding) -> FileState {
         FileState {
@@ -475,5 +484,15 @@ end_of_line = lf
         file.note_disk(true, stored);
         assert_eq!(file.disk_change, Some(DiskChange::Created));
         assert_eq!(file.digest_on_disk, stored);
+    }
+
+    #[test]
+    fn a_breakpoint_kind_is_a_breakpoint() {
+        assert!(MarkKind::BreakpointActive.is_breakpoint());
+        assert!(MarkKind::BreakpointDisabled.is_breakpoint());
+        assert!(!MarkKind::Bookmark.is_breakpoint());
+        assert!(!MarkKind::Execution.is_breakpoint());
+        assert!(!MarkKind::Warning.is_breakpoint());
+        assert!(!MarkKind::Error.is_breakpoint());
     }
 }
