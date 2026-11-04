@@ -118,14 +118,23 @@ fn encode_utf16_bytes(s: &str, out: &mut Vec<u8>, little_endian: bool) {
 }
 
 /// Converts `\n` to the target line ending and optionally ensures a trailing newline.
+/// A CR LF pair is treated as one line ending; a lone CR stays a CR.
 fn to_wire_form(s: &str, opts: &EncodeOptions) -> String {
+    let scalars: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        if ch == '\n' {
+    let mut i = 0;
+    while i < scalars.len() {
+        if scalars[i] == '\r' && i + 1 < scalars.len() && scalars[i + 1] == '\n' {
+            // CR LF pair: skip the CR; the LF is handled on the next iteration.
+            i += 1;
+            continue;
+        }
+        if scalars[i] == '\n' {
             out.push_str(opts.line_ending.as_str());
         } else {
-            out.push(ch);
+            out.push(scalars[i]);
         }
+        i += 1;
     }
     if opts.ensure_trailing_newline && !s.is_empty() && !s.ends_with('\n') {
         out.push_str(opts.line_ending.as_str());
@@ -385,6 +394,65 @@ mod tests {
                 .expect("re-encoding should succeed");
 
             assert_eq!(&bytes, &bytes2);
+        }
+    }
+
+    #[test]
+    fn a_crlf_pair_becomes_one_ending() {
+        let text_crlf = "a\r\nb";
+        let text_lf = "a\nb";
+        let text_cr = "a\rb";
+
+        // CR LF pair with CrLf ending → a CR LF b
+        {
+            let rope = Rope::from_str(text_crlf);
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::CrLf,
+                ensure_trailing_newline: false,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\r\nb");
+        }
+
+        // CR LF pair with Lf ending → a LF b
+        {
+            let rope = Rope::from_str(text_crlf);
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: false,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\nb");
+        }
+
+        // Lone LF with CrLf ending → a CR LF b
+        {
+            let rope = Rope::from_str(text_lf);
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::CrLf,
+                ensure_trailing_newline: false,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\r\nb");
+        }
+
+        // Lone CR with CrLf ending → a CR b (stays a lone CR)
+        {
+            let rope = Rope::from_str(text_cr);
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::CrLf,
+                ensure_trailing_newline: false,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\rb");
         }
     }
 }
