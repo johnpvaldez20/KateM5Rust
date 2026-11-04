@@ -123,7 +123,7 @@
       }
     ],
     "public_api_change": "ADDITIVE",
-    "schema_diff_summary": "completion.rs has one test module named tests.  Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not add a second module with the same name. Change only is_word_char. The body is ch == '\\'' || ch.is_ascii_alphanumeric() || ch == '_'. Do not touch word_completions, completion_suffix, matches_between, rewind_word, or forward_word. Do not add a match. The test an_apostrophe_stays_inside_the_word uses TextBuffer::from_str of don't, space, don. word_completions at Offset(9) with limit 4 returns a vector whose one item is don't. completion_suffix at Offset(9) returns Some(\"n't\".to_string()). Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+    "schema_diff_summary": "completion.rs has one test module named tests.  Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not add a second module with the same name. Change only is_word_char. The body is ch == '\\'' || ch.is_ascii_alphanumeric() || ch == '_'. Do not touch word_completions, completion_suffix, matches_between, rewind_word, or forward_word. Do not add a match. The test an_apostrophe_stays_inside_the_word uses TextBuffer::from_str of don't, space, don. word_completions at Offset(9) with limit 4 returns a vector whose one item is don't. completion_suffix at Offset(9) returns Some(\"'t\".to_string()). The typed prefix don is already removed. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
   },
   "verification_plan": {
     "commands": [
@@ -135,7 +135,7 @@
       {
         "name": "completion::tests::an_apostrophe_stays_inside_the_word",
         "kind": "UNIT",
-        "asserts": "This test fails on main. The completion list at the end of don't don is don. After the change the list is don't and the suffix is n't."
+        "asserts": "This test fails on main. The completion list at the end of don't don is don. After the change the list is don't and the suffix is 't. The typed prefix don is already removed."
       }
     ],
     "deterministic": true
