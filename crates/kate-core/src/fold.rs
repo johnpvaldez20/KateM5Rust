@@ -126,9 +126,27 @@ fn line_no(index: usize) -> u32 {
     u32::try_from(index).expect("a line index fits in u32")
 }
 
+/// Return the innermost fold that strictly contains `line`.
+///
+/// A span contains `line` when `line > start && line < end`.
+/// The innermost is the one with the greatest `start`.
+/// When two spans share that start, the shorter one wins.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn innermost_fold(spans: &[FoldSpan], line: u32) -> Option<FoldSpan> {
+    spans
+        .iter()
+        .copied()
+        .filter(|span| line > span.start && line < span.end)
+        .max_by(|a, b| {
+            a.start
+                .cmp(&b.start)
+                .then_with(|| span_len(a).cmp(&span_len(b)).reverse())
+        })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{FoldSpan, indent_folds};
+    use super::{FoldSpan, indent_folds, innermost_fold};
 
     #[test]
     fn nested_indent_makes_two_spans() {
@@ -199,5 +217,28 @@ mod tests {
             indent_folds("a\n  b\n", 4),
             vec![FoldSpan { start: 0, end: 3 }]
         );
+    }
+
+    #[test]
+    fn innermost_fold_picks_the_inner_span() {
+        let spans = indent_folds("a\n  b\n    c\n  d\ne", 4);
+        assert_eq!(
+            spans,
+            vec![FoldSpan { start: 0, end: 4 }, FoldSpan { start: 1, end: 3 }]
+        );
+        assert_eq!(innermost_fold(&spans, 0), None);
+        assert_eq!(
+            innermost_fold(&spans, 1),
+            Some(FoldSpan { start: 0, end: 4 })
+        );
+        assert_eq!(
+            innermost_fold(&spans, 2),
+            Some(FoldSpan { start: 1, end: 3 })
+        );
+        assert_eq!(
+            innermost_fold(&spans, 3),
+            Some(FoldSpan { start: 0, end: 4 })
+        );
+        assert_eq!(innermost_fold(&spans, 4), None);
     }
 }
