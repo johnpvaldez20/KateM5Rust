@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 161,
     "branch": "pkt/PKT-0153-hash-fold",
     "base_sha": "1e674dcf156137c59c9722db447362d18a522bbd"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/161"
   },
   "lane": {
     "runtime": "LOCAL",
