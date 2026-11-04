@@ -13,6 +13,10 @@ pub(crate) fn replace_all(
     q: &SearchQuery,
     replacement: &str,
 ) -> Result<(Transaction, usize), SearchError> {
+    let empty = pattern_is_empty(q)?;
+    if empty {
+        return Ok((Transaction::default(), 0));
+    }
     let found = find_all(buf, q)?;
     let names = capture_names(q)?;
     let rope = buf.text();
@@ -35,6 +39,14 @@ pub(crate) fn replace_all(
     let count = edits.len();
     let tx = Transaction::new(edits).expect("filtered search edits do not overlap");
     Ok((tx, count))
+}
+
+fn pattern_is_empty(q: &SearchQuery) -> Result<bool, SearchError> {
+    match &q.pattern {
+        Pattern::Plain(text) => Ok(text.is_empty()),
+        Pattern::EscapeSequences(text) => Ok(escape::expand_pattern(text)?.is_empty()),
+        Pattern::Regex(text) => Ok(text.is_empty()),
+    }
 }
 
 fn capture_names(q: &SearchQuery) -> Result<Option<Vec<Option<String>>>, SearchError> {
@@ -61,4 +73,67 @@ fn keep_disjoint(edits: Vec<Edit>) -> Vec<Edit> {
 
 fn edits_overlap(left: &Edit, right: &Edit) -> bool {
     left.start.0 < right.old_end().0 && right.start.0 < left.old_end().0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_empty_pattern_inserts_nothing() {
+        let buf = TextBuffer::from_str("abc");
+
+        // Empty Plain pattern: count 0, empty transaction.
+        let q = SearchQuery {
+            pattern: Pattern::Plain(String::new()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let (tx, count) = replace_all(&buf, &q, "x").unwrap();
+        assert_eq!(count, 0);
+        assert!(tx.is_empty());
+
+        // Empty EscapeSequences pattern: count 0, empty transaction.
+        let q = SearchQuery {
+            pattern: Pattern::EscapeSequences(String::new()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let (tx, count) = replace_all(&buf, &q, "x").unwrap();
+        assert_eq!(count, 0);
+        assert!(tx.is_empty());
+
+        // Empty Regex pattern: count 0, empty transaction.
+        let q = SearchQuery {
+            pattern: Pattern::Regex(String::new()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let (tx, count) = replace_all(&buf, &q, "x").unwrap();
+        assert_eq!(count, 0);
+        assert!(tx.is_empty());
+
+        // Invalid escape \q returns Err.
+        let q = SearchQuery {
+            pattern: Pattern::EscapeSequences("\\q".to_string()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        assert!(replace_all(&buf, &q, "x").is_err());
+
+        // Non-empty Plain pattern "a" replaced by "b" still returns count 1.
+        let q = SearchQuery {
+            pattern: Pattern::Plain("a".to_string()),
+            case_sensitive: true,
+            whole_words: false,
+            range: None,
+        };
+        let (tx, count) = replace_all(&buf, &q, "b").unwrap();
+        assert_eq!(count, 1);
+        assert!(!tx.is_empty());
+    }
 }
