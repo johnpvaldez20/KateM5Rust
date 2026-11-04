@@ -1,0 +1,142 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0117",
+  "title": "kate-core: newline uses the indenter name",
+  "summary": "newline_cmd calls newline_for_indenter with the syntax indenter name. A python colon then adds four spaces. CStyle matches in either case. The test goes in the existing workspace tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-03T23:57:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0117-newline-indenter",
+    "base_sha": "d316f8a9b03b9c9d699d78ec58146501e8fb4e0d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0018",
+      "PKT-0055",
+      "PKT-0063",
+      "PKT-0074",
+      "PKT-0091",
+      "PKT-0093",
+      "PKT-0110"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "fn indenter_name(ws: &Workspace, doc: &crate::Document) -> Option<String>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "workspace.rs has 3363 lines. Edit only newline_cmd and replace uses_cstyle. The file has one test module. It is mod tests inside workspace.rs. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not reformat the rest of the file. Delete uses_cstyle. Add indenter_name. It reads doc.syntax.definition. When that id is absent it returns None. Otherwise it returns ws.syntax.definition(id).indenter.clone(). In newline_cmd, replace the cstyle flag and the newline_insertion call. Call indenter_name before the fan_out block. Inside the closure call indent::newline_for_indenter(indenter.as_deref(), buffer, selection.min(), &config). Leave the rest of newline_cmd unchanged. The existing test cstyle_definition_adds_one_unit_on_newline stays green. Add python_definition_indents_after_a_colon in that same mod tests. Copy the language XML from that existing test. One copy uses name Py, extensions *.py, and indenter python. One copy uses name CStyleLang, extensions *.csx, and indenter CStyle. Use the existing newline_on helper. Py on def f(): returns def f(): plus a newline plus four spaces. Py on def f() returns def f() plus a newline. No syntax on def f(): returns def f(): plus a newline. CStyleLang on four spaces, foo, and a brace returns that line, a newline, and eight spaces. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::tests::python_definition_indents_after_a_colon"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::python_definition_indents_after_a_colon",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. Enter after def f(): with indenter python inserts only a newline. After the change it inserts a newline and four spaces. Enter after def f() inserts only a newline. A missing syntax on def f(): inserts only a newline. Enter after four spaces, foo, and a brace with indenter CStyle inserts a newline and eight spaces."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

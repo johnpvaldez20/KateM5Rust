@@ -274,6 +274,27 @@ The index is `docs/design/WAVE-0109.md`.
 | PKT-0115 | `kate-core`: test an offset against every selection | LOCAL | 0107 |
 | PKT-0116 | `kate-search`: skip a find for an empty escape | LOCAL | 0098 |
 
+## Wave PKT-0117
+
+WAVE-0109 is on main.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+The index is `docs/design/WAVE-0117.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0117 | `kate-core`: newline uses the indenter name | LOCAL | 0110 |
+| PKT-0118 | `kate-ui`: bind option-arrow to word movement | LOCAL | 0114 |
+| PKT-0119 | `kate-search`: skip a find for an empty regex | LOCAL | 0116 |
+| PKT-0120 | `kate-core`: dedent a Python return line | LOCAL | 0103 |
+| PKT-0121 | `kate-text`: match angle brackets | LOCAL | 0058 |
+| PKT-0122 | `kate-core`: pick the innermost indent fold | LOCAL | 0073 |
+| PKT-0123 | `kate-core`: return the fold range at an offset | LOCAL | 0102 |
+| PKT-0124 | `kate-core`: score a camel-case hump | LOCAL | 0060 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

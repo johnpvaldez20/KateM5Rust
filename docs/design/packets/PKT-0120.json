@@ -1,0 +1,140 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0120",
+  "title": "kate-core: dedent a Python return line",
+  "summary": "python_newline drops one indent unit when the line is return, pass, break, continue, or raise. A colon line still gains one unit. The test goes in the existing indent tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-03T23:57:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0120-python-dedent",
+    "base_sha": "d316f8a9b03b9c9d699d78ec58146501e8fb4e0d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/indent.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0018",
+      "PKT-0053",
+      "PKT-0084",
+      "PKT-0086",
+      "PKT-0097",
+      "PKT-0103"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/indent.rs",
+        "definition": "pub fn python_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> String"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "indent.rs is a private module of workspace.rs. Its one test module is mod tests. Add the new function at the end of that module, before its closing brace. Do not write a second mod tests. In python_newline, read the prefix with text_before_caret. When the line is not a comment and its first word is return, pass, break, continue, or raise, push a newline and the leading indent with one unit removed. The first word ends at the first ASCII whitespace. return: is not the word return. A comment line keeps its indent and does not drop a unit. Every other line keeps the current rule. Copy the leading indent. A colon that is not in a comment adds one indent unit. without_one_unit uses remove_unit and returns the indent after that prefix. An empty removal returns the same indent. Use the existing python_inserted helper. The test a_return_line_drops_one_indent_unit uses DocumentConfig::default. Four spaces and return returns a newline. Eight spaces and return returns a newline and four spaces. Four spaces, return, space, and x returns a newline. Four spaces and returning returns a newline and four spaces. Four spaces, hash, space, and return returns a newline and four spaces. def f(): still returns a newline and four spaces. def f(): pass still returns a newline. A tabs config with two tabs and pass returns a newline and one tab. break, continue, and raise with four spaces each return a newline. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::indent::tests::a_return_line_drops_one_indent_unit"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::indent::tests::a_return_line_drops_one_indent_unit",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. python_newline on four spaces and return returns a newline and four spaces. After the change it returns a newline. Eight spaces and return returns a newline and four spaces. returning and a comment keep four spaces. def f(): still adds four spaces. def f(): pass still returns a newline. Two tabs and pass returns a newline and one tab."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
