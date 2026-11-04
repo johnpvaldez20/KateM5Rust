@@ -144,9 +144,15 @@ pub fn innermost_fold(spans: &[FoldSpan], line: u32) -> Option<FoldSpan> {
         })
 }
 
+/// Return `true` when `line` is strictly inside the half-open span.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn span_contains_line(span: FoldSpan, line: u32) -> bool {
+    line > span.start && line < span.end
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{FoldSpan, indent_folds, innermost_fold};
+    use super::{FoldSpan, indent_folds, innermost_fold, span_contains_line};
 
     #[test]
     fn nested_indent_makes_two_spans() {
@@ -240,5 +246,15 @@ mod tests {
             Some(FoldSpan { start: 0, end: 4 })
         );
         assert_eq!(innermost_fold(&spans, 4), None);
+    }
+
+    #[test]
+    fn span_contains_line_is_open_at_both_ends() {
+        let span = FoldSpan { start: 0, end: 4 };
+        assert!(!span_contains_line(span, 0));
+        assert!(span_contains_line(span, 1));
+        assert!(span_contains_line(span, 2));
+        assert!(span_contains_line(span, 3));
+        assert!(!span_contains_line(span, 4));
     }
 }
