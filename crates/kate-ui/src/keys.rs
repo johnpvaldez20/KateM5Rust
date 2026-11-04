@@ -340,6 +340,9 @@ fn edit_binding(name: &str) -> Option<Command> {
         "cmd-a" => Some(Command::SelectAll),
         "cmd-z" => Some(Command::Undo),
         "shift-cmd-z" => Some(Command::Redo),
+        "ctrl-z" => Some(Command::Undo),
+        "ctrl-shift-z" => Some(Command::Redo),
+        "ctrl-y" => Some(Command::Redo),
         "cmd-s" => Some(Command::Save),
         "ctrl-s" => Some(Command::Save),
         "alt-shift-down" => Some(Command::AddCursorBelow),
@@ -705,5 +708,15 @@ mod tests {
             command_for_binding("left"),
             Some(Command::Move(Movement::Left, Extend::No))
         );
+    }
+
+    #[test]
+    fn ctrl_z_undoes() {
+        assert_eq!(command_for_binding("ctrl-z"), Some(Command::Undo));
+        assert_eq!(command_for_binding("ctrl-shift-z"), Some(Command::Redo));
+        assert_eq!(command_for_binding("shift-ctrl-z"), Some(Command::Redo));
+        assert_eq!(command_for_binding("ctrl-y"), Some(Command::Redo));
+        assert_eq!(command_for_binding("cmd-z"), Some(Command::Undo));
+        assert_eq!(command_for_binding("shift-cmd-z"), Some(Command::Redo));
     }
 }
