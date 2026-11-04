@@ -28,19 +28,38 @@ pub enum LoadError {
     Decode(DecodeError),
 }
 
+/// Open `path` with the non-blocking flag so a FIFO does not stall the caller.
+#[cfg(unix)]
+fn open_load_file(path: &Path) -> std::io::Result<File> {
+    use std::fs::OpenOptions;
+    use std::os::unix::fs::OpenOptionsExt;
+    #[cfg(target_os = "linux")]
+    const O_NONBLOCK: i32 = 0x800;
+    #[cfg(not(target_os = "linux"))]
+    const O_NONBLOCK: i32 = 0x4;
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(O_NONBLOCK)
+        .open(path)
+}
+
+#[cfg(not(unix))]
+fn open_load_file(path: &Path) -> std::io::Result<File> {
+    File::open(path)
+}
+
 /// Reads `path` and decodes the bytes with `opts`.
 /// The path must be a regular file.
 /// The read stops one byte past `max_bytes`.
 pub fn load(path: &Path, opts: &DecodeOptions) -> Result<Loaded, LoadError> {
-    let path_meta = std::fs::metadata(path).map_err(LoadError::Io)?;
-    if !path_meta.is_file() {
+    let file = open_load_file(path).map_err(LoadError::Io)?;
+    let meta = file.metadata().map_err(LoadError::Io)?;
+    if !meta.is_file() {
         return Err(LoadError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "not a regular file",
         )));
     }
-    let file = File::open(path).map_err(LoadError::Io)?;
-    let meta = file.metadata().map_err(LoadError::Io)?;
     let mtime = meta.modified().ok();
     let mut bytes = Vec::new();
     file.take(opts.max_bytes.saturating_add(1))
@@ -72,7 +91,7 @@ fn sha256(bytes: &[u8]) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use super::load;
+    use super::{LoadError, load, open_load_file};
     use crate::decode::DecodeOptions;
     use sha2::{Digest, Sha256};
 
@@ -144,6 +163,40 @@ mod tests {
             .expect("load returns");
         worker.join().expect("worker");
         assert_eq!(seen, Seen::Io);
+    }
+
+    #[test]
+    fn open_load_file_returns_a_small_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("small.txt");
+        std::fs::write(&path, b"hello\n").unwrap();
+        let file = open_load_file(&path).unwrap();
+        assert!(file.metadata().unwrap().is_file());
+        // A directory path makes load return LoadError::Io.
+        let err = load(dir.path(), &DecodeOptions::default()).unwrap_err();
+        assert!(matches!(err, LoadError::Io(_)));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_fifo_load_open_returns_within_two_seconds() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let fifo = dir.path().join("pipe");
+        std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .expect("mkfifo");
+        let (send, recv) = std::sync::mpsc::channel();
+        let fifo_for_open = fifo.clone();
+        let worker = std::thread::spawn(move || {
+            open_load_file(&fifo_for_open).unwrap();
+            let _ = send.send(());
+        });
+        recv.recv_timeout(std::time::Duration::from_secs(2))
+            .expect("open_load_file returns within 2 s");
+        worker.join().expect("worker");
+        let err = load(&fifo, &DecodeOptions::default()).unwrap_err();
+        assert!(matches!(err, LoadError::Io(_)));
     }
 
     fn sha256(bytes: &[u8]) -> [u8; 32] {
