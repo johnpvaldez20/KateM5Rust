@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 /// Return buffer words that start with the prefix before `at`.
 ///
-/// A word is a run of ASCII letters, digits, and `_`.
+/// A word is a run of Unicode letters, Unicode digits, an apostrophe, and `_`.
 /// The prefix is the word characters immediately before `at`.
 /// An empty prefix returns an empty list.
 /// A limit of 0 returns an empty list.
@@ -69,7 +69,7 @@ pub fn completion_suffix(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> 
 }
 
 fn is_word_char(ch: char) -> bool {
-    ch == '\'' || ch.is_ascii_alphanumeric() || ch == '_'
+    ch == '\'' || ch.is_alphanumeric() || ch == '_'
 }
 
 fn rewind_word(buf: &kate_text::TextBuffer, at: usize) -> usize {
@@ -205,5 +205,13 @@ mod tests {
         let got = word_completions(&buf, Offset(9), 4);
         assert_eq!(got, vec!["Don't".to_string()]);
         assert_eq!(completion_suffix(&buf, Offset(9)), Some("'t".to_string()));
+    }
+
+    #[test]
+    fn a_unicode_letter_stays_inside_the_word() {
+        let buf = TextBuffer::from_str("café caf");
+        let got = word_completions(&buf, Offset(8), 4);
+        assert_eq!(got, vec!["café".to_string()]);
+        assert_eq!(completion_suffix(&buf, Offset(8)), Some("é".to_string()));
     }
 }
