@@ -59,9 +59,26 @@ fn channel_byte(channel: f32) -> u32 {
     (channel.clamp(0.0, 1.0) * 255.0).round() as u32
 }
 
+/// The user's theme preference before mapping to a concrete theme name.
+#[cfg_attr(not(test), allow(dead_code))]
+pub enum ThemeChoice {
+    Light,
+    Dark,
+    System,
+}
+
+/// Map a `ThemeChoice` and the system dark flag to a Breeze theme name.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn theme_name(choice: ThemeChoice, system_dark: bool) -> &'static str {
+    match (choice, system_dark) {
+        (ThemeChoice::Light, _) | (ThemeChoice::System, false) => "Breeze Light",
+        (ThemeChoice::Dark, _) | (ThemeChoice::System, true) => "Breeze Dark",
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{GUTTER_CACHE_CAP, KeyedCache, channel_byte, theme_bits};
+    use super::{GUTTER_CACHE_CAP, KeyedCache, ThemeChoice, channel_byte, theme_bits, theme_name};
 
     #[test]
     fn gutter_cache_keeps_one_entry_per_number_and_theme() {
@@ -110,5 +127,13 @@ mod tests {
         assert_eq!(channel_byte(0.0), 0);
         assert_eq!(channel_byte(2.0), 255);
         assert_eq!(channel_byte(f32::NAN), 0);
+    }
+
+    #[test]
+    fn theme_name_follows_the_system() {
+        assert_eq!(theme_name(ThemeChoice::Light, true), "Breeze Light");
+        assert_eq!(theme_name(ThemeChoice::Dark, false), "Breeze Dark");
+        assert_eq!(theme_name(ThemeChoice::System, true), "Breeze Dark");
+        assert_eq!(theme_name(ThemeChoice::System, false), "Breeze Light");
     }
 }
