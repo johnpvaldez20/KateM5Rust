@@ -379,6 +379,43 @@ impl SplitTree {
             Self::Split { first, second, .. } => first.first_view().or_else(|| second.first_view()),
         }
     }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    fn split_after(&mut self, view: ViewId, axis: Axis) -> bool {
+        if matches!(self, SplitTree::Leaf { .. }) {
+            let SplitTree::Leaf { tabs, active } = std::mem::replace(self, SplitTree::empty())
+            else {
+                return false;
+            };
+            let Some(index) = tabs
+                .iter()
+                .position(|id| *id == view)
+                .filter(|&i| i + 1 < tabs.len())
+            else {
+                *self = SplitTree::Leaf { tabs, active };
+                return false;
+            };
+            let first_tabs = tabs[..=index].to_vec();
+            let second_tabs = tabs[index + 1..].to_vec();
+            *self = SplitTree::Split {
+                axis,
+                ratio: 0.5,
+                first: Box::new(SplitTree::Leaf {
+                    tabs: first_tabs,
+                    active: index,
+                }),
+                second: Box::new(SplitTree::Leaf {
+                    tabs: second_tabs,
+                    active: 0,
+                }),
+            };
+            return true;
+        }
+        if let SplitTree::Split { first, second, .. } = self {
+            return first.split_after(view, axis) || second.split_after(view, axis);
+        }
+        false
+    }
 }
 
 fn remove_from_leaf(tabs: &mut Vec<ViewId>, active: &mut usize, view: ViewId) -> bool {
@@ -2058,7 +2095,7 @@ fn insert_kind_of(tx: &Transaction, text: &str) -> EditKind {
 
 #[cfg(test)]
 mod tests {
-    use super::{EditorConfig, Workspace};
+    use super::{Axis, EditorConfig, SplitTree, Workspace};
     use crate::CloseResult;
     use crate::command::{Command, CommandError};
     use crate::document::{DocumentConfig, ReloadChoice, TrailingSpaces};
@@ -3349,6 +3386,47 @@ indent_size = 8
             (past, past)
         };
         (chars.into_iter().collect(), anchor_head.0, anchor_head.1)
+    }
+
+    #[test]
+    fn split_after_moves_the_later_tab() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let first = add_view(&mut ws, doc);
+        let second = add_view(&mut ws, doc);
+        assert!(!ws.layout.split_after(second, Axis::Horizontal));
+        assert!(matches!(ws.layout, SplitTree::Leaf { .. }));
+        assert!(ws.layout.split_after(first, Axis::Horizontal));
+        match &ws.layout {
+            SplitTree::Split {
+                axis,
+                ratio,
+                first: pane_first,
+                second: pane_second,
+            } => {
+                assert_eq!(*axis, Axis::Horizontal);
+                assert_eq!(*ratio, 0.5);
+                match (pane_first.as_ref(), pane_second.as_ref()) {
+                    (
+                        SplitTree::Leaf {
+                            tabs: ft,
+                            active: fa,
+                        },
+                        SplitTree::Leaf {
+                            tabs: st,
+                            active: sa,
+                        },
+                    ) => {
+                        assert_eq!(ft, &vec![first]);
+                        assert_eq!(*fa, 0);
+                        assert_eq!(st, &vec![second]);
+                        assert_eq!(*sa, 0);
+                    }
+                    _ => panic!("expected two leaves"),
+                }
+            }
+            _ => panic!("expected split"),
+        }
     }
 
     proptest! {
