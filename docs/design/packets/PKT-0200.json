@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 209,
     "branch": "pkt/PKT-0200-edit-is-delete",
     "base_sha": "2b80ff8458441e0287dd5f3200828de0254c0708"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/209"
   },
   "lane": {
     "runtime": "LOCAL",
