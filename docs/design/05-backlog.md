@@ -439,6 +439,32 @@ The index is `docs/design/WAVE-0165.md`.
 | PKT-0171 | `kate-ui`: start plain text at the checkpoint | LOCAL | 0148 |
 | PKT-0172 | `kate-ui`: name an edit that misses the buffer | LOCAL | 0013 |
 
+## Wave PKT-0173
+
+WAVE-0165 code is in review.
+This wave leaves `movement.rs`, `indent.rs`, `fold.rs`, `layout.rs`, `config.rs`, `modeline.rs`, `highlight.rs`, and `notice.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0173.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0173 | `kate-ui`: bind ctrl-d and ctrl-h to delete | LOCAL | 0157 |
+| PKT-0174 | `kate-core`: complete a word that contains a Unicode letter | LOCAL | 0159 |
+| PKT-0175 | `kate-core`: tell a backward selection from a caret | LOCAL | 0161 |
+| PKT-0176 | `kate-fileio`: treat a Unicode line break as an ending | LOCAL | 0144 |
+| PKT-0177 | `kate-fileio`: store a Unicode line break as LF | LOCAL | 0005 |
+| PKT-0178 | `kate-core`: score a letter after any numeric scalar | LOCAL | 0151 |
+| PKT-0179 | `kate-text`: tell an insert from a delete | LOCAL | 0002 |
+| PKT-0180 | `kate-core`: name a bookmark mark | LOCAL | 0160 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
