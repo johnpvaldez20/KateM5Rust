@@ -173,6 +173,11 @@ impl MarkKind {
     pub fn is_bookmark(self) -> bool {
         matches!(self, Self::Bookmark)
     }
+
+    /// `true` when this is an execution mark.
+    pub fn is_execution(self) -> bool {
+        matches!(self, Self::Execution)
+    }
 }
 
 /// Indent and trailing-space policy for one document.
@@ -523,5 +528,13 @@ end_of_line = lf
         assert!(!MarkKind::Error.is_bookmark());
         assert!(!MarkKind::BreakpointActive.is_bookmark());
         assert!(!MarkKind::Execution.is_bookmark());
+    }
+
+    #[test]
+    fn an_execution_kind_is_an_execution() {
+        assert!(MarkKind::Execution.is_execution());
+        assert!(!MarkKind::Bookmark.is_execution());
+        assert!(!MarkKind::Warning.is_execution());
+        assert!(!MarkKind::BreakpointActive.is_execution());
     }
 }
