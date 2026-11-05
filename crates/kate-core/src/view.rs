@@ -89,6 +89,13 @@ impl View {
     pub fn fold_covering_count(&self, at: Offset) -> usize {
         self.folds.iter().filter(|range| range.contains(at)).count()
     }
+
+    /// Return `true` when the first line or the first column is not zero.
+    ///
+    /// A new view is not scrolled.
+    pub fn is_scrolled(&self) -> bool {
+        self.scroll.first_line != 0 || self.scroll.first_col != 0
+    }
 }
 
 fn char_range_for_span(text: &str, span: fold::FoldSpan) -> CharRange {
@@ -231,5 +238,22 @@ mod tests {
         assert_eq!(view.fold_covering_count(Offset(3)), 2);
         assert_eq!(view.fold_covering_count(Offset(1)), 1);
         assert_eq!(view.fold_covering_count(Offset(10)), 0);
+    }
+
+    #[test]
+    fn a_new_view_is_not_scrolled() {
+        let mut view = View {
+            document: DocumentId::default(),
+            selections: Selections::single(Selection::caret(Offset(0))),
+            scroll: Scroll::default(),
+            folds: Vec::new(),
+            dynamic_wrap: false,
+        };
+        assert!(!view.is_scrolled());
+        view.scroll.first_line = 2;
+        assert!(view.is_scrolled());
+        view.scroll.first_line = 0;
+        view.scroll.first_col = 3;
+        assert!(view.is_scrolled());
     }
 }
