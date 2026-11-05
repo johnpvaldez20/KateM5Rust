@@ -336,10 +336,20 @@ fn width_in_range(value: &str) -> Option<u8> {
 }
 
 fn kate_bool(value: &str) -> Option<bool> {
-    match value {
-        "on" | "true" | "1" | "yes" => Some(true),
-        "off" | "false" | "0" | "no" => Some(false),
-        _ => None,
+    if value.eq_ignore_ascii_case("on")
+        || value.eq_ignore_ascii_case("true")
+        || value.eq_ignore_ascii_case("yes")
+        || value == "1"
+    {
+        Some(true)
+    } else if value.eq_ignore_ascii_case("off")
+        || value.eq_ignore_ascii_case("false")
+        || value.eq_ignore_ascii_case("no")
+        || value == "0"
+    {
+        Some(false)
+    } else {
+        None
     }
 }
 
@@ -1065,6 +1075,34 @@ indent_size = 3
         assert_eq!(
             modeline_overrides("kate: eol unix;\n").line_ending,
             Some(LineEnding::Lf)
+        );
+    }
+
+    #[test]
+    fn a_modeline_flag_accepts_upper_case() {
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs ON;\n").indent_with_spaces,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs OFF;\n").indent_with_spaces,
+            Some(false)
+        );
+        assert_eq!(
+            modeline_overrides("kate: newline-at-eof Yes;\n").ensure_trailing_newline,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs maybe;\n").indent_with_spaces,
+            None
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs on;\n").indent_with_spaces,
+            Some(true)
+        );
+        assert_eq!(
+            modeline_overrides("kate: replace-tabs 1;\n").indent_with_spaces,
+            Some(true)
         );
     }
 }
