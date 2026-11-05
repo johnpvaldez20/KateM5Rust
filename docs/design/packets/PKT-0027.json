@@ -1,0 +1,163 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0027",
+  "title": "kate-ui: name the reload and keep answers",
+  "summary": "disk_answer_line names the two sheet answers. Reload says Reload the file from disk. Keep says Keep the buffer. The file watcher and Command::CheckDisk stay out of this packet. The test goes in the existing notice tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T17:58:39Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0027-disk-answer",
+    "base_sha": "3093d839b79fb416f83bbfde18df74b5d6a5d44c"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/notice.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/history.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-ui/src/profile.rs",
+      "crates/kate-ui/src/cache.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0069",
+      "PKT-0172"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/notice.rs",
+        "definition": "pub enum DiskAnswer {\n    Reload,\n    Keep,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/notice.rs",
+        "definition": "fn disk_answer_line(answer: DiskAnswer) -> &'static str"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "notice.rs is a module inside layout.rs. It has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add DiskAnswer and disk_answer_line. Keep the enum public inside this module. Keep the function pub(crate). Add #[cfg_attr(not(test), allow(dead_code))] on the function. Reload returns Reload the file from disk. Keep returns Keep the buffer. Use one match. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch command_notice. Do not edit document.rs, command.rs, or workspace.rs. The existing test an_out_of_bounds_edit_names_the_end stays green. Do not rewrite its assertions. The test disk_answer_names_reload_and_keep checks DiskAnswer::Reload equals Reload the file from disk. DiskAnswer::Keep equals Keep the buffer. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked layout::notice::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "layout::notice::tests::disk_answer_names_reload_and_keep",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because disk_answer_line does not exist. After the change Reload and Keep return those two sentences."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

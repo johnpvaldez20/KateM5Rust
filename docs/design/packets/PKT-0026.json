@@ -1,0 +1,168 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0026",
+  "title": "kate-ui: round-trip open paths as session JSON",
+  "summary": "session_json writes paths and the active index. session_from_json reads that object back. A JSON object without those fields returns None. Quit and launch stay out of this packet. The test goes in the existing profile tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T17:58:39Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0026-session-json",
+    "base_sha": "3093d839b79fb416f83bbfde18df74b5d6a5d44c"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/profile.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/history.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/cache.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0203",
+      "PKT-0227"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/profile.rs",
+        "definition": "#[derive(serde::Serialize, serde::Deserialize)]\nstruct SessionPaths {\n    paths: Vec<String>,\n    active: usize,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/profile.rs",
+        "definition": "fn session_json(paths: &[String], active: usize) -> String"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/profile.rs",
+        "definition": "fn session_from_json(text: &str) -> Option<(Vec<String>, usize)>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "profile.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add SessionPaths, session_json, and session_from_json. Keep the two functions pub(crate). Add #[cfg_attr(not(test), allow(dead_code))] on each function. The JSON keys are paths and active. session_json uses serde_json::to_string. session_from_json uses let Ok(parsed) = serde_json::from_str(text) else { return None }. Do not match Ok and Err by hand. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch sample_json or profile_is_on. Do not edit session.rs. The existing test profile_is_on_for_upper_true stays green. Do not rewrite its assertions. The test session_json_round_trips_paths writes a.rs and b.rs with active 1. session_from_json of that text returns the same paths and active 1. session_from_json of {} is None. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked profile::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "profile::tests::session_json_round_trips_paths",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because session_json does not exist. After the change a.rs and b.rs with active 1 round-trip. An empty object returns None."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
