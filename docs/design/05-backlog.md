@@ -57,6 +57,9 @@ alongside and finish before 0012 needs them.
 The first slices of PKT-0020, PKT-0021, PKT-0022, PKT-0023, PKT-0026, PKT-0027, and PKT-0029 are in `docs/design/WAVE-0020.md`.
 PKT-0245 is the fold command that follows PKT-0020.
 PKT-0024, PKT-0025, and PKT-0028 are cut in `docs/design/WAVE-0024.md`.
+MIT copy wave 1 of 15 is in `docs/design/WAVE-0028.md`.
+Eight files start at `abnf.xml`.
+108 MIT files remain queued.
 Phase 3 stays titles.
 
 | Packet | Title | Lane | Depends on |
@@ -719,6 +722,26 @@ The index is `docs/design/WAVE-0024.md`.
 | PKT-0248 | `kate-ui`: remember a side-by-side session | LOCAL | 0025 |
 | PKT-0249 | `kate-ui`: choose the tab that stays after a close | LOCAL | 0021 |
 | PKT-0250 | `kate-core`: list the tabs from left to right | LOCAL | 0247 |
+
+## Wave PKT-0028
+
+This is MIT copy wave 1 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+108 MIT files remain queued.
+The `include_str` packets wait until these eight files are on main.
+Phase 3 stays titles.
+The index is `docs/design/WAVE-0028.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0251 | `kate-syntax`: copy the MIT ABNF definition | LOCAL | 0028 |
+| PKT-0252 | `kate-syntax`: copy the MIT Adblock Plus definition | LOCAL | 0028 |
+| PKT-0253 | `kate-syntax`: copy the MIT AHDL definition | LOCAL | 0028 |
+| PKT-0254 | `kate-syntax`: copy the MIT ANTLR definition | LOCAL | 0028 |
+| PKT-0255 | `kate-syntax`: copy the MIT ARM Assembler definition | LOCAL | 0028 |
+| PKT-0256 | `kate-syntax`: copy the MIT BrightScript definition | LOCAL | 0028 |
+| PKT-0257 | `kate-syntax`: copy the MIT Cabal definition | LOCAL | 0028 |
+| PKT-0258 | `kate-syntax`: copy the MIT Cap'n Proto definition | LOCAL | 0028 |
 
 ## Packet sizing rules the gatekeeper applies
 
