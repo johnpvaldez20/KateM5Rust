@@ -354,7 +354,8 @@ fn kate_bool(value: &str) -> Option<bool> {
 }
 
 fn trailing_policy(value: &str) -> Option<TrailingSpaces> {
-    match value {
+    let lower = value.to_ascii_lowercase();
+    match lower.as_str() {
         "none" | "0" | "-" => Some(TrailingSpaces::Never),
         "modified" | "mod" | "+" | "1" => Some(TrailingSpaces::ModifiedLines),
         "all" | "*" | "2" => Some(TrailingSpaces::All),
@@ -1103,6 +1104,34 @@ indent_size = 3
         assert_eq!(
             modeline_overrides("kate: replace-tabs 1;\n").indent_with_spaces,
             Some(true)
+        );
+    }
+
+    #[test]
+    fn trailing_spaces_accept_upper_case() {
+        assert_eq!(
+            modeline_overrides("kate: remove-trailing-spaces ALL;\n").remove_trailing_spaces,
+            Some(TrailingSpaces::All)
+        );
+        assert_eq!(
+            modeline_overrides("kate: remove-trailing-spaces NONE;\n").remove_trailing_spaces,
+            Some(TrailingSpaces::Never)
+        );
+        assert_eq!(
+            modeline_overrides("kate: remove-trailing-spaces MOD;\n").remove_trailing_spaces,
+            Some(TrailingSpaces::ModifiedLines)
+        );
+        assert_eq!(
+            modeline_overrides("kate: remove-trailing-spaces all;\n").remove_trailing_spaces,
+            Some(TrailingSpaces::All)
+        );
+        assert_eq!(
+            modeline_overrides("kate: remove-trailing-spaces none;\n").remove_trailing_spaces,
+            Some(TrailingSpaces::Never)
+        );
+        assert_eq!(
+            modeline_overrides("kate: remove-trailing-spaces mod;\n").remove_trailing_spaces,
+            Some(TrailingSpaces::ModifiedLines)
         );
     }
 }
