@@ -502,7 +502,7 @@ fn is_default_delimiter(ch: char) -> bool {
 }
 
 fn is_word_char(ch: char) -> bool {
-    ch.is_alphanumeric() || ch == '_'
+    ch.is_alphanumeric() || ch == '_' || ch == '\''
 }
 
 fn word_next(buf: &TextBuffer, offset: Offset) -> Offset {
@@ -1161,5 +1161,38 @@ mod tests {
         let stayed = move_selection(&plain, start, Movement::ToMatch, Extend::No, &ctx());
         assert_eq!(stayed.head, Offset(0));
         assert_eq!(stayed, start);
+    }
+
+    #[test]
+    fn an_apostrophe_stays_inside_the_word() {
+        let buf = TextBuffer::from_str("don't");
+        let moved = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(moved.head, Offset(5));
+
+        let buf = TextBuffer::from_str("don");
+        let moved = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(moved.head, Offset(3));
+
+        let buf = TextBuffer::from_str(r#"say, "hi"#);
+        let moved = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(moved.head, Offset(3));
     }
 }
