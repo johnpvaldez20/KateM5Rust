@@ -61,11 +61,19 @@ pub(crate) fn visible_line_range(
     start..start.saturating_add(count).min(line_count)
 }
 
+fn is_line_break(scalar: char) -> bool {
+    matches!(
+        scalar,
+        '\r' | '\n' | '\u{000B}' | '\u{000C}' | '\u{0085}' | '\u{2028}' | '\u{2029}'
+    )
+}
+
 #[cfg_attr(not(test), allow(dead_code))]
 /// Count the visual rows for one logical line.
 ///
 /// Each Unicode scalar has width 1. A tab advances to the next multiple of
 /// `tab_width`. A `tab_width` of 0 counts as 1.
+/// A line break (CR, LF, VT, FF, NEL, LS, PS) has width 0.
 /// An empty line returns 1.
 /// A column count of 0 returns 1.
 pub(crate) fn visual_row_count(line: &str, columns: u32, tab_width: u8) -> u32 {
@@ -77,7 +85,7 @@ pub(crate) fn visual_row_count(line: &str, columns: u32, tab_width: u8) -> u32 {
     for scalar in line.chars() {
         if scalar == '\t' {
             width = width.saturating_add(step - (width % step));
-        } else if scalar != '\r' && scalar != '\n' {
+        } else if !is_line_break(scalar) {
             width = width.saturating_add(1);
         }
     }
@@ -243,6 +251,14 @@ mod tests {
 
     #[test]
     fn a_newline_has_no_width() {
+        assert_eq!(visual_row_count("ab\ncd", 4, 4), 1);
+        assert_eq!(visual_row_count("ab\rcd", 4, 4), 1);
+    }
+
+    #[test]
+    fn a_unicode_line_break_has_no_width() {
+        assert_eq!(visual_row_count("ab\u{2028}cd", 4, 4), 1);
+        assert_eq!(visual_row_count("ab\u{2029}cd", 4, 4), 1);
         assert_eq!(visual_row_count("ab\ncd", 4, 4), 1);
         assert_eq!(visual_row_count("ab\rcd", 4, 4), 1);
     }
