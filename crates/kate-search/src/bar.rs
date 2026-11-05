@@ -117,6 +117,24 @@ impl FindBar {
         let hits = crate::find_all(buf, &self.query())?;
         Ok(hits.iter().filter(|hit| !hit.range.is_empty()).count())
     }
+
+    /// Returns every non-empty hit for the find bar.
+    ///
+    /// An empty pattern returns an empty list.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`crate::find_all`].
+    pub fn highlights(&self, buf: &TextBuffer) -> Result<Vec<Match>, SearchError> {
+        if self.pattern.is_empty() {
+            return Ok(Vec::new());
+        }
+        let hits = crate::find_all(buf, &self.query())?;
+        Ok(hits
+            .into_iter()
+            .filter(|hit| !hit.range.is_empty())
+            .collect())
+    }
 }
 
 /// A plain pattern copies the replacement.
@@ -347,5 +365,19 @@ mod tests {
             .expect("plain replace does not fail");
         assert_eq!(tx.edits().len(), 1);
         assert_eq!(tx.edits()[0].new, "b");
+    }
+
+    #[test]
+    fn highlights_lists_non_empty_hits() {
+        let buf = TextBuffer::from_str("a b a");
+        let bar = sample("a", "", FindMode::Plain, false);
+        let hits = bar.highlights(&buf).expect("plain search does not fail");
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].range.start(), Offset(0));
+        assert_eq!(hits[1].range.start(), Offset(4));
+
+        let empty = sample("", "", FindMode::Plain, false);
+        let hits = empty.highlights(&buf).expect("empty pattern does not fail");
+        assert!(hits.is_empty());
     }
 }
