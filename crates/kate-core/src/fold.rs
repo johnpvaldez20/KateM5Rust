@@ -159,9 +159,55 @@ pub fn span_contains_line(span: FoldSpan, line: u32) -> bool {
     line > span.start && line < span.end
 }
 
+/// One fold region from syntax events.
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FoldRegion {
+    /// First line of the fold.
+    pub start: u32,
+    /// First line after the fold.
+    pub end: u32,
+    /// Whether the region is currently folded.
+    pub folded: bool,
+}
+
+/// Build fold regions from syntax fold events.
+///
+/// A `Begin` pushes the line and `FoldId` onto a stack.
+/// An `End` pops the latest matching `FoldId`.
+/// When the end line is greater than the start line, a region is produced.
+/// An `End` with no matching `Begin` is skipped.
+/// A `Begin` that never ends is dropped.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn regions_from_events(events: &[(u32, kate_syntax::FoldEvent)]) -> Vec<FoldRegion> {
+    let mut open: Vec<(u32, kate_syntax::FoldId)> = Vec::new();
+    let mut regions = Vec::new();
+    for &(line, event) in events {
+        match event {
+            kate_syntax::FoldEvent::Begin { region: id, .. } => open.push((line, id)),
+            kate_syntax::FoldEvent::End { region: id, .. } => {
+                let Some(index) = open.iter().rposition(|&(_, fid)| fid == id) else {
+                    continue;
+                };
+                let (start, _) = open.remove(index);
+                if line > start {
+                    regions.push(FoldRegion {
+                        start,
+                        end: line,
+                        folded: false,
+                    });
+                }
+            }
+        }
+    }
+    regions
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{FoldSpan, indent_folds, innermost_fold, span_contains_line};
+    use super::{
+        FoldRegion, FoldSpan, indent_folds, innermost_fold, regions_from_events, span_contains_line,
+    };
 
     #[test]
     fn nested_indent_makes_two_spans() {
@@ -303,6 +349,63 @@ mod tests {
         assert_eq!(
             indent_folds("a\n  b\n\u{00A0}\ne", 4),
             vec![FoldSpan { start: 0, end: 3 }]
+        );
+    }
+
+    #[test]
+    fn syntax_events_make_fold_regions() {
+        use kate_syntax::{FoldEvent, FoldId};
+        let events = vec![
+            (
+                0,
+                FoldEvent::Begin {
+                    region: FoldId(1),
+                    col: 0,
+                },
+            ),
+            (
+                1,
+                FoldEvent::Begin {
+                    region: FoldId(2),
+                    col: 0,
+                },
+            ),
+            (
+                3,
+                FoldEvent::End {
+                    region: FoldId(2),
+                    col: 0,
+                },
+            ),
+            (
+                4,
+                FoldEvent::End {
+                    region: FoldId(1),
+                    col: 0,
+                },
+            ),
+            (
+                5,
+                FoldEvent::End {
+                    region: FoldId(9),
+                    col: 0,
+                },
+            ),
+        ];
+        assert_eq!(
+            regions_from_events(&events),
+            vec![
+                FoldRegion {
+                    start: 1,
+                    end: 3,
+                    folded: false
+                },
+                FoldRegion {
+                    start: 0,
+                    end: 4,
+                    folded: false
+                },
+            ]
         );
     }
 }
