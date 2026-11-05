@@ -1,0 +1,149 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0149",
+  "title": "kate-core: keep an apostrophe inside a word move",
+  "summary": "Word right treats an apostrophe as part of the word. The caret moves past the whole word. The test goes in the existing movement tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-04T18:46:37Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 161,
+    "branch": "pkt/PKT-0149-apostrophe-word",
+    "base_sha": "1e674dcf156137c59c9722db447362d18a522bbd"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/161"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/movement.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-search/src/bar.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0076"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/movement.rs",
+        "definition": "fn is_word_char(ch: char) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "movement.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not add a second module with the same name. Change only is_word_char. The body is ch.is_alphanumeric() || ch == '_' || ch == '\\''. Do not nest an if inside an if. Do not add a match. Do not touch is_in_word, is_default_delimiter, kind_of, word_next, word_prev, cursor_forward, cursor_back, move_selection, move_to_match, or smart_home. A backtick stays outside the word. The existing tests word_movement_follows_kate_rules and word_right_crosses_non_ascii_letters stay green. The test an_apostrophe_stays_inside_the_word uses TextBuffer::from_str of don't. move_selection of WordRight from Selection::caret of Offset(0) with Extend::No and ctx() has head Offset(5). The same move on don has head Offset(3). The same move on say, a double quote, then hi has head Offset(3). Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked movement::tests::an_apostrophe_stays_inside_the_word"
+    ],
+    "regression_tests": [
+      {
+        "name": "movement::tests::an_apostrophe_stays_inside_the_word",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. Word right from the start of don't stops at the apostrophe, Offset(3). After the change the caret is Offset(5). Word right from the start of don stays at Offset(3). Word right from the start of say, a double quote, hi stays at Offset(3)."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

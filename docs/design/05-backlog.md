@@ -366,6 +366,30 @@ The index is `docs/design/WAVE-0141.md`.
 | PKT-0147 | `kate-text`: return none for a scalar past the end | LOCAL | 0003 |
 | PKT-0148 | `kate-ui`: keep color when the paint budget is zero | LOCAL | 0131 |
 
+## Wave PKT-0149
+
+WAVE-0141 code is in review.
+This wave leaves `keys.rs`, `pair.rs`, `replace.rs`, `encode.rs`, `brackets.rs`, `document.rs`, `buffer.rs`, and `highlight.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+The index is `docs/design/WAVE-0149.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0149 | `kate-core`: keep an apostrophe inside a word move | LOCAL | 0076 |
+| PKT-0150 | `kate-core`: indent after a brace before a line comment | LOCAL | 0132 |
+| PKT-0151 | `kate-core`: score a letter after a digit | LOCAL | 0136 |
+| PKT-0152 | `kate-ui`: give a carriage return no width | LOCAL | 0129 |
+| PKT-0153 | `kate-core`: keep a hash comment inside a fold | LOCAL | 0138 |
+| PKT-0154 | `kate-core`: accept yes and no as booleans | LOCAL | 0064 |
+| PKT-0155 | `kate-core`: accept lf, crlf, and cr in a modeline | LOCAL | 0111 |
+| PKT-0156 | `kate-search`: skip a one-hit replace that copies the hit | LOCAL | 0139 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

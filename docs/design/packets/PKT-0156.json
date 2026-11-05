@@ -1,0 +1,151 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0156",
+  "title": "kate-search: skip a one-hit replace that copies the hit",
+  "summary": "replace_one inserts nothing when the replacement text equals the hit. A different replacement still inserts one edit. The test goes in the existing bar tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-04T18:46:37Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 161,
+    "branch": "pkt/PKT-0156-same-one-hit",
+    "base_sha": "1e674dcf156137c59c9722db447362d18a522bbd"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/161"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-search/src/bar.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/modeline.rs"
+    ],
+    "crates_touched": [
+      "kate-search"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0010",
+      "PKT-0050",
+      "PKT-0067",
+      "PKT-0139"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-search/src/bar.rs",
+        "definition": "pub fn replace_one(&self, buf: &TextBuffer, hit: &Match) -> Result<Transaction, SearchError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "bar.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Do not add a second module with the same name. Change only replace_one. Keep the signature. Keep this line: let new = expanded_replacement(self, buf, hit)?; Do not match the Result by hand. Then let old = slice_text(buf.text(), hit.range); One if returns early. if old == new { return Ok(Transaction::default()); }. Then build the Edit and return Transaction::single as the function does now. Do not nest an if inside an if. Do not touch query, find_from, replace_all, hit_count, or expanded_replacement. The existing plain_replacement_keeps_a_dollar test stays green. The test a_same_replacement_inserts_nothing uses the helper sample. A plain bar that finds a and replaces it with a on the buffer aba returns a transaction that is_empty. A plain bar that replaces a with b returns one edit whose new text is b. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-search --all-targets --locked -- -D warnings",
+      "cargo test -p kate-search --locked bar::tests::a_same_replacement_inserts_nothing"
+    ],
+    "regression_tests": [
+      {
+        "name": "bar::tests::a_same_replacement_inserts_nothing",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. Replacing a with a inserts one edit. After the change the transaction is empty. Replacing a with b still inserts one edit whose new text is b."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
