@@ -23,9 +23,26 @@ pub(crate) fn command_notice(error: &kate_core::CommandError) -> String {
     .to_string()
 }
 
+/// The two answers to a disk-change notice.
+pub enum DiskAnswer {
+    /// Reload the file from disk.
+    Reload,
+    /// Keep the in-memory buffer.
+    Keep,
+}
+
+/// Return one sentence for a disk-change answer.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn disk_answer_line(answer: DiskAnswer) -> &'static str {
+    match answer {
+        DiskAnswer::Reload => "Reload the file from disk.",
+        DiskAnswer::Keep => "Keep the buffer.",
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::command_notice;
+    use super::{DiskAnswer, command_notice, disk_answer_line};
     use kate_core::CommandError;
     use kate_text::{ApplyError, Offset};
 
@@ -62,5 +79,14 @@ mod tests {
 
         let no_file = command_notice(&CommandError::NoFile);
         assert_eq!(no_file, "This document has no path.");
+    }
+
+    #[test]
+    fn disk_answer_names_reload_and_keep() {
+        assert_eq!(
+            disk_answer_line(DiskAnswer::Reload),
+            "Reload the file from disk."
+        );
+        assert_eq!(disk_answer_line(DiskAnswer::Keep), "Keep the buffer.");
     }
 }
