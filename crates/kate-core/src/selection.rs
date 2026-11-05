@@ -46,6 +46,11 @@ impl Selection {
         self.head >= self.anchor
     }
 
+    /// Return true when the head is before the anchor.
+    pub fn is_backward(&self) -> bool {
+        self.head < self.anchor
+    }
+
     /// Return true when `at` sits in this range.
     ///
     /// A caret covers nothing. The end offset is outside.
@@ -989,5 +994,25 @@ mod tests {
             goal_col: None,
         };
         assert!(forward.is_forward());
+    }
+
+    #[test]
+    fn a_backward_selection_is_backward() {
+        let caret = Selection::caret(Offset(4));
+        assert!(!caret.is_backward());
+
+        let backward = Selection {
+            anchor: Offset(5),
+            head: Offset(1),
+            goal_col: None,
+        };
+        assert!(backward.is_backward());
+
+        let forward = Selection {
+            anchor: Offset(1),
+            head: Offset(5),
+            goal_col: None,
+        };
+        assert!(!forward.is_backward());
     }
 }
