@@ -61,6 +61,24 @@ pub(crate) fn visible_line_range(
     start..start.saturating_add(count).min(line_count)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+/// Return the active tab index after one tab is closed.
+///
+/// `count` is the tab count before the close. `closed` is the index removed.
+/// A count below 2, or a closed index past the last tab, returns None.
+/// An active index past the new last tab becomes that last tab.
+pub(crate) fn active_after_close(count: u32, active: u32, closed: u32) -> Option<u32> {
+    if count < 2 || closed >= count {
+        return None;
+    }
+    let new_active = if active > closed { active - 1 } else { active };
+    if new_active >= count - 1 {
+        Some(count - 2)
+    } else {
+        Some(new_active)
+    }
+}
+
 fn is_line_break(scalar: char) -> bool {
     matches!(
         scalar,
@@ -147,7 +165,10 @@ pub(crate) fn visual_step(
 
 #[cfg(test)]
 mod tests {
-    use super::{notice_from, span_line_window, visible_line_range, visual_row_count, visual_step};
+    use super::{
+        active_after_close, notice_from, span_line_window, visible_line_range, visual_row_count,
+        visual_step,
+    };
     use crate::{ShapedLine, ShapedLineCache};
     use kate_core::{CommandError, Scroll};
     use kate_text::Revision;
@@ -321,6 +342,14 @@ mod tests {
         assert_eq!(visual_step("\tb", 0, 4, 4, 1), Some(4));
         assert_eq!(visual_step("\tb", 4, 4, 4, -1), Some(0));
         assert_eq!(visual_step("ab", 0, 0, 4, 1), None);
+    }
+
+    #[test]
+    fn active_after_close_slides_the_index() {
+        assert_eq!(active_after_close(1, 0, 0), None);
+        assert_eq!(active_after_close(3, 2, 2), Some(1));
+        assert_eq!(active_after_close(3, 2, 0), Some(1));
+        assert_eq!(active_after_close(3, 0, 2), Some(0));
     }
 }
 
