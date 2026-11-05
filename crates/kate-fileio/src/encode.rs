@@ -159,19 +159,20 @@ fn to_wire_form(s: &str, opts: &EncodeOptions) -> String {
 }
 
 /// Computes zero-based `(line, col)` for the character at char index `idx`
-/// in `s` (which uses `\n` line endings).
+/// in `s`. A lone LF, a lone CR, or one CR LF pair starts the next line.
 fn line_col_at(s: &str, idx: usize) -> (u32, u32) {
+    let scalars: Vec<char> = s.chars().collect();
     let mut line: u32 = 0;
     let mut col: u32 = 0;
-    for (i, ch) in s.chars().enumerate() {
+    for (i, &ch) in scalars.iter().enumerate() {
         if i == idx {
             return (line, col);
         }
-        if ch == '\n' {
+        col += 1;
+        let is_lone_cr = ch == '\r' && (i + 1 == scalars.len() || scalars[i + 1] != '\n');
+        if ch == '\n' || is_lone_cr {
             line += 1;
             col = 0;
-        } else {
-            col += 1;
         }
     }
     (line, col)
@@ -580,5 +581,17 @@ mod tests {
             let bytes = encode(&rope, &opts).unwrap();
             assert_eq!(&bytes, b"a\r\n");
         }
+    }
+
+    #[test]
+    fn a_lone_cr_starts_the_next_line() {
+        // A lone CR starts the next line.
+        assert_eq!(line_col_at("a\rb", 2), (1, 0));
+        // A CR LF pair is one break; the LF is still on line 0 col 2.
+        assert_eq!(line_col_at("a\r\nb", 2), (0, 2));
+        // After the CR LF pair, we are on line 1.
+        assert_eq!(line_col_at("a\r\nb", 3), (1, 0));
+        // A lone LF starts the next line.
+        assert_eq!(line_col_at("a\nb", 2), (1, 0));
     }
 }
