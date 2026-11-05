@@ -27,9 +27,34 @@ pub(crate) fn write_sample(sample: &FrameSample) {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SessionPaths {
+    paths: Vec<String>,
+    active: usize,
+}
+
+/// Serialize open paths and the active index to a JSON string.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn session_json(paths: &[String], active: usize) -> String {
+    serde_json::to_string(&SessionPaths {
+        paths: paths.to_vec(),
+        active,
+    })
+    .expect("session paths")
+}
+
+/// Parse a JSON object with `paths` and `active` keys. Returns `None` when the text is not that object.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn session_from_json(text: &str) -> Option<(Vec<String>, usize)> {
+    let Ok(parsed) = serde_json::from_str::<SessionPaths>(text) else {
+        return None;
+    };
+    Some((parsed.paths, parsed.active))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{profile_is_on, sample_json};
+    use super::{profile_is_on, sample_json, session_from_json, session_json};
     use crate::FrameSample;
 
     #[test]
@@ -63,5 +88,15 @@ mod tests {
         assert!(profile_is_on(Some(std::ffi::OsStr::new("TRUE"))));
         assert!(profile_is_on(Some(std::ffi::OsStr::new("True"))));
         assert!(!profile_is_on(Some(std::ffi::OsStr::new("yes"))));
+    }
+
+    #[test]
+    fn session_json_round_trips_paths() {
+        let paths = vec!["a.rs".to_owned(), "b.rs".to_owned()];
+        let text = session_json(&paths, 1);
+        let (got_paths, got_active) = session_from_json(&text).expect("round-trip");
+        assert_eq!(got_paths, paths);
+        assert_eq!(got_active, 1);
+        assert!(session_from_json("{}").is_none());
     }
 }
