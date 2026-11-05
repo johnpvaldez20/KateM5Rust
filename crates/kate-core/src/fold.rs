@@ -73,7 +73,7 @@ fn line_indents(text: &str, tab_width: u8) -> Vec<LineIndent> {
 fn line_indent(line: &str, tab_width: u8) -> LineIndent {
     let line = line.trim_end_matches('\r');
     let body = line.trim_start_matches([' ', '\t']);
-    if body.starts_with('#') {
+    if body.starts_with('#') || body.starts_with("//") {
         return LineIndent {
             blank: true,
             indent: 0,
@@ -271,6 +271,15 @@ mod tests {
         assert_eq!(indent_folds("a\n  # note\n", 4), Vec::new());
         assert_eq!(
             indent_folds("a\n  b\n# end\n", 4),
+            vec![FoldSpan { start: 0, end: 4 }]
+        );
+    }
+
+    #[test]
+    fn a_slash_comment_does_not_end_a_fold() {
+        assert_eq!(indent_folds("a\n  // note\n", 4), Vec::new());
+        assert_eq!(
+            indent_folds("a\n  b\n// end\n", 4),
             vec![FoldSpan { start: 0, end: 4 }]
         );
     }
