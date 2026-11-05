@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 226,
     "branch": "pkt/PKT-0214-cr-line-position",
     "base_sha": "1d44e35dc5fc8889b6db6223bb00c0503dc26d86"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/226"
   },
   "lane": {
     "runtime": "LOCAL",
