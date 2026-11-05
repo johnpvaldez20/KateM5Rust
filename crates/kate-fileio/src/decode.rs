@@ -4,7 +4,8 @@
 //! Byte decoding and line-ending normalization.
 //!
 //! Detection order is a BOM, then strict UTF-8, then the fallback encoding.
-//! The rope stores LF only. The majority ending is remembered.
+//! The rope stores LF only. A Unicode line break becomes LF.
+//! The majority ending is remembered.
 
 use ropey::Rope;
 
@@ -150,6 +151,14 @@ fn decode_payload(
     (text.into_owned(), fallback, had_errors)
 }
 
+/// Returns true when `ch` is a Unicode line break that should become LF.
+fn is_unicode_break(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{000B}' | '\u{000C}' | '\u{0085}' | '\u{2028}' | '\u{2029}'
+    )
+}
+
 fn normalize_endings(text: &str) -> (String, LineEnding) {
     let mut out = String::with_capacity(text.len());
     let mut counts = [0usize; 3];
@@ -162,7 +171,7 @@ fn normalize_endings(text: &str) -> (String, LineEnding) {
             1
         } else if ch == '\r' {
             2
-        } else if ch == '\n' {
+        } else if ch == '\n' || is_unicode_break(ch) {
             0
         } else {
             out.push(ch);
@@ -489,5 +498,16 @@ mod tests {
             );
             prop_assert_eq!(decoded.line_ending, sample.majority);
         }
+    }
+
+    #[test]
+    fn a_unicode_line_break_becomes_lf() {
+        let decoded = decode("a\u{2028}b".as_bytes(), &DecodeOptions::default()).unwrap();
+        assert_eq!(decoded.text.to_string(), "a\nb");
+        assert_eq!(decoded.line_ending, LineEnding::Lf);
+
+        let decoded = decode("a\u{2029}b".as_bytes(), &DecodeOptions::default()).unwrap();
+        assert_eq!(decoded.text.to_string(), "a\nb");
+        assert_eq!(decoded.line_ending, LineEnding::Lf);
     }
 }
