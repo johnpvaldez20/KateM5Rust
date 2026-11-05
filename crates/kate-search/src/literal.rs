@@ -330,7 +330,7 @@ fn has_cased(chars: impl Iterator<Item = char>) -> bool {
 }
 
 fn is_word_char(ch: char) -> bool {
-    ch == '\'' || ch == '\u{2019}' || char_matches(ch, class_re(r"\A\w\z", 0))
+    ch == '\'' || ch == '\u{2019}' || ch == '\u{00AD}' || char_matches(ch, class_re(r"\A\w\z", 0))
 }
 
 fn is_cased(ch: char) -> bool {
@@ -391,5 +391,15 @@ mod tests {
         assert!(!is_whole_word(&rope, 0, 3));
         // Span 0..5 ("don\u{2019}t") IS a whole word: both ends are string boundaries.
         assert!(is_whole_word(&rope, 0, 5));
+    }
+
+    #[test]
+    fn a_soft_hyphen_is_inside_a_word() {
+        let rope = Rope::from_str("a\u{00AD}b");
+        // Span 0..1 ("a") is NOT a whole word because the soft hyphen
+        // at 1 is a word character, so position 1 is not a boundary.
+        assert!(!is_whole_word(&rope, 0, 1));
+        // Span 0..3 ("a\u{00AD}b") IS a whole word: both ends are string boundaries.
+        assert!(is_whole_word(&rope, 0, 3));
     }
 }
