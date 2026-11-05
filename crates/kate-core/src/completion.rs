@@ -15,7 +15,7 @@ use std::collections::HashSet;
 /// Words after that word come first.
 /// Words before that word come next.
 /// Each word is returned once.
-/// The match is case sensitive.
+/// The match ignores ASCII case.
 pub fn word_completions(
     buf: &kate_text::TextBuffer,
     at: kate_text::Offset,
@@ -161,10 +161,10 @@ mod tests {
     }
 
     #[test]
-    fn the_match_stays_case_sensitive() {
+    fn the_match_ignores_ascii_case() {
         let buf = TextBuffer::from_str("Alphabet alpha");
         let got = word_completions(&buf, Offset(13), 8);
-        assert_eq!(got, Vec::<String>::new());
+        assert_eq!(got, vec!["Alphabet".to_string()]);
     }
 
     #[test]
