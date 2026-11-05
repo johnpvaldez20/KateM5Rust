@@ -65,6 +65,11 @@ impl Edit {
             new: self.old.clone(),
         }
     }
+
+    /// Returns true when `old` is empty and `new` is not.
+    pub fn is_insert(&self) -> bool {
+        self.old.is_empty() && !self.new.is_empty()
+    }
 }
 
 /// Edits sorted by `start`, pairwise non-overlapping, all relative to the same pre-state.
@@ -243,5 +248,28 @@ mod tests {
         assert_eq!(delete.delta(), -2);
         assert_eq!(delete.old_end(), Offset(3));
         assert_eq!(delete.new_end(), Offset(1));
+    }
+
+    #[test]
+    fn an_insert_has_no_old_text() {
+        let insert = Edit::insert(Offset(0), "ab");
+        assert!(insert.is_insert());
+
+        let delete = Edit::delete(Offset(0), "ab");
+        assert!(!delete.is_insert());
+
+        let replace = Edit {
+            start: Offset(0),
+            old: "a".to_string(),
+            new: "b".to_string(),
+        };
+        assert!(!replace.is_insert());
+
+        let empty = Edit {
+            start: Offset(0),
+            old: String::new(),
+            new: String::new(),
+        };
+        assert!(!empty.is_insert());
     }
 }
