@@ -270,8 +270,8 @@ fn width_value(key: &str, value: &str) -> Result<u8, ConfigError> {
 
 fn bool_value(key: &str, value: &str) -> Result<bool, ConfigError> {
     match value {
-        "true" | "yes" => Ok(true),
-        "false" | "no" => Ok(false),
+        "true" | "yes" | "on" => Ok(true),
+        "false" | "no" | "off" => Ok(false),
         _ => Err(bad_value(key)),
     }
 }
@@ -722,6 +722,23 @@ document.ensure_trailing_newline = true
         let err =
             editor_config_from_toml("format_version = 1\ndocument.indent_with_spaces = YES\n")
                 .expect_err("uppercase YES is bad");
+        assert_eq!(
+            err,
+            ConfigError::BadValue {
+                key: "document.indent_with_spaces".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn on_and_off_are_booleans() {
+        let text = "format_version = 1\ndocument.indent_with_spaces = on\ndocument.ensure_trailing_newline = off\n";
+        let config = editor_config_from_toml(text).expect("on and off parse");
+        assert!(config.default_document.indent_with_spaces);
+        assert!(!config.default_document.ensure_trailing_newline);
+
+        let err = editor_config_from_toml("format_version = 1\ndocument.indent_with_spaces = ON\n")
+            .expect_err("uppercase ON is bad");
         assert_eq!(
             err,
             ConfigError::BadValue {
