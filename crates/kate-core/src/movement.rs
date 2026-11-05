@@ -502,7 +502,7 @@ fn is_default_delimiter(ch: char) -> bool {
 }
 
 fn is_word_char(ch: char) -> bool {
-    ch.is_alphanumeric() || ch == '_' || ch == '\''
+    ch.is_alphanumeric() || ch == '_' || ch == '\'' || ch == '\u{2019}'
 }
 
 fn word_next(buf: &TextBuffer, offset: Offset) -> Offset {
@@ -1216,5 +1216,27 @@ mod tests {
             &ctx(),
         );
         assert_eq!(at_start.head, Offset(5));
+    }
+
+    #[test]
+    fn word_right_crosses_a_curly_apostrophe() {
+        let buf = TextBuffer::from_str("don\u{2019}t");
+        let from_start = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(from_start.head, Offset(5));
+
+        let from_apostrophe = move_selection(
+            &buf,
+            Selection::caret(Offset(3)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(from_apostrophe.head, Offset(5));
     }
 }
