@@ -385,11 +385,11 @@ mod tests {
 
     #[test]
     fn a_curly_apostrophe_is_inside_a_word() {
-        let rope = Rope::from_str("don't");
+        let rope = Rope::from_str("don\u{2019}t");
         // Span 0..3 ("don") is NOT a whole word because the curly apostrophe
         // at 3 is a word character, so position 3 is not a boundary.
         assert!(!is_whole_word(&rope, 0, 3));
-        // Span 0..5 ("don't") IS a whole word: both ends are string boundaries.
+        // Span 0..5 ("don\u{2019}t") IS a whole word: both ends are string boundaries.
         assert!(is_whole_word(&rope, 0, 5));
     }
 }
