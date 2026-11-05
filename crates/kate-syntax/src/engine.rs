@@ -720,7 +720,7 @@ fn match_int(line: &Prepared<'_>, offset: usize, delim: &Delimiters) -> Option<H
         return None;
     }
     let mut end = offset;
-    while end < line.chars.len() && line.chars[end].is_ascii_digit() {
+    while end < line.chars.len() && is_int_digit(line.chars[end]) {
         end += 1;
     }
     if end == offset {
@@ -763,6 +763,10 @@ fn match_oct(line: &Prepared<'_>, offset: usize, delim: &Delimiters) -> Option<H
 
 fn is_octal(ch: char) -> bool {
     matches!(ch, '0'..='7')
+}
+
+fn is_int_digit(ch: char) -> bool {
+    ch.is_ascii_digit() || ('\u{FF10}'..='\u{FF19}').contains(&ch)
 }
 
 fn match_hlc_char(line: &Prepared<'_>, offset: usize) -> Option<Hit> {
@@ -1020,7 +1024,7 @@ fn qt_is_space(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::Highlighter;
+    use super::{Delimiters, Highlighter, Prepared, match_int};
     use crate::LineHighlight;
     use crate::repository::Repository;
 
@@ -1153,6 +1157,19 @@ mod tests {
         hl.highlight_line("x", hl.initial_state(), &mut out);
         let top = hl.interner().get(out.end_state).top().context;
         assert_eq!(repo.context(top).name, "Left");
+    }
+
+    #[test]
+    fn a_fullwidth_digit_is_an_integer() {
+        let delim = Delimiters::from_chars(&[]);
+        let fw = Prepared::new("\u{FF12}");
+        let hit = match_int(&fw, 0, &delim).expect("fullwidth digit is an int");
+        assert_eq!(hit.end, 1);
+        let ascii = Prepared::new("12");
+        let hit = match_int(&ascii, 0, &delim).expect("ascii digits are ints");
+        assert_eq!(hit.end, 2);
+        let letter = Prepared::new("a");
+        assert!(match_int(&letter, 0, &delim).is_none());
     }
 
     fn source_lines(text: &str) -> Vec<&str> {
