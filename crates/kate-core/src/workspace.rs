@@ -381,6 +381,20 @@ impl SplitTree {
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
+    fn activate(&mut self, view: ViewId) -> bool {
+        match self {
+            Self::Leaf { tabs, active } => {
+                let Some(index) = tabs.iter().position(|id| *id == view) else {
+                    return false;
+                };
+                *active = index;
+                true
+            }
+            Self::Split { first, second, .. } => first.activate(view) || second.activate(view),
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
     fn split_after(&mut self, view: ViewId, axis: Axis) -> bool {
         if matches!(self, SplitTree::Leaf { .. }) {
             let SplitTree::Leaf { tabs, active } = std::mem::replace(self, SplitTree::empty())
@@ -3454,6 +3468,28 @@ indent_size = 8
             let primary = ws.views.get(view_b).expect("b").selections.primary();
             prop_assert_eq!(primary.anchor, Offset(anchor));
             prop_assert_eq!(primary.head, Offset(head));
+        }
+    }
+
+    #[test]
+    fn activate_shows_the_named_tab() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let first = add_view(&mut ws, doc);
+        let second = add_view(&mut ws, doc);
+        assert!(ws.layout.activate(first));
+        if let SplitTree::Leaf { tabs, active } = &ws.layout {
+            assert_eq!(*active, 0);
+            assert_eq!(tabs, &vec![first, second]);
+        } else {
+            panic!("expected leaf");
+        }
+        assert!(ws.layout.activate(second));
+        if let SplitTree::Leaf { tabs, active } = &ws.layout {
+            assert_eq!(*active, 1);
+            assert_eq!(tabs, &vec![first, second]);
+        } else {
+            panic!("expected leaf");
         }
     }
 }
