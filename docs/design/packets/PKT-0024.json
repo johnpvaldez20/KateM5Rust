@@ -1,0 +1,152 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0024",
+  "title": "kate-core: add a caret at an offset",
+  "summary": "add_caret puts a new caret at an offset and makes it primary. An offset that is already a caret, or that sits inside a selection, leaves the set unchanged. Alt-Shift-Up and Alt-Shift-Down stay as they are. The test goes in the existing selection tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T20:20:39Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0024-add-caret",
+    "base_sha": "38a960e7bf80530db9828fc24519b0c68030b949"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/selection.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-ui/src/profile.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0107",
+      "PKT-0115",
+      "PKT-0161",
+      "PKT-0175",
+      "PKT-0212"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/selection.rs",
+        "definition": "pub fn add_caret(&mut self, at: Offset)"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "selection.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add add_caret on impl Selections. Keep it public. When a stored caret already has that head, or a stored range covers the offset, return. Otherwise push Selection::caret of that offset. push already makes it primary. Use one any() predicate with ||. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch push, remove_secondary, or primary. Do not add a Command variant. The existing test scalar_len_ignores_direction stays green. Do not rewrite its assertions. The test add_caret_at_an_offset_becomes_primary starts from Selections::single of a caret at Offset(0). add_caret of Offset(4) makes len 2 and the primary head Offset(4). add_caret of Offset(4) again leaves len 2. A single selection from Offset(0) to Offset(3) then add_caret of Offset(1) leaves len 1. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked selection::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "selection::tests::add_caret_at_an_offset_becomes_primary",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because add_caret does not exist. After the change a caret at 0 gains a caret at 4. A second add at 4 stays at two carets. An offset inside a range adds nothing."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

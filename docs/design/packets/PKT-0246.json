@@ -1,0 +1,153 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0246",
+  "title": "kate-core: select the next copy of the selection",
+  "summary": "next_occurrence finds the next copy of the primary selection after its end. A caret returns None. A copy that is already selected is skipped. The test goes in the existing selection tests module. This waits for PKT-0024.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T20:20:39Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0246-next-copy",
+    "base_sha": "38a960e7bf80530db9828fc24519b0c68030b949"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/selection.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-ui/src/profile.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0107",
+      "PKT-0115",
+      "PKT-0161",
+      "PKT-0175",
+      "PKT-0212",
+      "PKT-0024"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/selection.rs",
+        "definition": "pub fn next_occurrence(&self, buf: &kate_text::TextBuffer) -> Option<Selection>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "selection.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add next_occurrence on impl Selections. Keep it public. A primary caret returns None. The needle is the primary range as scalars. Search after primary.max(). Return a forward selection of the next equal scalar run. Skip a start offset that is already the start of a stored selection. When no later copy exists, return None. Use let Some or an early return. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch add_caret. Do not add a Command variant. The existing test add_caret_at_an_offset_becomes_primary stays green. Do not rewrite its assertions. The test next_occurrence_finds_the_later_copy uses TextBuffer::from_str of aa, a space, aa. A single selection from Offset(0) to Offset(2) returns a selection from Offset(3) to Offset(5). A caret at Offset(0) returns None. A set that already holds both of those ranges returns None. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked selection::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "selection::tests::next_occurrence_finds_the_later_copy",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because next_occurrence does not exist. After the change the first aa in aa space aa selects the second aa. A caret returns None. When both copies are selected, the result is None."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

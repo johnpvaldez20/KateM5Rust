@@ -54,10 +54,10 @@ alongside and finish before 0012 needs them.
 
 ## Phase 2 — An editor you can use
 
-PKT-0024, PKT-0025, and PKT-0028 stay titles.
-Phase 3 stays titles.
-The first slices of the other Phase 2 rows are in `docs/design/WAVE-0020.md`.
+The first slices of PKT-0020, PKT-0021, PKT-0022, PKT-0023, PKT-0026, PKT-0027, and PKT-0029 are in `docs/design/WAVE-0020.md`.
 PKT-0245 is the fold command that follows PKT-0020.
+PKT-0024, PKT-0025, and PKT-0028 are cut in `docs/design/WAVE-0024.md`.
+Phase 3 stays titles.
 
 | Packet | Title | Lane | Depends on |
 |---|---|---|---|
@@ -691,6 +691,34 @@ The index is `docs/design/WAVE-0020.md`.
 | PKT-0027 | `kate-ui`: name the reload and keep answers | LOCAL | 0172 |
 | PKT-0029 | `kate-ui`: choose the light or dark theme name | LOCAL | 0196 |
 | PKT-0245 | `kate-core`: fold the region at the caret line | LOCAL | 0020 |
+
+## Wave PKT-0024
+
+WAVE-0020 code is on main.
+This wave cuts the remaining Phase 2 titles.
+Phase 3 stays titles.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+PKT-0024, PKT-0025, PKT-0028, and PKT-0249 can start together.
+PKT-0246 waits for PKT-0024.
+PKT-0247 waits for PKT-0025.
+PKT-0250 waits for PKT-0247.
+PKT-0248 waits for PKT-0025.
+The index is `docs/design/WAVE-0024.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0024 | `kate-core`: add a caret at an offset | LOCAL | 0212 |
+| PKT-0025 | `kate-core`: split the tabs after one view | LOCAL | 0117 |
+| PKT-0028 | `kate-syntax`: refuse a definition that is not MIT | LOCAL | 0231 |
+| PKT-0246 | `kate-core`: select the next copy of the selection | LOCAL | 0024 |
+| PKT-0247 | `kate-core`: make one tab the active tab | LOCAL | 0025 |
+| PKT-0248 | `kate-ui`: remember a side-by-side session | LOCAL | 0025 |
+| PKT-0249 | `kate-ui`: choose the tab that stays after a close | LOCAL | 0021 |
+| PKT-0250 | `kate-core`: list the tabs from left to right | LOCAL | 0247 |
 
 ## Packet sizing rules the gatekeeper applies
 

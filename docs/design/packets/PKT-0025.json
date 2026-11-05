@@ -1,0 +1,156 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0025",
+  "title": "kate-core: split the tabs after one view",
+  "summary": "split_after moves the tabs after one view into a new pane. The named view stays in the first pane and becomes its active tab. The new pane shows its first tab. A view with nothing after it leaves the tree unchanged. The test goes in the existing workspace tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T20:20:39Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0025-split-after",
+    "base_sha": "38a960e7bf80530db9828fc24519b0c68030b949"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-core/src/selection.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-ui/src/profile.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0018",
+      "PKT-0055",
+      "PKT-0063",
+      "PKT-0074",
+      "PKT-0091",
+      "PKT-0093",
+      "PKT-0110",
+      "PKT-0117"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "fn split_after(&mut self, view: ViewId, axis: Axis) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "workspace.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add split_after on impl SplitTree. Add #[cfg_attr(not(test), allow(dead_code))]. A missing view returns false. A view with no tab after it returns false and leaves the tree as it was. Otherwise the tabs after that view move into a new Leaf whose active index is 0. The first pane keeps the earlier tabs and its active index is the named view. The Split uses the given axis and ratio 0.5. A Split node tries the first child, then the second, with ||. Use let Some(index) = ... else { return false }. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch insert_tab, remove_tab, or collapse_empty. Do not edit command.rs. The existing test other_view_tracks_an_insert_like_the_string_oracle stays green. Do not rewrite its assertions. The test split_after_moves_the_later_tab uses workspace, new_document, and add_view twice on that document. split_after of the second view and Axis::Horizontal returns false, and the layout stays a Leaf. split_after of the first view and Axis::Horizontal returns true. The layout is a Split with axis Horizontal and ratio 0.5. The first leaf holds the first view at active 0. The second leaf holds the second view at active 0. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::split_after_moves_the_later_tab",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because split_after does not exist. After the change the second of two tabs moves into a horizontal pane. Splitting the last tab returns false and leaves one leaf."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

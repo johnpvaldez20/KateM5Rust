@@ -1,0 +1,150 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0028",
+  "title": "kate-syntax: refuse a definition that is not MIT",
+  "summary": "commit rejects a definition whose license attribute is not exactly MIT. The six vendored MIT definitions still load. LGPL, GPL, and an empty license stay out of the tree. The test goes in the existing repository tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T20:20:39Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0028-mit-only",
+    "base_sha": "38a960e7bf80530db9828fc24519b0c68030b949"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/repository.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-core/src/selection.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/profile.rs"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0100",
+      "PKT-0205",
+      "PKT-0231"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/repository.rs",
+        "definition": "pub enum LoadError {\n    Xml {\n        definition: Option<String>,\n        line: u64,\n        message: String,\n    },\n    UnknownContext {\n        definition: String,\n        context: String,\n        reference: String,\n    },\n    UnknownKeywordList {\n        definition: String,\n        list: String,\n    },\n    UnknownFormat {\n        definition: String,\n        format: String,\n    },\n    DuplicateDefinition {\n        name: String,\n    },\n    License {\n        name: String,\n        license: String,\n    },\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "repository.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add LoadError::License with name and license. Keep the other variants. In commit, when parsed.license is not exactly MIT, return LoadError::License and do not store the definition. Use one comparison. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch the six include_str definitions. Do not copy a new xml file in this packet. The existing test six_vendored_definitions_load_and_link stays green. Do not rewrite its assertions. The test a_non_mit_license_is_refused builds a language named Gpl with license GPL-2.0-or-later, one context, and one itemData. Repository::empty().add_xml of that text returns LoadError::License with name Gpl and that license. The same text with license MIT returns Ok. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked repository::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "repository::tests::a_non_mit_license_is_refused",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because a GPL definition loads. After the change add_xml of a GPL definition returns LoadError::License. A MIT definition with one context still loads."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
