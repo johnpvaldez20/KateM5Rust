@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 172,
     "branch": "pkt/PKT-0170-modeline-case",
     "base_sha": "c4046c535ffa43721184c923fbcd1546e91c8d4e"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/172"
   },
   "lane": {
     "runtime": "LOCAL",
