@@ -154,7 +154,7 @@ pub fn normalize_binding(binding: &str) -> String {
             "ctrl" | "control" => ctrl = true,
             "alt" | "option" => alt = true,
             "shift" => shift = true,
-            "cmd" | "super" | "win" | "platform" => cmd = true,
+            "cmd" | "super" | "win" | "platform" | "command" | "meta" => cmd = true,
             _ => push_token(&mut key, &token),
         }
     }
@@ -837,5 +837,12 @@ mod tests {
             command_for_binding("cmd-up"),
             Some(Command::Move(Movement::DocStart, Extend::No))
         );
+    }
+
+    #[test]
+    fn meta_and_command_are_cmd() {
+        assert_eq!(command_for_binding("meta-s"), Some(Command::Save));
+        assert_eq!(command_for_binding("command-s"), Some(Command::Save));
+        assert_eq!(normalize_binding("meta-shift-z"), "shift-cmd-z");
     }
 }
