@@ -213,8 +213,11 @@ fn push_label_char(out: &mut String, ch: char) -> bool {
         out.push(ch.to_ascii_lowercase());
         return true;
     }
-    if ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '-' | '_' | ':' | '.') {
-        out.push(ch);
+    if ch.is_ascii_lowercase()
+        || ch.is_ascii_digit()
+        || matches!(ch, '-' | '_' | ':' | '.' | '\u{2011}')
+    {
+        out.push(if ch == '\u{2011}' { '-' } else { ch });
         return true;
     }
     false
@@ -1133,5 +1136,14 @@ indent_size = 3
             modeline_overrides("kate: remove-trailing-spaces mod;\n").remove_trailing_spaces,
             Some(TrailingSpaces::ModifiedLines)
         );
+    }
+
+    #[test]
+    fn a_non_breaking_hyphen_selects_utf8() {
+        let mut config = DocumentConfig::default();
+        let mut file = sample_file(LineEnding::Lf);
+        let mode = modeline_overrides("kate: encoding utf\u{2011}8;\n");
+        apply_mode(&mut config, &mut file, &mode);
+        assert_eq!(file.encoding.name(), "UTF-8");
     }
 }
