@@ -1,0 +1,166 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0207",
+  "title": "kate-text: tell a closing bracket from an opener",
+  "summary": "is_closer is true for a closing bracket. An opener and a quote are false. The test goes in the existing brackets tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T09:55:26Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 217,
+    "branch": "pkt/PKT-0207-is-closer",
+    "base_sha": "68c1bbf7a4fca4ed96f5882b624341fdb2c9826f"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/217"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/src/brackets.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-text/src/edit.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-ui/src/profile.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-text/src/offset.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-core/src/syntax_cache.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/selection.rs"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0052",
+      "PKT-0058",
+      "PKT-0121",
+      "PKT-0145",
+      "PKT-0163",
+      "PKT-0187"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/brackets.rs",
+        "definition": "#[cfg_attr(not(test), allow(dead_code))]\npub fn is_closer(ch: char) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "brackets.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add is_closer next to is_opener. Put #[cfg_attr(not(test), allow(dead_code))] on it, the same way is_opener has that attribute. The body walks PAIRS with any and compares the closer. Do not nest an if inside an if. Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch is_opener, is_bracket, bracket_mate, matching_bracket, or pair_of. The existing test is_opener_names_only_the_open_side stays green. Do not rewrite its assertions. The test is_closer_names_only_the_close_side checks close paren, close square, close curly, and close angle are true. Open paren and open angle are false. A double quote is false. The letter a is false. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo test -p kate-text --locked brackets::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "brackets::tests::is_closer_names_only_the_close_side",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because is_closer does not exist. After the change a closer is true. An opener, a quote, and a letter are false."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

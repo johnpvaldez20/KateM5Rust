@@ -1,0 +1,161 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0205",
+  "title": "kate-syntax: match a file name in either case",
+  "summary": "A syntax extension glob matches ASCII letters in either case. notes.TXT matches the plain-text definition. Main.RS matches Rust. The test goes in the existing repository tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T09:55:26Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 217,
+    "branch": "pkt/PKT-0205-file-name-case",
+    "base_sha": "68c1bbf7a4fca4ed96f5882b624341fdb2c9826f"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/217"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/repository.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-text/src/edit.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-ui/src/profile.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-text/src/offset.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-core/src/syntax_cache.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/selection.rs"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0100"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/repository.rs",
+        "definition": "fn glob_at(cand: &[char], wild: &[char], mut cpos: isize, mut wpos: isize) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "repository.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Change only the literal-character arm of glob_at. Compare the two scalars with eq_ignore_ascii_case. Keep the star arm and the question-mark arm. Do not nest an if inside an if. Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch for_mime_type, by_name, or best_match. Update one assert in mime_type_matches_either_case. That assert says for_file_name of notes.TXT is None. After the change it is Some of the same id as notes.txt. You may update that assert. Keep the Text/Plain asserts in that test. The existing test file_name_matching_prefers_priority stays green. Do not rewrite its assertions. The test an_upper_extension_matches_rust loads the existing VENDORED list, links the repo, and checks for_file_name of Main.RS. The definition name is Rust. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked repository::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "repository::tests::an_upper_extension_matches_rust",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. Main.RS matches nothing. After the change it matches Rust. notes.TXT matches the same definition as notes.txt."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
