@@ -26,7 +26,7 @@ pub enum PairPlan {
 ///
 /// More than one scalar is plain.
 /// A caret steps over a closer when the next scalar is that closer.
-/// A quote after an ASCII letter, digit, or underscore stays plain.
+/// A quote after a letter, a digit, an underscore, or an apostrophe stays plain.
 /// That quote rule does not apply to a type-over.
 /// Any other opener wraps the span.
 pub fn plan_pair(
@@ -139,7 +139,7 @@ fn is_quote(ch: char) -> bool {
 }
 
 fn is_ascii_word(ch: char) -> bool {
-    ch.is_alphanumeric() || ch == '_'
+    ch.is_alphanumeric() || ch == '_' || ch == '\'' || ch == '\u{2019}'
 }
 
 #[cfg(test)]
@@ -363,5 +363,20 @@ mod tests {
                 caret_after_open: true
             }
         );
+    }
+
+    #[test]
+    fn a_quote_after_a_curly_apostrophe_stays_plain() {
+        let buf = TextBuffer::from_str("don\u{2019}");
+        let selection = Selection::caret(Offset(4));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+
+        let buf = TextBuffer::from_str("don'");
+        let selection = Selection::caret(Offset(4));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+
+        let buf = TextBuffer::from_str("a");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
     }
 }

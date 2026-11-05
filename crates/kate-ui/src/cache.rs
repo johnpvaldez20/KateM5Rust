@@ -48,15 +48,20 @@ impl<T> KeyedCache<T> {
 ///
 /// Each channel is a byte. `1.0` is 255.
 pub(crate) fn theme_bits(red: f32, green: f32, blue: f32, alpha: f32) -> u32 {
-    fn byte(channel: f32) -> u32 {
-        (channel.clamp(0.0, 1.0) * 255.0).round() as u32
-    }
-    (byte(alpha) << 24) | (byte(red) << 16) | (byte(green) << 8) | byte(blue)
+    (channel_byte(alpha) << 24)
+        | (channel_byte(red) << 16)
+        | (channel_byte(green) << 8)
+        | channel_byte(blue)
+}
+
+/// Clamp one gutter channel into `0..=255`. A non-finite channel is 0.
+fn channel_byte(channel: f32) -> u32 {
+    (channel.clamp(0.0, 1.0) * 255.0).round() as u32
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{GUTTER_CACHE_CAP, KeyedCache, theme_bits};
+    use super::{GUTTER_CACHE_CAP, KeyedCache, channel_byte, theme_bits};
 
     #[test]
     fn gutter_cache_keeps_one_entry_per_number_and_theme() {
@@ -97,5 +102,13 @@ mod tests {
             theme_bits(1.0, 0.0, 0.0, 1.0),
             theme_bits(1.0, 0.0, 0.0, 0.0)
         );
+    }
+
+    #[test]
+    fn a_non_finite_channel_is_zero() {
+        assert_eq!(channel_byte(1.0), 255);
+        assert_eq!(channel_byte(0.0), 0);
+        assert_eq!(channel_byte(2.0), 255);
+        assert_eq!(channel_byte(f32::NAN), 0);
     }
 }

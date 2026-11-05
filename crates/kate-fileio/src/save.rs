@@ -54,7 +54,10 @@ pub fn save(path: &Path, text: &Rope, opts: &EncodeOptions) -> Result<Saved, Sav
     {
         return Err(SaveError::Io {
             step: SaveStep::CreateTemp,
-            source: std::io::Error::new(std::io::ErrorKind::InvalidInput, "not a regular file"),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "The path is not a file.",
+            ),
         });
     }
 
@@ -246,5 +249,22 @@ mod tests {
         // The bytes on disk are "x\n".
         let on_disk = std::fs::read(&note).expect("read note.txt");
         assert_eq!(&on_disk, b"x\n");
+    }
+
+    #[test]
+    fn save_onto_a_directory_names_the_path() {
+        let dir = tempdir().expect("tempdir");
+        let folder = dir.path().join("mydir");
+        std::fs::create_dir(&folder).expect("create directory");
+
+        let rope = Rope::from_str("hello\n");
+        let err = save(&folder, &rope, &utf8_opts(LineEnding::Lf)).unwrap_err();
+        match err {
+            SaveError::Io { step, source } => {
+                assert_eq!(step, SaveStep::CreateTemp);
+                assert_eq!(source.to_string(), "The path is not a file.");
+            }
+            other => panic!("expected SaveError::Io, got {other:?}"),
+        }
     }
 }

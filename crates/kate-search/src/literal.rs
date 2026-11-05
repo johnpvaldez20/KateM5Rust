@@ -330,7 +330,7 @@ fn has_cased(chars: impl Iterator<Item = char>) -> bool {
 }
 
 fn is_word_char(ch: char) -> bool {
-    ch == '\'' || char_matches(ch, class_re(r"\A\w\z", 0))
+    ch == '\'' || ch == '\u{2019}' || char_matches(ch, class_re(r"\A\w\z", 0))
 }
 
 fn is_cased(ch: char) -> bool {
@@ -381,5 +381,15 @@ mod tests {
         // Same call without whole_words still returns 3 hits (positions 0, 1, 2).
         let hits = find(&rope, "", true, false, 0, count);
         assert_eq!(hits.len(), 3);
+    }
+
+    #[test]
+    fn a_curly_apostrophe_is_inside_a_word() {
+        let rope = Rope::from_str("don\u{2019}t");
+        // Span 0..3 ("don") is NOT a whole word because the curly apostrophe
+        // at 3 is a word character, so position 3 is not a boundary.
+        assert!(!is_whole_word(&rope, 0, 3));
+        // Span 0..5 ("don\u{2019}t") IS a whole word: both ends are string boundaries.
+        assert!(is_whole_word(&rope, 0, 5));
     }
 }
