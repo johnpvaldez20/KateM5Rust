@@ -52,6 +52,11 @@ impl CharRange {
     pub fn intersects(&self, other: CharRange) -> bool {
         self.start.max(other.start) < self.end.min(other.end)
     }
+
+    /// Returns true when one range ends where the other starts.
+    pub fn abuts(&self, other: CharRange) -> bool {
+        self.end() == other.start() || other.end() == self.start()
+    }
 }
 
 /// Derived view of an Offset. `col` is in chars from line start.
@@ -101,5 +106,17 @@ mod tests {
         assert!(
             !CharRange::new(Offset(3), Offset(3)).intersects(CharRange::new(Offset(1), Offset(4)))
         );
+    }
+
+    #[test]
+    fn ranges_abut_at_one_end() {
+        // [1,4) ends where [4,6) starts.
+        assert!(CharRange::new(Offset(1), Offset(4)).abuts(CharRange::new(Offset(4), Offset(6))));
+        // [6,8) and [1,4) have a gap; neither end meets the other's start.
+        assert!(!CharRange::new(Offset(6), Offset(8)).abuts(CharRange::new(Offset(1), Offset(4))));
+        // [1,4) and [3,5) overlap; they do not abut.
+        assert!(!CharRange::new(Offset(1), Offset(4)).abuts(CharRange::new(Offset(3), Offset(5))));
+        // Empty range [3,3) abuts [3,5) because 3 == 3.
+        assert!(CharRange::new(Offset(3), Offset(3)).abuts(CharRange::new(Offset(3), Offset(5))));
     }
 }
