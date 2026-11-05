@@ -194,7 +194,7 @@ fn ends_with_colon(body: &str) -> bool {
     let code = body.split_once('#').map(|(head, _)| head).unwrap_or(body);
     matches!(
         code.trim_end_matches([' ', '\t']).chars().next_back(),
-        Some(':')
+        Some(':') | Some('：')
     )
 }
 
@@ -532,5 +532,11 @@ mod tests {
         let config = DocumentConfig::default();
         assert_eq!(inserted("    foo{ /* note", &config, true), "\n        ");
         assert_eq!(inserted("    /* {", &config, true), "\n    ");
+    }
+
+    #[test]
+    fn a_fullwidth_colon_indents() {
+        let config = DocumentConfig::default();
+        assert_eq!(python_inserted("def f()\u{FF1A}", &config), "\n    ");
     }
 }
