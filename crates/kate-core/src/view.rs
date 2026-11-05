@@ -51,7 +51,8 @@ impl View {
     /// A span ends at the first scalar of its end line.
     /// When the end line is the line count, the end is the scalar count.
     pub fn apply_indent_folds(&mut self, text: &str, tab_width: u8) {
-        self.folds = fold::indent_folds(text, tab_width)
+        let normalized: String = text.replace("\r\n", "\n").replace('\r', "\n");
+        self.folds = fold::indent_folds(&normalized, tab_width)
             .into_iter()
             .map(|span| char_range_for_span(text, span))
             .collect();
@@ -115,18 +116,22 @@ fn header_line_break(text: &str, line: u32) -> usize {
 /// Return the first scalar of `line`.
 ///
 /// Line 0 starts at scalar 0.
-/// Each newline starts the next line.
+/// Each line break starts the next line, and a CR LF pair is one break.
 /// When `line` is the line count, the result is the scalar count.
 fn line_scalar(text: &str, line: u32) -> usize {
     let mut newlines = 0u32;
     let mut count = 0usize;
+    let mut skip_lf = false;
     for ch in text.chars() {
         if newlines == line {
             return count;
         }
         count += 1;
-        if ch == '\n' {
+        if skip_lf {
+            skip_lf = false;
+        } else if ch == '\r' || ch == '\n' {
             newlines += 1;
+            skip_lf = ch == '\r';
         }
     }
     count
@@ -255,5 +260,22 @@ mod tests {
         view.scroll.first_line = 0;
         view.scroll.first_col = 3;
         assert!(view.is_scrolled());
+    }
+
+    #[test]
+    fn a_carriage_return_folds_like_a_newline() {
+        let mut view = View {
+            document: DocumentId::default(),
+            selections: Selections::single(Selection::caret(Offset(0))),
+            scroll: Scroll::default(),
+            folds: Vec::new(),
+            dynamic_wrap: false,
+        };
+        view.apply_indent_folds("a\r  b\r", 4);
+        assert_eq!(view.folds, vec![CharRange::new(Offset(1), Offset(6))]);
+
+        view.folds.clear();
+        view.apply_indent_folds("a\n  b\n", 4);
+        assert_eq!(view.folds, vec![CharRange::new(Offset(1), Offset(6))]);
     }
 }
