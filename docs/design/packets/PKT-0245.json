@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 261,
     "branch": "pkt/PKT-0245-toggle-fold",
     "base_sha": "3093d839b79fb416f83bbfde18df74b5d6a5d44c"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/261"
   },
   "lane": {
     "runtime": "LOCAL",
