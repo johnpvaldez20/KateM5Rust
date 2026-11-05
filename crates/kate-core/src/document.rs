@@ -168,6 +168,11 @@ impl MarkKind {
     pub fn is_diagnostic(self) -> bool {
         matches!(self, Self::Warning | Self::Error)
     }
+
+    /// `true` when this is a bookmark.
+    pub fn is_bookmark(self) -> bool {
+        matches!(self, Self::Bookmark)
+    }
 }
 
 /// Indent and trailing-space policy for one document.
@@ -509,5 +514,14 @@ end_of_line = lf
         assert!(!MarkKind::BreakpointActive.is_diagnostic());
         assert!(!MarkKind::BreakpointDisabled.is_diagnostic());
         assert!(!MarkKind::Execution.is_diagnostic());
+    }
+
+    #[test]
+    fn a_bookmark_kind_is_a_bookmark() {
+        assert!(MarkKind::Bookmark.is_bookmark());
+        assert!(!MarkKind::Warning.is_bookmark());
+        assert!(!MarkKind::Error.is_bookmark());
+        assert!(!MarkKind::BreakpointActive.is_bookmark());
+        assert!(!MarkKind::Execution.is_bookmark());
     }
 }

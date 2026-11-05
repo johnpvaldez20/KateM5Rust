@@ -100,7 +100,7 @@ fn digit_hump(chars: &[char], index: usize) -> i32 {
     let Some(previous) = index.checked_sub(1).and_then(|at| chars.get(at).copied()) else {
         return 0;
     };
-    if previous.is_ascii_digit() && chars[index].is_ascii_alphabetic() {
+    if previous.is_numeric() && chars[index].is_ascii_alphabetic() {
         8
     } else {
         0
@@ -182,6 +182,24 @@ mod tests {
     fn a_lower_letter_after_a_digit_adds_eight() {
         assert_eq!(
             fuzzy_match("ab", "a2b"),
+            Some(FuzzyHit {
+                score: 47,
+                positions: vec![0, 2],
+            })
+        );
+    }
+
+    #[test]
+    fn a_fullwidth_digit_hump_adds_eight() {
+        assert_eq!(
+            fuzzy_match("ab", "a２B"),
+            Some(FuzzyHit {
+                score: 55,
+                positions: vec![0, 2],
+            })
+        );
+        assert_eq!(
+            fuzzy_match("ab", "a2B"),
             Some(FuzzyHit {
                 score: 47,
                 positions: vec![0, 2],
