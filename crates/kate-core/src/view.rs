@@ -129,7 +129,13 @@ fn line_scalar(text: &str, line: u32) -> usize {
         count += 1;
         if skip_lf {
             skip_lf = false;
-        } else if ch == '\r' || ch == '\n' {
+            // Only a following LF is part of the previous CRLF pair.
+            // A following CR is a second lone break and must be counted.
+            if ch == '\n' {
+                continue;
+            }
+        }
+        if ch == '\r' || ch == '\n' {
             newlines += 1;
             skip_lf = ch == '\r';
         }
@@ -277,5 +283,20 @@ mod tests {
         view.folds.clear();
         view.apply_indent_folds("a\n  b\n", 4);
         assert_eq!(view.folds, vec![CharRange::new(Offset(1), Offset(6))]);
+    }
+
+    #[test]
+    fn consecutive_carriage_returns_each_start_a_line() {
+        // "a\r\r  b\rc" normalizes to "a\n\n  b\nc"; indent fold ends at line 3 ('c').
+        // line_scalar must count each lone CR so the fold ends at scalar 7, not 8.
+        let mut view = View {
+            document: DocumentId::default(),
+            selections: Selections::single(Selection::caret(Offset(0))),
+            scroll: Scroll::default(),
+            folds: Vec::new(),
+            dynamic_wrap: false,
+        };
+        view.apply_indent_folds("a\r\r  b\rc", 4);
+        assert_eq!(view.folds, vec![CharRange::new(Offset(1), Offset(7))]);
     }
 }
