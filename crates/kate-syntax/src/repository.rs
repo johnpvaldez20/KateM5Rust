@@ -66,6 +66,10 @@ pub enum LoadError {
     DuplicateDefinition {
         name: String,
     },
+    License {
+        name: String,
+        license: String,
+    },
 }
 
 impl Repository {
@@ -165,6 +169,12 @@ impl Repository {
         let key = parsed.name.to_lowercase();
         if self.by_name.contains_key(&key) {
             return Err(LoadError::DuplicateDefinition { name: parsed.name });
+        }
+        if parsed.license != "MIT" {
+            return Err(LoadError::License {
+                name: parsed.name.clone(),
+                license: parsed.license.clone(),
+            });
         }
         if parsed.contexts.is_empty() {
             return Err(xml_msg(Some(parsed.name), "definition has no contexts"));
@@ -1113,5 +1123,31 @@ mod tests {
         assert_eq!(repo.definition(id).name, "Acute");
         let rust = repo.for_file_name("Main.RS").expect("Main.RS matches Rust");
         assert_eq!(repo.definition(rust).name, "Rust");
+    }
+
+    #[test]
+    fn a_non_mit_license_is_refused() {
+        let gpl = r##"<language name="Gpl" section="Test" version="1" kateversion="5.0" extensions="*.gpl" license="GPL-2.0-or-later">
+  <highlighting>
+    <contexts>
+      <context name="Normal" attribute="Normal" lineEndContext="#stay"/>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal" defStyleNum="dsNormal"/>
+    </itemDatas>
+  </highlighting>
+</language>
+"##;
+        let mut repo = Repository::empty();
+        match repo.add_xml(gpl) {
+            Err(LoadError::License { name, license }) => {
+                assert_eq!(name, "Gpl");
+                assert_eq!(license, "GPL-2.0-or-later");
+            }
+            other => panic!("expected License error, got {other:?}"),
+        }
+        let mut repo = Repository::empty();
+        repo.add_xml(&gpl.replace("GPL-2.0-or-later", "MIT"))
+            .expect("MIT definition loads");
     }
 }
