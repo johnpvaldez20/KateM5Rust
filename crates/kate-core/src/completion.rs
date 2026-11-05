@@ -56,14 +56,16 @@ pub fn completion_suffix(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> 
     let caret = at.0.min(len);
     let start = rewind_word(buf, caret);
     let prefix = buf.text().slice(start..caret).to_string();
-    let suffix = word
-        .strip_prefix(&prefix)
-        .filter(|suffix| !suffix.is_empty())?;
-    let tail_end = forward_word(buf, caret, len);
-    if buf.text().slice(caret..tail_end) == suffix {
+    let prefix_len = prefix.chars().count();
+    let suffix: String = word.chars().skip(prefix_len).collect();
+    if suffix.is_empty() {
         return None;
     }
-    Some(suffix.to_string())
+    let tail_end = forward_word(buf, caret, len);
+    if buf.text().slice(caret..tail_end) == suffix.as_str() {
+        return None;
+    }
+    Some(suffix)
 }
 
 fn is_word_char(ch: char) -> bool {
@@ -87,6 +89,16 @@ fn forward_word(buf: &kate_text::TextBuffer, mut index: usize, len: usize) -> us
     index
 }
 
+fn has_ascii_prefix(word: &str, prefix: &str) -> bool {
+    let mut chars = word.chars();
+    prefix.chars().all(|ch| {
+        let Some(next) = chars.next() else {
+            return false;
+        };
+        next.eq_ignore_ascii_case(&ch)
+    })
+}
+
 fn matches_between(
     buf: &kate_text::TextBuffer,
     mut index: usize,
@@ -105,7 +117,7 @@ fn matches_between(
         let word_at = index;
         index = forward_word(buf, index, len);
         let word = buf.text().slice(word_at..index).to_string();
-        if word.starts_with(prefix) && seen.insert(word.clone()) {
+        if has_ascii_prefix(&word, prefix) && seen.insert(word.clone()) {
             found.push(word);
         }
     }
@@ -184,6 +196,14 @@ mod tests {
         let buf = TextBuffer::from_str("don't don");
         let got = word_completions(&buf, Offset(9), 4);
         assert_eq!(got, vec!["don't".to_string()]);
+        assert_eq!(completion_suffix(&buf, Offset(9)), Some("'t".to_string()));
+    }
+
+    #[test]
+    fn a_capital_word_completes_a_lower_prefix() {
+        let buf = TextBuffer::from_str("Don't don");
+        let got = word_completions(&buf, Offset(9), 4);
+        assert_eq!(got, vec!["Don't".to_string()]);
         assert_eq!(completion_suffix(&buf, Offset(9)), Some("'t".to_string()));
     }
 }
