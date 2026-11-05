@@ -414,6 +414,31 @@ The index is `docs/design/WAVE-0157.md`.
 | PKT-0163 | `kate-text`: tell a bracket from other scalars | LOCAL | 0145 |
 | PKT-0164 | `kate-search`: skip an empty whole-word find | LOCAL | 0134 |
 
+## Wave PKT-0165
+
+WAVE-0157 code is in review.
+This wave leaves `keys.rs`, `pair.rs`, `completion.rs`, `document.rs`, `selection.rs`, `buffer.rs`, `brackets.rs`, and `literal.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Spaces and tabs use `[' ', '\t']`.
+The index is `docs/design/WAVE-0165.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0165 | `kate-core`: keep a word move on an apostrophe | LOCAL | 0149 |
+| PKT-0166 | `kate-core`: indent after a colon before a hash comment | LOCAL | 0150 |
+| PKT-0167 | `kate-core`: keep a slash comment inside a fold | LOCAL | 0153 |
+| PKT-0168 | `kate-ui`: give a newline no width | LOCAL | 0152 |
+| PKT-0169 | `kate-core`: accept on and off as booleans | LOCAL | 0154 |
+| PKT-0170 | `kate-core`: accept any letter case in a modeline ending | LOCAL | 0155 |
+| PKT-0171 | `kate-ui`: start plain text at the checkpoint | LOCAL | 0148 |
+| PKT-0172 | `kate-ui`: name an edit that misses the buffer | LOCAL | 0013 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
