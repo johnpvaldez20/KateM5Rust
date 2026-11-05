@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 217,
     "branch": "pkt/PKT-0211-cr-fold",
     "base_sha": "68c1bbf7a4fca4ed96f5882b624341fdb2c9826f"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/217"
   },
   "lane": {
     "runtime": "LOCAL",
