@@ -71,7 +71,15 @@ fn line_indents(text: &str, tab_width: u8) -> Vec<LineIndent> {
 }
 
 fn line_indent(line: &str, tab_width: u8) -> LineIndent {
-    match leading_indent(line.trim_end_matches('\r'), tab_width) {
+    let line = line.trim_end_matches('\r');
+    let body = line.trim_start_matches([' ', '\t']);
+    if body.starts_with('#') {
+        return LineIndent {
+            blank: true,
+            indent: 0,
+        };
+    }
+    match leading_indent(line, tab_width) {
         Some(indent) => LineIndent {
             blank: false,
             indent,
@@ -256,5 +264,14 @@ mod tests {
         assert!(span_contains_line(span, 2));
         assert!(span_contains_line(span, 3));
         assert!(!span_contains_line(span, 4));
+    }
+
+    #[test]
+    fn a_hash_comment_does_not_end_a_fold() {
+        assert_eq!(indent_folds("a\n  # note\n", 4), Vec::new());
+        assert_eq!(
+            indent_folds("a\n  b\n# end\n", 4),
+            vec![FoldSpan { start: 0, end: 4 }]
+        );
     }
 }

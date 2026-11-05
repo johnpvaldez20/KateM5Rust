@@ -77,7 +77,7 @@ pub(crate) fn visual_row_count(line: &str, columns: u32, tab_width: u8) -> u32 {
     for scalar in line.chars() {
         if scalar == '\t' {
             width = width.saturating_add(step - (width % step));
-        } else {
+        } else if scalar != '\r' {
             width = width.saturating_add(1);
         }
     }
@@ -232,6 +232,13 @@ mod tests {
         assert_eq!(visual_row_count("\t\t", 4, 4), 2);
         assert_eq!(visual_row_count("a\t", 4, 4), 1);
         assert_eq!(visual_row_count("\t", 4, 0), 1);
+    }
+
+    #[test]
+    fn a_carriage_return_has_no_width() {
+        assert_eq!(visual_row_count("ab\rcd", 4, 4), 1);
+        assert_eq!(visual_row_count("abcd", 4, 4), 1);
+        assert_eq!(visual_row_count("\t", 4, 4), 1);
     }
 }
 
