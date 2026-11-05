@@ -139,6 +139,17 @@ impl Selections {
         *self = Self::new(ranges, primary);
     }
 
+    /// Put a new caret at `at` and make it primary.
+    ///
+    /// A stored caret at the same offset, or a range that covers it,
+    /// leaves the set unchanged.
+    pub fn add_caret(&mut self, at: Offset) {
+        if self.ranges.iter().any(|s| s.head == at || s.covers(at)) {
+            return;
+        }
+        self.push(Selection::caret(at));
+    }
+
     /// Keep the primary selection and drop the others.
     pub fn remove_secondary(&mut self) {
         let keep = self.primary();
@@ -1040,5 +1051,26 @@ mod tests {
             goal_col: None,
         };
         assert_eq!(backward.scalar_len(), 3);
+    }
+
+    #[test]
+    fn add_caret_at_an_offset_becomes_primary() {
+        let mut sel = Selections::single(Selection::caret(Offset(0)));
+        sel.add_caret(Offset(4));
+        assert_eq!(sel.len(), 2);
+        assert_eq!(sel.primary().head, Offset(4));
+
+        // Adding the same offset again leaves the set unchanged.
+        sel.add_caret(Offset(4));
+        assert_eq!(sel.len(), 2);
+
+        // An offset inside a range adds nothing.
+        let mut range = Selections::single(Selection {
+            anchor: Offset(0),
+            head: Offset(3),
+            goal_col: None,
+        });
+        range.add_caret(Offset(1));
+        assert_eq!(range.len(), 1);
     }
 }
