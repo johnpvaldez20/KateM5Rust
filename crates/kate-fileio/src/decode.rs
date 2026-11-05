@@ -34,8 +34,10 @@ pub type Encoding = &'static encoding_rs::Encoding;
 /// Returns the encoding for `label`.
 /// An empty label returns `None`.
 /// The label `replacement` returns `None`.
+/// U+2011 (non-breaking hyphen) is treated as an ASCII hyphen.
 pub fn encoding_for_label(label: &str) -> Option<Encoding> {
-    encoding_rs::Encoding::for_label_no_replacement(label.as_bytes())
+    let normalized: String = label.replace('\u{2011}', "-");
+    encoding_rs::Encoding::for_label_no_replacement(normalized.as_bytes())
 }
 
 /// Limits and the encoding used when the bytes are not UTF-8 and have no BOM.
@@ -509,5 +511,11 @@ mod tests {
         let decoded = decode("a\u{2029}b".as_bytes(), &DecodeOptions::default()).unwrap();
         assert_eq!(decoded.text.to_string(), "a\nb");
         assert_eq!(decoded.line_ending, LineEnding::Lf);
+    }
+
+    #[test]
+    fn a_non_breaking_hyphen_is_utf8() {
+        assert_eq!(encoding_for_label("utf\u{2011}8"), Some(encoding_rs::UTF_8));
+        assert_eq!(encoding_for_label("replacement"), None);
     }
 }
