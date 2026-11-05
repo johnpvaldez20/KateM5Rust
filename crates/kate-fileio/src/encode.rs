@@ -117,8 +117,18 @@ fn encode_utf16_bytes(s: &str, out: &mut Vec<u8>, little_endian: bool) {
     }
 }
 
+/// Returns `true` when `ch` is a Unicode line break (U+000B, U+000C,
+/// U+0085, U+2028, U+2029).
+fn is_unicode_break(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{000B}' | '\u{000C}' | '\u{0085}' | '\u{2028}' | '\u{2029}'
+    )
+}
+
 /// Converts `\n` to the target line ending and optionally ensures a trailing newline.
 /// A CR LF pair is treated as one line ending; a lone CR stays a CR.
+/// A Unicode line break is also treated as an ending.
 fn to_wire_form(s: &str, opts: &EncodeOptions) -> String {
     let scalars: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len());
@@ -129,14 +139,20 @@ fn to_wire_form(s: &str, opts: &EncodeOptions) -> String {
             i += 1;
             continue;
         }
-        if scalars[i] == '\n' {
+        if scalars[i] == '\n' || is_unicode_break(scalars[i]) {
             out.push_str(opts.line_ending.as_str());
         } else {
             out.push(scalars[i]);
         }
         i += 1;
     }
-    if opts.ensure_trailing_newline && !s.is_empty() && !s.ends_with('\n') && !s.ends_with('\r') {
+    if opts.ensure_trailing_newline
+        && !s.is_empty()
+        && !s
+            .chars()
+            .next_back()
+            .is_some_and(|ch| ch == '\n' || ch == '\r' || is_unicode_break(ch))
+    {
         out.push_str(opts.line_ending.as_str());
     }
     out
@@ -453,6 +469,61 @@ mod tests {
             };
             let bytes = encode(&rope, &opts).unwrap();
             assert_eq!(&bytes, b"a\rb");
+        }
+    }
+
+    #[test]
+    fn a_unicode_line_break_counts_as_an_ending() {
+        // "a" + U+2028 with Lf ending and ensure true → "a\n" (U+2028 is an ending).
+        {
+            let rope = Rope::from_str("a\u{2028}");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\n");
+        }
+
+        // "a" + U+2029 with Lf ending and ensure true → "a\n" (U+2029 is an ending).
+        {
+            let rope = Rope::from_str("a\u{2029}");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\n");
+        }
+
+        // "a\n" with Lf ending and ensure true → "a\n" (already has ending).
+        {
+            let rope = Rope::from_str("a\n");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\n");
+        }
+
+        // "a\r" with Lf ending and ensure true → "a\r" (CR is an ending).
+        {
+            let rope = Rope::from_str("a\r");
+            let opts = EncodeOptions {
+                encoding: encoding_rs::UTF_8,
+                bom: false,
+                line_ending: LineEnding::Lf,
+                ensure_trailing_newline: true,
+            };
+            let bytes = encode(&rope, &opts).unwrap();
+            assert_eq!(&bytes, b"a\r");
         }
     }
 
