@@ -95,6 +95,13 @@ impl TextBuffer {
         Some(self.text.char(at.0))
     }
 
+    /// Returns the last scalar in the buffer. An empty buffer returns `None`.
+    pub fn last_char(&self) -> Option<char> {
+        let len = self.len().0;
+        let index = len.checked_sub(1)?;
+        self.char_at(Offset(index))
+    }
+
     /// Validates every edit against the current text, applies all, bumps revision by exactly 1.
     pub fn apply(&mut self, tx: &Transaction) -> Result<Revision, ApplyError> {
         validate(&self.text, tx)?;
@@ -633,5 +640,12 @@ mod tests {
         assert_eq!(buf.char_at(Offset(0)), Some('a'));
         assert_eq!(buf.char_at(Offset(1)), Some('b'));
         assert_eq!(buf.char_at(Offset(2)), None);
+    }
+
+    #[test]
+    fn last_char_is_none_when_empty() {
+        assert_eq!(TextBuffer::from_str("").last_char(), None);
+        assert_eq!(TextBuffer::from_str("ab").last_char(), Some('b'));
+        assert_eq!(TextBuffer::from_str("é").last_char(), Some('é'));
     }
 }

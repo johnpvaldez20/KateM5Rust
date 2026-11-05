@@ -59,6 +59,12 @@ pub fn bracket_mate(ch: char) -> Option<char> {
     None
 }
 
+/// Returns `true` when `ch` is a bracket that `bracket_mate` pairs.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn is_bracket(ch: char) -> bool {
+    bracket_mate(ch).is_some()
+}
+
 /// Returns the bracket scalar the scan starts on.
 fn bracket_at(buf: &TextBuffer, at: Offset) -> Option<(usize, char)> {
     let len = buf.len().0;
@@ -236,5 +242,14 @@ mod tests {
         assert_eq!(super::bracket_mate('>'), Some('<'));
         assert_eq!(super::bracket_mate('a'), None);
         assert_eq!(super::bracket_mate('"'), None);
+    }
+
+    #[test]
+    fn is_bracket_names_a_pair() {
+        assert!(super::is_bracket('('));
+        assert!(super::is_bracket('>'));
+        assert!(super::is_bracket('<'));
+        assert!(!super::is_bracket('"'));
+        assert!(!super::is_bracket('a'));
     }
 }
