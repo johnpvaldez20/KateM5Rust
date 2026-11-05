@@ -1,0 +1,166 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0210",
+  "title": "kate-core: accept any case in a config boolean",
+  "summary": "A config boolean accepts any ASCII case. YES and ON parse. The tests that reject those words must be updated. Lower-case yes and on stay valid. The new test goes in the existing config tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T09:55:26Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0210-bool-case",
+    "base_sha": "68c1bbf7a4fca4ed96f5882b624341fdb2c9826f"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/config.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-text/src/edit.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-ui/src/profile.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-text/src/offset.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-core/src/syntax_cache.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/selection.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0016",
+      "PKT-0054",
+      "PKT-0064",
+      "PKT-0154",
+      "PKT-0169",
+      "PKT-0184"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/config.rs",
+        "definition": "fn bool_value(key: &str, value: &str) -> Result<bool, ConfigError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "config.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Change only bool_value. Fold the value with to_ascii_lowercase, then keep the same match words. Do not add a second arm that returns the same bool. Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch trailing_value, width_value, or encoding_value. Update the uppercase asserts in yes_and_no_are_booleans and on_and_off_are_booleans. Those asserts currently expect YES and ON to be ConfigError::BadValue. After the change YES and ON parse as true. You may update those asserts and their comments. Keep the lower-case yes, no, on, and off asserts in those tests. The test one_and_zero_are_booleans stays green. Do not rewrite its assertions. The test upper_case_booleans_parse parses document.indent_with_spaces = TRUE as true. document.ensure_trailing_newline = FALSE parses as false. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked config::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "config::tests::upper_case_booleans_parse",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. TRUE is a bad value. After the change TRUE is true and FALSE is false. YES and ON also parse."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

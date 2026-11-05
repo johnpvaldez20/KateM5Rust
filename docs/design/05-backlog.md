@@ -549,6 +549,35 @@ The index is `docs/design/WAVE-0197.md`.
 | PKT-0203 | `kate-ui`: accept true for a profile line | LOCAL | 0013 |
 | PKT-0204 | `kate-core`: tell an execution mark | LOCAL | 0180 |
 
+## Wave PKT-0205
+
+WAVE-0197 plans are on main.
+This wave leaves `completion.rs`, `fuzzy.rs`, `keys.rs`, `edit.rs`, `theme.rs`, `regex.rs`, `profile.rs`, and `document.rs` unchanged.
+WAVE-0189 code is on main.
+This wave leaves `movement.rs`, `literal.rs`, `pair.rs`, `offset.rs`, `load.rs`, `save.rs`, `highlight.rs`, and `cache.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Two arms that return the same value use one `||` condition.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0205.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0205 | `kate-syntax`: match a file name in either case | LOCAL | 0100 |
+| PKT-0206 | `kate-core`: count a carriage return as one line | LOCAL | 0012 |
+| PKT-0207 | `kate-text`: tell a closing bracket from an opener | LOCAL | 0187 |
+| PKT-0208 | `kate-text`: return the scalar after an offset | LOCAL | 0186 |
+| PKT-0209 | `kate-core`: accept any case in a trailing-space word | LOCAL | 0185 |
+| PKT-0210 | `kate-core`: accept any case in a config boolean | LOCAL | 0184 |
+| PKT-0211 | `kate-core`: fold a line that a carriage return ends | LOCAL | 0188 |
+| PKT-0212 | `kate-core`: count the scalars in a selection | LOCAL | 0175 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
