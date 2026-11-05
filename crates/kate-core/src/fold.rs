@@ -203,10 +203,30 @@ pub fn regions_from_events(events: &[(u32, kate_syntax::FoldEvent)]) -> Vec<Fold
     regions
 }
 
+/// Flip the `folded` flag of the innermost region that contains `line`.
+///
+/// A region contains `line` when `line >= start && line < end`.
+/// The innermost is the one with the greatest `start`.
+/// When two regions share that start, the smaller `end` wins.
+/// Returns `true` when a region was toggled, `false` otherwise.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn toggle_region(regions: &mut [FoldRegion], line: u32) -> bool {
+    let index = regions
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| line >= r.start && line < r.end)
+        .max_by(|(_, a), (_, b)| a.start.cmp(&b.start).then(b.end.cmp(&a.end)))
+        .map(|(i, _)| i);
+    let Some(index) = index else { return false };
+    regions[index].folded = !regions[index].folded;
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        FoldRegion, FoldSpan, indent_folds, innermost_fold, regions_from_events, span_contains_line,
+        FoldRegion, FoldSpan, indent_folds, innermost_fold, regions_from_events,
+        span_contains_line, toggle_region,
     };
 
     #[test]
@@ -407,5 +427,33 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn toggle_region_folds_the_header() {
+        let mut regions = vec![
+            FoldRegion {
+                start: 0,
+                end: 4,
+                folded: false,
+            },
+            FoldRegion {
+                start: 1,
+                end: 3,
+                folded: false,
+            },
+        ];
+        // Line 2 is inside both; the inner region (greatest start) wins.
+        assert!(toggle_region(&mut regions, 2));
+        assert!(!regions[0].folded);
+        assert!(regions[1].folded);
+        // Line 0 is only inside the outer region.
+        assert!(toggle_region(&mut regions, 0));
+        assert!(regions[0].folded);
+        assert!(regions[1].folded);
+        // Line 4 is past the end of both regions; nothing is toggled.
+        assert!(!toggle_region(&mut regions, 4));
+        assert!(regions[0].folded);
+        assert!(regions[1].folded);
     }
 }
