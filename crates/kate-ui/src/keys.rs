@@ -336,6 +336,26 @@ const MOVE_BINDINGS: &[MoveBinding] = &[
         movement: Movement::LineEnd,
         extend: Extend::Yes,
     },
+    MoveBinding {
+        name: "ctrl-home",
+        movement: Movement::DocStart,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "ctrl-end",
+        movement: Movement::DocEnd,
+        extend: Extend::No,
+    },
+    MoveBinding {
+        name: "ctrl-shift-home",
+        movement: Movement::DocStart,
+        extend: Extend::Yes,
+    },
+    MoveBinding {
+        name: "ctrl-shift-end",
+        movement: Movement::DocEnd,
+        extend: Extend::Yes,
+    },
 ];
 
 fn move_binding(name: &str) -> Option<Command> {
@@ -763,5 +783,33 @@ mod tests {
             Some(Command::Move(Movement::LineEnd, Extend::Yes))
         );
         assert_eq!(command_for_binding("cmd-a"), Some(Command::SelectAll));
+    }
+
+    #[test]
+    fn ctrl_home_moves_to_the_document_start() {
+        assert_eq!(
+            command_for_binding("ctrl-home"),
+            Some(Command::Move(Movement::DocStart, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("ctrl-end"),
+            Some(Command::Move(Movement::DocEnd, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("shift-ctrl-home"),
+            Some(Command::Move(Movement::DocStart, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("shift-ctrl-end"),
+            Some(Command::Move(Movement::DocEnd, Extend::Yes))
+        );
+        assert_eq!(
+            command_for_binding("ctrl-a"),
+            Some(Command::Move(Movement::LineStart, Extend::No))
+        );
+        assert_eq!(
+            command_for_binding("cmd-up"),
+            Some(Command::Move(Movement::DocStart, Extend::No))
+        );
     }
 }
