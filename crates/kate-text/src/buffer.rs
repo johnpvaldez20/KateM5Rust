@@ -102,6 +102,12 @@ impl TextBuffer {
         self.char_at(Offset(index))
     }
 
+    /// Returns the scalar before `at`, or `None` when `at` is 0.
+    pub fn char_before(&self, at: Offset) -> Option<char> {
+        let index = at.0.checked_sub(1)?;
+        self.char_at(Offset(index))
+    }
+
     /// Validates every edit against the current text, applies all, bumps revision by exactly 1.
     pub fn apply(&mut self, tx: &Transaction) -> Result<Revision, ApplyError> {
         validate(&self.text, tx)?;
@@ -647,5 +653,15 @@ mod tests {
         assert_eq!(TextBuffer::from_str("").last_char(), None);
         assert_eq!(TextBuffer::from_str("ab").last_char(), Some('b'));
         assert_eq!(TextBuffer::from_str("é").last_char(), Some('é'));
+    }
+
+    #[test]
+    fn char_before_is_none_at_the_start() {
+        let buf = TextBuffer::from_str("ab");
+        assert_eq!(buf.char_before(Offset(0)), None);
+        assert_eq!(buf.char_before(Offset(1)), Some('a'));
+        assert_eq!(buf.char_before(Offset(2)), Some('b'));
+        assert_eq!(buf.char_before(Offset(3)), None);
+        assert_eq!(TextBuffer::from_str("é").char_before(Offset(1)), Some('é'));
     }
 }
