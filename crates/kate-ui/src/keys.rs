@@ -369,6 +369,8 @@ fn text_binding(name: &str) -> Option<Command> {
     match name {
         "backspace" => Some(Command::DeleteBackward),
         "delete" => Some(Command::DeleteForward),
+        "ctrl-d" => Some(Command::DeleteForward),
+        "ctrl-h" => Some(Command::DeleteBackward),
         "enter" => Some(Command::Newline),
         "tab" => Some(Command::InsertText("\t".to_string())),
         _ => None,
@@ -783,6 +785,21 @@ mod tests {
             Some(Command::Move(Movement::LineEnd, Extend::Yes))
         );
         assert_eq!(command_for_binding("cmd-a"), Some(Command::SelectAll));
+    }
+
+    #[test]
+    fn ctrl_d_deletes_forward() {
+        assert_eq!(command_for_binding("ctrl-d"), Some(Command::DeleteForward));
+        assert_eq!(command_for_binding("ctrl-h"), Some(Command::DeleteBackward));
+        assert_eq!(command_for_binding("delete"), Some(Command::DeleteForward));
+        assert_eq!(
+            command_for_binding("backspace"),
+            Some(Command::DeleteBackward)
+        );
+        assert_eq!(
+            command_for_binding("ctrl-home"),
+            Some(Command::Move(Movement::DocStart, Extend::No))
+        );
     }
 
     #[test]
