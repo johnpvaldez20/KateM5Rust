@@ -491,7 +491,7 @@ fn kind_of(ch: char) -> Kind {
 }
 
 fn is_in_word(ch: char) -> bool {
-    !is_default_delimiter(ch) && !ch.is_whitespace() && !matches!(ch, '"' | '\'' | '`')
+    !is_default_delimiter(ch) && !ch.is_whitespace() && !matches!(ch, '"' | '`')
 }
 
 fn is_default_delimiter(ch: char) -> bool {
@@ -1194,5 +1194,27 @@ mod tests {
             &ctx(),
         );
         assert_eq!(moved.head, Offset(3));
+    }
+
+    #[test]
+    fn word_right_from_an_apostrophe_stays_in_the_word() {
+        let buf = TextBuffer::from_str("don't");
+        let at_apostrophe = move_selection(
+            &buf,
+            Selection::caret(Offset(3)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(at_apostrophe.head, Offset(5));
+
+        let at_start = move_selection(
+            &buf,
+            Selection::caret(Offset(0)),
+            Movement::WordRight,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(at_start.head, Offset(5));
     }
 }
