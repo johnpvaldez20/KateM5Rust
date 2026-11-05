@@ -104,9 +104,50 @@ pub(crate) fn span_line_window(first_line: u32, row_count: u32, line_count: u32)
     start..start.saturating_add(row_count).min(line_count)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+/// Return the display column one wrap row above or below a display column.
+///
+/// A `columns` value of 0 returns None.
+/// When the target row does not exist, return None.
+/// When the target row is shorter than the column inside the row,
+/// return the last display column of that row.
+pub(crate) fn visual_step(
+    line: &str,
+    column: u32,
+    columns: u32,
+    tab_width: u8,
+    delta: i32,
+) -> Option<u32> {
+    if columns == 0 {
+        return None;
+    }
+    let step = tab_width.max(1) as u32;
+    let mut width: u32 = 0;
+    for scalar in line.chars() {
+        if scalar == '\t' {
+            width = width.saturating_add(step - (width % step));
+        } else if !(is_line_break(scalar) || scalar == '\u{200B}') {
+            width = width.saturating_add(1);
+        }
+    }
+    let target = if delta > 0 {
+        column.checked_add(columns)?
+    } else {
+        column.checked_sub(columns)?
+    };
+    let target_row_start = target / columns;
+    if target_row_start * columns >= width {
+        return None;
+    }
+    if target >= width {
+        return Some(width - 1);
+    }
+    Some(target)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{notice_from, span_line_window, visible_line_range, visual_row_count};
+    use super::{notice_from, span_line_window, visible_line_range, visual_row_count, visual_step};
     use crate::{ShapedLine, ShapedLineCache};
     use kate_core::{CommandError, Scroll};
     use kate_text::Revision;
@@ -267,6 +308,19 @@ mod tests {
     fn a_zero_width_space_adds_no_row() {
         assert_eq!(visual_row_count("ab\u{200B}", 2, 4), 1);
         assert_eq!(visual_row_count("ab", 2, 4), 1);
+    }
+
+    #[test]
+    fn visual_step_moves_one_wrap_row() {
+        assert_eq!(visual_step("abcdefghij", 0, 4, 4, 1), Some(4));
+        assert_eq!(visual_step("abcdefghij", 4, 4, 4, 1), Some(8));
+        assert_eq!(visual_step("abcdefghij", 8, 4, 4, 1), None);
+        assert_eq!(visual_step("abcdefghij", 5, 4, 4, -1), Some(1));
+        assert_eq!(visual_step("abcdefghij", 0, 4, 4, -1), None);
+        assert_eq!(visual_step("abcdef", 3, 4, 4, 1), Some(5));
+        assert_eq!(visual_step("\tb", 0, 4, 4, 1), Some(4));
+        assert_eq!(visual_step("\tb", 4, 4, 4, -1), Some(0));
+        assert_eq!(visual_step("ab", 0, 0, 4, 1), None);
     }
 }
 
