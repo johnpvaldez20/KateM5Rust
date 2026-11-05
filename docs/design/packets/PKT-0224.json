@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 235,
     "branch": "pkt/PKT-0224-nbsp-blank-fold",
     "base_sha": "d98044265c42bef5d9281e066b2c6eacbc12b227"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/235"
   },
   "lane": {
     "runtime": "LOCAL",
