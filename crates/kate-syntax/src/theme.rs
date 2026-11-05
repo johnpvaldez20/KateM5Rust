@@ -521,7 +521,8 @@ fn unset_if_transparent_black(color: Rgba) -> Option<Rgba> {
 }
 
 fn parse_hex_color(text: &str) -> Result<Rgba, ThemeError> {
-    let Some(hex) = text.strip_prefix('#') else {
+    let trimmed = text.trim();
+    let Some(hex) = trimmed.strip_prefix('#') else {
         return Err(ThemeError::BadColor(text.to_string()));
     };
     if hex.is_empty() || !hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
@@ -905,5 +906,31 @@ mod tests {
             theme.editor_color(EditorColor::BackgroundColor),
             Some(Rgba(0xff, 0xff, 0xff, 0x88))
         );
+    }
+
+    #[test]
+    fn a_theme_color_may_have_outer_spaces() {
+        let theme = editor_color_theme(&[("BackgroundColor", " #ffffff")]);
+        assert_eq!(
+            theme.editor_color(EditorColor::BackgroundColor),
+            Some(Rgba(0xff, 0xff, 0xff, 0xff))
+        );
+
+        let theme = editor_color_theme(&[("BackgroundColor", "#ffffff ")]);
+        assert_eq!(
+            theme.editor_color(EditorColor::BackgroundColor),
+            Some(Rgba(0xff, 0xff, 0xff, 0xff))
+        );
+
+        let json = r##"{
+            "metadata": {"name": "spaced", "revision": 1, "license": "MIT"},
+            "text-styles": {"Keyword": {"text-color": "#ff ff"}},
+            "editor-colors": {}
+        }"##;
+        match Theme::from_json(json) {
+            Err(ThemeError::BadColor(value)) => assert_eq!(value, "#ff ff"),
+            Err(other) => panic!("expected BadColor, got {other}"),
+            Ok(_) => panic!("spaced hex returned a theme"),
+        }
     }
 }
