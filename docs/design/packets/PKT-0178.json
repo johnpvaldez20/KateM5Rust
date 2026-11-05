@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 181,
     "branch": "pkt/PKT-0178-numeric-hump",
     "base_sha": "a0007f0a90ee1cdf88d18636b4ccd8b1bd4bcae3"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/181"
   },
   "lane": {
     "runtime": "LOCAL",
