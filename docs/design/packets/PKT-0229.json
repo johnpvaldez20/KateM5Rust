@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 244,
     "branch": "pkt/PKT-0229-fullwidth-paren",
     "base_sha": "2b5f2948159a98432c69f2fd0b49b6536d80cacf"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/244"
   },
   "lane": {
     "runtime": "LOCAL",
