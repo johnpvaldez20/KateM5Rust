@@ -71,6 +71,12 @@ pub fn is_opener(ch: char) -> bool {
     PAIRS.iter().any(|(open, _)| *open == ch)
 }
 
+/// Returns `true` when `ch` is a closing bracket.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn is_closer(ch: char) -> bool {
+    PAIRS.iter().any(|(_, close)| *close == ch)
+}
+
 /// Returns the bracket scalar the scan starts on.
 fn bracket_at(buf: &TextBuffer, at: Offset) -> Option<(usize, char)> {
     let len = buf.len().0;
@@ -267,5 +273,17 @@ mod tests {
         assert!(!super::is_opener('>'));
         assert!(!super::is_opener('"'));
         assert!(!super::is_opener('a'));
+    }
+
+    #[test]
+    fn is_closer_names_only_the_close_side() {
+        assert!(super::is_closer(')'));
+        assert!(super::is_closer(']'));
+        assert!(super::is_closer('}'));
+        assert!(super::is_closer('>'));
+        assert!(!super::is_closer('('));
+        assert!(!super::is_closer('<'));
+        assert!(!super::is_closer('"'));
+        assert!(!super::is_closer('a'));
     }
 }
