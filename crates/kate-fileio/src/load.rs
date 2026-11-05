@@ -52,6 +52,12 @@ fn open_load_file(path: &Path) -> std::io::Result<File> {
 /// The path must be a regular file.
 /// The read stops one byte past `max_bytes`.
 pub fn load(path: &Path, opts: &DecodeOptions) -> Result<Loaded, LoadError> {
+    if path.as_os_str().is_empty() {
+        return Err(LoadError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "The path is not a file.",
+        )));
+    }
     let file = open_load_file(path).map_err(LoadError::Io)?;
     let meta = file.metadata().map_err(LoadError::Io)?;
     if !meta.is_file() {
@@ -203,6 +209,18 @@ mod tests {
     fn load_of_a_directory_names_the_path() {
         let dir = tempfile::tempdir().unwrap();
         let err = load(dir.path(), &DecodeOptions::default()).unwrap_err();
+        match err {
+            LoadError::Io(e) => {
+                assert_eq!(e.kind(), std::io::ErrorKind::InvalidInput);
+                assert_eq!(e.to_string(), "The path is not a file.");
+            }
+            other => panic!("expected LoadError::Io, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_of_an_empty_path_names_the_path() {
+        let err = load(std::path::Path::new(""), &DecodeOptions::default()).unwrap_err();
         match err {
             LoadError::Io(e) => {
                 assert_eq!(e.kind(), std::io::ErrorKind::InvalidInput);
