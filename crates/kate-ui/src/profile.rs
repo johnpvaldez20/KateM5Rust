@@ -11,19 +11,25 @@ pub(crate) fn sample_json(sample: &FrameSample) -> String {
     serde_json::to_string(sample).expect("frame sample")
 }
 
-/// Write one JSON line to stderr when `KATEM5_PROFILE` is `1`.
+/// Return true when the profiling environment variable is `1` or `true`.
+#[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))]
+fn profile_is_on(value: Option<&std::ffi::OsStr>) -> bool {
+    value.is_some_and(|value| {
+        value == std::ffi::OsStr::new("1") || value == std::ffi::OsStr::new("true")
+    })
+}
+
+/// Write one JSON line to stderr when `KATEM5_PROFILE` is `1` or `true`.
 #[cfg(target_os = "macos")]
 pub(crate) fn write_sample(sample: &FrameSample) {
-    let enabled =
-        std::env::var_os("KATEM5_PROFILE").is_some_and(|value| value == std::ffi::OsStr::new("1"));
-    if enabled {
+    if profile_is_on(std::env::var_os("KATEM5_PROFILE").as_deref()) {
         eprintln!("{}", sample_json(sample));
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::sample_json;
+    use super::{profile_is_on, sample_json};
     use crate::FrameSample;
 
     #[test]
@@ -41,5 +47,14 @@ mod tests {
             line,
             r#"{"frame":1,"paint_micros":2,"first_line":3,"lines_painted":4,"highlight_micros":5,"shape_micros":6,"draw_micros":7}"#
         );
+    }
+
+    #[test]
+    fn profile_is_on_for_one_and_true() {
+        assert!(profile_is_on(Some(std::ffi::OsStr::new("1"))));
+        assert!(profile_is_on(Some(std::ffi::OsStr::new("true"))));
+        assert!(!profile_is_on(Some(std::ffi::OsStr::new("yes"))));
+        assert!(!profile_is_on(Some(std::ffi::OsStr::new("0"))));
+        assert!(!profile_is_on(None));
     }
 }
