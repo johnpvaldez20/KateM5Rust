@@ -636,6 +636,35 @@ The index is `docs/design/WAVE-0221.md`.
 | PKT-0227 | `kate-ui`: accept TRUE for a profile line | LOCAL | 0203 |
 | PKT-0228 | `kate-syntax`: fold a capital I in a case flag | LOCAL | 0202 |
 
+## Wave PKT-0229
+
+WAVE-0221 plans are on main.
+This wave leaves `completion.rs`, `pair.rs`, `indent.rs`, `fold.rs`, `literal.rs`, `edit.rs`, `profile.rs`, and `regex.rs` unchanged.
+WAVE-0213 code is on main.
+This wave leaves those eight files unchanged as well.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Two arms that return the same value use one `||` condition.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0229.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0229 | `kate-text`: match a fullwidth parenthesis | LOCAL | 0207 |
+| PKT-0230 | `kate-fileio`: accept a hyphen in an encoding label | LOCAL | 0177 |
+| PKT-0231 | `kate-syntax`: match an accented file extension | LOCAL | 0205 |
+| PKT-0232 | `kate-core`: accept a hyphen in a modeline encoding | LOCAL | 0209 |
+| PKT-0233 | `kate-syntax`: trim spaces around a theme color | LOCAL | 0201 |
+| PKT-0234 | `kate-syntax`: read a fullwidth digit as an integer | LOCAL | 0008 |
+| PKT-0235 | `kate-fileio`: name an empty load path | LOCAL | 0193 |
+| PKT-0236 | `kate-core`: tell an error mark from a warning | LOCAL | 0204 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

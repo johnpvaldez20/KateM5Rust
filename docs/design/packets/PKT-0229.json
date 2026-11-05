@@ -1,0 +1,174 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0229",
+  "title": "kate-text: match a fullwidth parenthesis",
+  "summary": "Fullwidth parentheses are a bracket pair. U+FF08 opens and U+FF09 closes. ASCII parentheses stay the same. The test goes in the existing brackets tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T14:33:59Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0229-fullwidth-paren",
+    "base_sha": "2b5f2948159a98432c69f2fd0b49b6536d80cacf"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/src/brackets.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-text/src/offset.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-text/src/history.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-text/src/edit.rs",
+      "crates/kate-ui/src/profile.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-core/src/selection.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/syntax_cache.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-core/src/document.rs"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0052",
+      "PKT-0058",
+      "PKT-0121",
+      "PKT-0145",
+      "PKT-0163",
+      "PKT-0187",
+      "PKT-0207"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/brackets.rs",
+        "definition": "const PAIRS: [(char, char); 5]"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "brackets.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add one pair to PAIRS: U+FF08 and U+FF09. Set the array length to 5. Do not add fullwidth square brackets or fullwidth curly brackets. Do not change is_opener, is_closer, or matching_bracket. They already walk PAIRS. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. The existing tests is_opener_names_only_the_open_side and angle_brackets_match stay green. Do not rewrite their assertions. The test a_fullwidth_parenthesis_matches uses TextBuffer::from_str of U+FF08, a, U+FF09. matching_bracket at Offset(0) is Some of Offset(2). is_opener of U+FF08 is true. is_closer of U+FF09 is true. is_opener of U+FF09 is false. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo test -p kate-text --locked brackets::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "brackets::tests::a_fullwidth_parenthesis_matches",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. U+FF08 is not an opener and the scan returns None. After the change the scan finds U+FF09. The closer is not an opener."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
