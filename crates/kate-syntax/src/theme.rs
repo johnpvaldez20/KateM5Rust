@@ -568,6 +568,12 @@ fn decode_channels(bytes: &[u8]) -> Option<(u32, u32, u32, u32)> {
             hex_digits(&bytes[2..4]) * 0x101,
             hex_digits(&bytes[4..6]) * 0x101,
         ),
+        4 => (
+            hex_digits(&bytes[0..1]) * 0x1111,
+            hex_digits(&bytes[1..2]) * 0x1111,
+            hex_digits(&bytes[2..3]) * 0x1111,
+            hex_digits(&bytes[3..4]) * 0x1111,
+        ),
         3 => (
             65535,
             hex_digits(&bytes[0..1]) * 0x1111,
@@ -890,5 +896,14 @@ mod tests {
         assert_eq!(color, white);
         assert_ne!(color, current_line);
         assert_ne!(color, background);
+    }
+
+    #[test]
+    fn a_four_digit_color_keeps_the_alpha() {
+        let theme = editor_color_theme(&[("BackgroundColor", "#8fff")]);
+        assert_eq!(
+            theme.editor_color(EditorColor::BackgroundColor),
+            Some(Rgba(0xff, 0xff, 0xff, 0x88))
+        );
     }
 }
