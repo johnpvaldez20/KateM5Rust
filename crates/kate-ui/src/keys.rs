@@ -179,6 +179,38 @@ pub fn scroll_y_for_line(first_line: u32, line_height: f32) -> f32 {
     first_line as f32 * line_height
 }
 
+/// Fold state for one gutter row.
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FoldMark {
+    #[allow(dead_code)]
+    Open,
+    Closed,
+}
+
+/// One gutter row: the 1-based line number, modified flag, fold marker, and mark flag.
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GutterRow {
+    pub number: u32,
+    pub modified: bool,
+    pub fold: Option<FoldMark>,
+    pub marked: bool,
+}
+
+/// Build a `GutterRow` from a 0-based line index and three flags.
+///
+/// `number` is `line + 1`.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn gutter_row(line: u32, modified: bool, fold: Option<FoldMark>, marked: bool) -> GutterRow {
+    GutterRow {
+        number: line.saturating_add(1),
+        modified,
+        fold,
+        marked,
+    }
+}
+
 struct MoveBinding {
     name: &'static str,
     movement: Movement,
@@ -501,8 +533,8 @@ fn append_mod(out: &mut String, on: bool, name: &str) {
 #[cfg(test)]
 mod tests {
     use super::{
-        CaretMark, SelSpan, caret_marks, command_for_binding, command_for_commit, line_byte,
-        normalize_binding, reveal_line, scroll_y_for_line, selection_spans,
+        CaretMark, FoldMark, SelSpan, caret_marks, command_for_binding, command_for_commit,
+        gutter_row, line_byte, normalize_binding, reveal_line, scroll_y_for_line, selection_spans,
         visible_selection_spans,
     };
     use kate_core::{Command, Extend, Movement, Selection, Selections};
@@ -844,5 +876,20 @@ mod tests {
         assert_eq!(command_for_binding("meta-s"), Some(Command::Save));
         assert_eq!(command_for_binding("command-s"), Some(Command::Save));
         assert_eq!(normalize_binding("meta-shift-z"), "shift-cmd-z");
+    }
+
+    #[test]
+    fn gutter_row_records_the_four_columns() {
+        let row = gutter_row(0, true, Some(FoldMark::Closed), true);
+        assert_eq!(row.number, 1);
+        assert!(row.modified);
+        assert_eq!(row.fold, Some(FoldMark::Closed));
+        assert!(row.marked);
+
+        let empty = gutter_row(8, false, None, false);
+        assert_eq!(empty.number, 9);
+        assert!(!empty.modified);
+        assert_eq!(empty.fold, None);
+        assert!(!empty.marked);
     }
 }
