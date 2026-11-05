@@ -520,6 +520,35 @@ The index is `docs/design/WAVE-0189.md`.
 | PKT-0195 | `kate-ui`: tell when a highlight step needs paint | LOCAL | 0171 |
 | PKT-0196 | `kate-ui`: map a gutter channel to a byte | LOCAL | 0013 |
 
+## Wave PKT-0197
+
+WAVE-0189 plans are on main.
+This wave leaves `movement.rs`, `literal.rs`, `pair.rs`, `offset.rs`, `load.rs`, `save.rs`, `highlight.rs`, and `cache.rs` unchanged.
+WAVE-0181 code is on main.
+This wave leaves `indent.rs`, `fold.rs`, `layout.rs`, `config.rs`, `modeline.rs`, `buffer.rs`, `brackets.rs`, and `view.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Two arms that return the same value use one `||` condition.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0197.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0197 | `kate-core`: complete a word across a curly apostrophe | LOCAL | 0174 |
+| PKT-0198 | `kate-core`: drop a boundary bonus after a letter | LOCAL | 0178 |
+| PKT-0199 | `kate-ui`: bind shift-tab to unindent | LOCAL | 0173 |
+| PKT-0200 | `kate-text`: tell a delete from a replacement | LOCAL | 0179 |
+| PKT-0201 | `kate-syntax`: read a four-digit theme color | LOCAL | 0085 |
+| PKT-0202 | `kate-syntax`: keep a single case flag | LOCAL | 0008 |
+| PKT-0203 | `kate-ui`: accept true for a profile line | LOCAL | 0013 |
+| PKT-0204 | `kate-core`: tell an execution mark | LOCAL | 0180 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

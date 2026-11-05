@@ -1,0 +1,164 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0200",
+  "title": "kate-text: tell a delete from a replacement",
+  "summary": "is_delete is true when old has text and new is empty. A replacement and an insert are false. The test goes in the existing edit tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T09:08:10Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 209,
+    "branch": "pkt/PKT-0200-edit-is-delete",
+    "base_sha": "2b80ff8458441e0287dd5f3200828de0254c0708"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/209"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-text/src/edit.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-core/src/selection.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-text/src/offset.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/cache.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-ui/src/profile.rs",
+      "crates/kate-core/src/document.rs"
+    ],
+    "crates_touched": [
+      "kate-text"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0002",
+      "PKT-0179"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-text/src/edit.rs",
+        "definition": "pub fn is_delete(&self) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "edit.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add is_delete on impl Edit. Keep it public, the same way is_insert is public. Do not add a dead_code attribute. The body is one condition: !self.old.is_empty() && self.new.is_empty(). Do not nest an if inside an if. Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch is_insert, insert, delete, old_end, new_end, delta, or invert. The existing test an_insert_has_no_old_text stays green. Do not rewrite its assertions. The test a_delete_has_no_new_text checks Edit::delete of ab is true. Edit::insert of ab is false. An edit with old a and new b is false. An edit with both strings empty is false. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Do not add a second case for coherence. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-text --all-targets --locked -- -D warnings",
+      "cargo test -p kate-text --locked edit::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "edit::tests::a_delete_has_no_new_text",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because is_delete does not exist. After the change a delete is true. An insert is false. A replacement is false. An empty edit is false."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
