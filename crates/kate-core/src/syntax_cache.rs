@@ -478,7 +478,9 @@ fn fill_forward(old: &[StateId], new_len: u32) -> Vec<StateId> {
 }
 
 fn count_newlines(text: &str) -> u32 {
-    let count = text.chars().filter(|ch| *ch == '\n').count();
+    let cr_lf = text.matches("\r\n").count();
+    let all_breaks = text.chars().filter(|ch| *ch == '\r' || *ch == '\n').count();
+    let count = all_breaks.saturating_sub(cr_lf);
     u32::try_from(count).unwrap_or(u32::MAX)
 }
 
@@ -1144,5 +1146,13 @@ mod tests {
         fn highlight_cache_matches_a_fresh_walk(steps in prop::collection::vec(any::<u8>(), 1..28)) {
             run_highlight_oracle(&steps);
         }
+    }
+
+    #[test]
+    fn a_carriage_return_counts_as_one_line() {
+        assert_eq!(super::count_newlines("a\rb"), 1);
+        assert_eq!(super::count_newlines("a\r\nb"), 1);
+        assert_eq!(super::count_newlines("a\nb"), 1);
+        assert_eq!(super::count_newlines("a\r\rb"), 2);
     }
 }
