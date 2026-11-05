@@ -57,7 +57,7 @@ pub fn load(path: &Path, opts: &DecodeOptions) -> Result<Loaded, LoadError> {
     if !meta.is_file() {
         return Err(LoadError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "not a regular file",
+            "The path is not a file.",
         )));
     }
     let mtime = meta.modified().ok();
@@ -197,6 +197,19 @@ mod tests {
         worker.join().expect("worker");
         let err = load(&fifo, &DecodeOptions::default()).unwrap_err();
         assert!(matches!(err, LoadError::Io(_)));
+    }
+
+    #[test]
+    fn load_of_a_directory_names_the_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let err = load(dir.path(), &DecodeOptions::default()).unwrap_err();
+        match err {
+            LoadError::Io(e) => {
+                assert_eq!(e.kind(), std::io::ErrorKind::InvalidInput);
+                assert_eq!(e.to_string(), "The path is not a file.");
+            }
+            other => panic!("expected LoadError::Io, got {other:?}"),
+        }
     }
 
     fn sha256(bytes: &[u8]) -> [u8; 32] {
