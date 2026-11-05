@@ -67,6 +67,13 @@ impl Selection {
     pub fn max(&self) -> Offset {
         self.anchor.max(self.head)
     }
+
+    /// Return the number of scalars from the minimum end to the maximum end.
+    ///
+    /// A caret is 0. Direction does not change the count.
+    pub fn scalar_len(&self) -> usize {
+        self.range().len()
+    }
 }
 
 /// A sorted, non-overlapping set of selections.
@@ -1014,5 +1021,24 @@ mod tests {
             goal_col: None,
         };
         assert!(!forward.is_backward());
+    }
+
+    #[test]
+    fn scalar_len_ignores_direction() {
+        assert_eq!(Selection::caret(Offset(2)).scalar_len(), 0);
+
+        let forward = Selection {
+            anchor: Offset(1),
+            head: Offset(4),
+            goal_col: None,
+        };
+        assert_eq!(forward.scalar_len(), 3);
+
+        let backward = Selection {
+            anchor: Offset(4),
+            head: Offset(1),
+            goal_col: None,
+        };
+        assert_eq!(backward.scalar_len(), 3);
     }
 }

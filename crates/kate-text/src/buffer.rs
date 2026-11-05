@@ -108,6 +108,12 @@ impl TextBuffer {
         self.char_at(Offset(index))
     }
 
+    /// Returns the scalar after `at`, or `None` when `at` is at or past the end.
+    pub fn char_after(&self, at: Offset) -> Option<char> {
+        let next = at.0.checked_add(1)?;
+        self.char_at(Offset(next))
+    }
+
     /// Validates every edit against the current text, applies all, bumps revision by exactly 1.
     pub fn apply(&mut self, tx: &Transaction) -> Result<Revision, ApplyError> {
         validate(&self.text, tx)?;
@@ -663,5 +669,15 @@ mod tests {
         assert_eq!(buf.char_before(Offset(2)), Some('b'));
         assert_eq!(buf.char_before(Offset(3)), None);
         assert_eq!(TextBuffer::from_str("é").char_before(Offset(1)), Some('é'));
+    }
+
+    #[test]
+    fn char_after_is_none_at_the_end() {
+        let buf = TextBuffer::from_str("ab");
+        assert_eq!(buf.char_after(Offset(0)), Some('b'));
+        assert_eq!(buf.char_after(Offset(1)), None);
+        assert_eq!(buf.char_after(Offset(2)), None);
+        assert_eq!(TextBuffer::new().char_after(Offset(0)), None);
+        assert_eq!(TextBuffer::from_str("é").char_after(Offset(0)), None);
     }
 }

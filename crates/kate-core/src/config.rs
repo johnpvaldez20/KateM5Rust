@@ -269,7 +269,8 @@ fn width_value(key: &str, value: &str) -> Result<u8, ConfigError> {
 }
 
 fn bool_value(key: &str, value: &str) -> Result<bool, ConfigError> {
-    match value {
+    let v = value.to_ascii_lowercase();
+    match v.as_str() {
         "true" | "yes" | "on" | "1" => Ok(true),
         "false" | "no" | "off" | "0" => Ok(false),
         _ => Err(bad_value(key)),
@@ -719,15 +720,10 @@ document.ensure_trailing_newline = true
         assert!(config.default_document.indent_with_spaces);
         assert!(!config.default_document.ensure_trailing_newline);
 
-        let err =
+        let upper =
             editor_config_from_toml("format_version = 1\ndocument.indent_with_spaces = YES\n")
-                .expect_err("uppercase YES is bad");
-        assert_eq!(
-            err,
-            ConfigError::BadValue {
-                key: "document.indent_with_spaces".to_string(),
-            }
-        );
+                .expect("uppercase YES parses as true");
+        assert!(upper.default_document.indent_with_spaces);
     }
 
     #[test]
@@ -737,14 +733,10 @@ document.ensure_trailing_newline = true
         assert!(config.default_document.indent_with_spaces);
         assert!(!config.default_document.ensure_trailing_newline);
 
-        let err = editor_config_from_toml("format_version = 1\ndocument.indent_with_spaces = ON\n")
-            .expect_err("uppercase ON is bad");
-        assert_eq!(
-            err,
-            ConfigError::BadValue {
-                key: "document.indent_with_spaces".to_string(),
-            }
-        );
+        let upper =
+            editor_config_from_toml("format_version = 1\ndocument.indent_with_spaces = ON\n")
+                .expect("uppercase ON parses as true");
+        assert!(upper.default_document.indent_with_spaces);
     }
 
     #[test]
@@ -762,5 +754,13 @@ document.ensure_trailing_newline = true
                 key: "document.indent_with_spaces".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn upper_case_booleans_parse() {
+        let text = "format_version = 1\ndocument.indent_with_spaces = TRUE\ndocument.ensure_trailing_newline = FALSE\n";
+        let config = editor_config_from_toml(text).expect("TRUE and FALSE parse");
+        assert!(config.default_document.indent_with_spaces);
+        assert!(!config.default_document.ensure_trailing_newline);
     }
 }
