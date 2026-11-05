@@ -59,7 +59,9 @@ PKT-0245 is the fold command that follows PKT-0020.
 PKT-0024, PKT-0025, and PKT-0028 are cut in `docs/design/WAVE-0024.md`.
 MIT copy wave 1 of 15 is in `docs/design/WAVE-0028.md`.
 Eight files start at `abnf.xml`.
-108 MIT files remain queued.
+MIT copy wave 2 of 15 is in `docs/design/WAVE-0259.md`.
+Eight files start at `cashscript.xml`.
+100 MIT files remain queued.
 Phase 3 stays titles.
 
 | Packet | Title | Lane | Depends on |
@@ -742,6 +744,29 @@ The index is `docs/design/WAVE-0028.md`.
 | PKT-0256 | `kate-syntax`: copy the MIT BrightScript definition | LOCAL | 0028 |
 | PKT-0257 | `kate-syntax`: copy the MIT Cabal definition | LOCAL | 0028 |
 | PKT-0258 | `kate-syntax`: copy the MIT Cap'n Proto definition | LOCAL | 0028 |
+
+## Wave PKT-0259
+
+This is MIT copy wave 2 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+100 MIT files remain queued.
+A Cursor cloud agent copies each file.
+The owner Mac stays out of this wave.
+The `include_str` packets wait until these eight files are on main.
+Phase 3 stays titles.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0259.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0259 | `kate-syntax`: copy the MIT CashScript definition | CLOUD | 0028 |
+| PKT-0260 | `kate-syntax`: copy the MIT ChangeLog definition | CLOUD | 0028 |
+| PKT-0261 | `kate-syntax`: copy the MIT Common Intermediate Language (CIL) definition | CLOUD | 0028 |
+| PKT-0262 | `kate-syntax`: copy the MIT CLIST definition | CLOUD | 0028 |
+| PKT-0263 | `kate-syntax`: copy the MIT COBOL definition | CLOUD | 0028 |
+| PKT-0264 | `kate-syntax`: copy the MIT CoffeeScript definition | CLOUD | 0028 |
+| PKT-0265 | `kate-syntax`: copy the MIT Common Lisp definition | CLOUD | 0028 |
+| PKT-0266 | `kate-syntax`: copy the MIT CSV (pipe) definition | CLOUD | 0028 |
 
 ## Packet sizing rules the gatekeeper applies
 
