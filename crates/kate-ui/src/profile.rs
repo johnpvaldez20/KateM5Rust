@@ -11,11 +11,11 @@ pub(crate) fn sample_json(sample: &FrameSample) -> String {
     serde_json::to_string(sample).expect("frame sample")
 }
 
-/// Return true when the profiling environment variable is `1` or `true`.
+/// Return true when the profiling environment variable is `1` or any ASCII case of `true`.
 #[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))]
 fn profile_is_on(value: Option<&std::ffi::OsStr>) -> bool {
     value.is_some_and(|value| {
-        value == std::ffi::OsStr::new("1") || value == std::ffi::OsStr::new("true")
+        value == std::ffi::OsStr::new("1") || value.to_string_lossy().eq_ignore_ascii_case("true")
     })
 }
 
@@ -56,5 +56,12 @@ mod tests {
         assert!(!profile_is_on(Some(std::ffi::OsStr::new("yes"))));
         assert!(!profile_is_on(Some(std::ffi::OsStr::new("0"))));
         assert!(!profile_is_on(None));
+    }
+
+    #[test]
+    fn profile_is_on_for_upper_true() {
+        assert!(profile_is_on(Some(std::ffi::OsStr::new("TRUE"))));
+        assert!(profile_is_on(Some(std::ffi::OsStr::new("True"))));
+        assert!(!profile_is_on(Some(std::ffi::OsStr::new("yes"))));
     }
 }

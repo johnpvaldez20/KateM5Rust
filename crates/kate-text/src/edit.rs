@@ -75,6 +75,11 @@ impl Edit {
     pub fn is_delete(&self) -> bool {
         !self.old.is_empty() && self.new.is_empty()
     }
+
+    /// Returns true when `old` is not empty and `new` is not empty.
+    pub fn is_replace(&self) -> bool {
+        !self.old.is_empty() && !self.new.is_empty()
+    }
 }
 
 /// Edits sorted by `start`, pairwise non-overlapping, all relative to the same pre-state.
@@ -299,5 +304,28 @@ mod tests {
             new: String::new(),
         };
         assert!(!empty.is_delete());
+    }
+
+    #[test]
+    fn a_replacement_has_old_and_new_text() {
+        let replace = Edit {
+            start: Offset(0),
+            old: "a".to_string(),
+            new: "b".to_string(),
+        };
+        assert!(replace.is_replace());
+
+        let insert = Edit::insert(Offset(0), "ab");
+        assert!(!insert.is_replace());
+
+        let delete = Edit::delete(Offset(0), "ab");
+        assert!(!delete.is_replace());
+
+        let empty = Edit {
+            start: Offset(0),
+            old: String::new(),
+            new: String::new(),
+        };
+        assert!(!empty.is_replace());
     }
 }
