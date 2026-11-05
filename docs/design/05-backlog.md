@@ -665,6 +665,35 @@ The index is `docs/design/WAVE-0229.md`.
 | PKT-0235 | `kate-fileio`: name an empty load path | LOCAL | 0193 |
 | PKT-0236 | `kate-core`: tell an error mark from a warning | LOCAL | 0204 |
 
+## Wave PKT-0237
+
+WAVE-0229 plans are on main.
+This wave leaves `brackets.rs`, `decode.rs`, `repository.rs`, `modeline.rs`, `theme.rs`, `engine.rs`, `load.rs`, and `document.rs` unchanged.
+WAVE-0221 code is on main.
+This wave leaves `completion.rs`, `pair.rs`, `indent.rs`, `fold.rs`, `literal.rs`, `edit.rs`, `profile.rs`, and `regex.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Two arms that return the same value use one `||` condition.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0237.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0237 | `kate-core`: keep a soft hyphen inside a word move | LOCAL | 0220 |
+| PKT-0238 | `kate-core`: score a letter after a digit | LOCAL | 0217 |
+| PKT-0239 | `kate-search`: skip an empty match in replace | LOCAL | 0143 |
+| PKT-0240 | `kate-fileio`: name an empty save path | LOCAL | 0194 |
+| PKT-0241 | `kate-core`: read a fullwidth digit as a width | LOCAL | 0210 |
+| PKT-0242 | `kate-text`: tell when a buffer is empty | LOCAL | 0208 |
+| PKT-0243 | `kate-text`: report how many redos are stored | LOCAL | 0219 |
+| PKT-0244 | `kate-core`: tell when a view has folds | LOCAL | 0211 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
