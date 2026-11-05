@@ -268,7 +268,10 @@ fn smart_home(buf: &TextBuffer, head: Offset) -> Offset {
 }
 
 fn smart_home_col(line: &str, col: usize) -> usize {
-    match line.chars().position(|ch| !ch.is_whitespace()) {
+    match line
+        .chars()
+        .position(|ch| !ch.is_whitespace() && ch != '\u{FEFF}')
+    {
         Some(first) if col != first => first,
         _ => 0,
     }
@@ -1238,5 +1241,20 @@ mod tests {
             &ctx(),
         );
         assert_eq!(from_apostrophe.head, Offset(5));
+    }
+
+    #[test]
+    fn smart_home_skips_a_byte_order_mark() {
+        let buf = TextBuffer::from_str("\u{FEFF}   abc");
+        let first = move_selection(
+            &buf,
+            Selection::caret(Offset(7)),
+            Movement::SmartHome,
+            Extend::No,
+            &ctx(),
+        );
+        assert_eq!(first.head, Offset(4));
+        let second = move_selection(&buf, first, Movement::SmartHome, Extend::No, &ctx());
+        assert_eq!(second.head, Offset(0));
     }
 }

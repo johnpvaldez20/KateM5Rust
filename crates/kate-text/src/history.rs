@@ -163,6 +163,11 @@ impl History {
         !self.redo.is_empty()
     }
 
+    /// The number of stored undo entries. A new history is 0.
+    pub fn undo_depth(&self) -> usize {
+        self.undo.len()
+    }
+
     /// The undo length at this call is the saved state.
     ///
     /// The next record does not merge into the saved entry.
@@ -1635,5 +1640,16 @@ mod tests {
             ranges_before: Vec::new(),
             ranges_after: Vec::new(),
         });
+    }
+
+    #[test]
+    fn undo_depth_tracks_one_record() {
+        let mut buf = TextBuffer::from_str("");
+        let mut history = History::new();
+        assert_eq!(history.undo_depth(), 0);
+        record_insert(&mut history, &mut buf, 0, "x");
+        assert_eq!(history.undo_depth(), 1);
+        history.undo(&mut buf).expect("undo the record");
+        assert_eq!(history.undo_depth(), 0);
     }
 }
