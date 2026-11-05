@@ -183,6 +183,34 @@ impl Selections {
             .collect();
         Self::new(ranges, self.primary)
     }
+
+    /// Return the next copy of the primary selection after its end.
+    ///
+    /// A caret returns `None`. A copy that is already selected is skipped.
+    pub fn next_occurrence(&self, buf: &kate_text::TextBuffer) -> Option<Selection> {
+        let primary = self.primary();
+        if primary.is_caret() {
+            return None;
+        }
+        let needle = buf.slice(CharRange::new(primary.min(), primary.max()));
+        let needle_len = needle.chars().count();
+        let total = buf.len().0;
+        let mut pos = primary.max().0;
+        while pos + needle_len <= total {
+            let match_found =
+                buf.slice(CharRange::new(Offset(pos), Offset(pos + needle_len))) == needle;
+            let already_selected = self.ranges.iter().any(|s| s.min().0 == pos);
+            if match_found && !already_selected {
+                return Some(Selection {
+                    anchor: Offset(pos),
+                    head: Offset(pos + needle_len),
+                    goal_col: None,
+                });
+            }
+            pos += 1;
+        }
+        None
+    }
 }
 
 struct Prepared {
@@ -495,7 +523,7 @@ fn point_inside(point: usize, span: &Span) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{Selection, Selections};
-    use kate_text::{Bias, Edit, Offset, Transaction, transform_offset};
+    use kate_text::{Bias, Edit, Offset, TextBuffer, Transaction, transform_offset};
     use proptest::prelude::*;
     use proptest::test_runner::{RngSeed, TestCaseError};
 
@@ -1072,5 +1100,41 @@ mod tests {
         });
         range.add_caret(Offset(1));
         assert_eq!(range.len(), 1);
+    }
+
+    #[test]
+    fn next_occurrence_finds_the_later_copy() {
+        let buf = TextBuffer::from_str("aa aa");
+        let sel = Selections::single(Selection {
+            anchor: Offset(0),
+            head: Offset(2),
+            goal_col: None,
+        });
+        assert_eq!(
+            sel.next_occurrence(&buf),
+            Some(Selection {
+                anchor: Offset(3),
+                head: Offset(5),
+                goal_col: None,
+            })
+        );
+        let caret = Selections::single(Selection::caret(Offset(0)));
+        assert_eq!(caret.next_occurrence(&buf), None);
+        let both = Selections::new(
+            vec![
+                Selection {
+                    anchor: Offset(0),
+                    head: Offset(2),
+                    goal_col: None,
+                },
+                Selection {
+                    anchor: Offset(3),
+                    head: Offset(5),
+                    goal_col: None,
+                },
+            ],
+            0,
+        );
+        assert_eq!(both.next_occurrence(&buf), None);
     }
 }
