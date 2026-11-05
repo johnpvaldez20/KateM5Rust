@@ -182,8 +182,9 @@ fn is_indent_char(ch: char) -> bool {
 }
 
 fn ends_with_opener(body: &str) -> bool {
+    let code = body.split_once("//").map(|(head, _)| head).unwrap_or(body);
     matches!(
-        body.trim_end_matches([' ', '\t']).chars().next_back(),
+        code.trim_end_matches([' ', '\t']).chars().next_back(),
         Some('{' | '(' | '[')
     )
 }
@@ -505,5 +506,14 @@ mod tests {
         assert_eq!(python_inserted("    break", &config), "\n");
         assert_eq!(python_inserted("    continue", &config), "\n");
         assert_eq!(python_inserted("    raise", &config), "\n");
+    }
+
+    #[test]
+    fn a_comment_after_a_brace_still_indents() {
+        let config = DocumentConfig::default();
+        assert_eq!(inserted("    foo{ // note", &config, true), "\n        ");
+        assert_eq!(inserted("    foo{// note", &config, true), "\n        ");
+        assert_eq!(inserted("    foo // {", &config, true), "\n    ");
+        assert_eq!(inserted("http://", &config, true), "\n");
     }
 }
