@@ -430,6 +430,18 @@ impl SplitTree {
         }
         false
     }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    fn views_in_order(&self) -> Vec<ViewId> {
+        match self {
+            Self::Leaf { tabs, .. } => tabs.clone(),
+            Self::Split { first, second, .. } => {
+                let mut views = first.views_in_order();
+                views.extend(second.views_in_order());
+                views
+            }
+        }
+    }
 }
 
 fn remove_from_leaf(tabs: &mut Vec<ViewId>, active: &mut usize, view: ViewId) -> bool {
@@ -3491,5 +3503,14 @@ indent_size = 8
         } else {
             panic!("expected leaf");
         }
+    }
+
+    #[test]
+    fn views_in_order_lists_the_leaf() {
+        let mut ws = workspace();
+        let doc = ws.new_document();
+        let first = add_view(&mut ws, doc);
+        let second = add_view(&mut ws, doc);
+        assert_eq!(ws.layout.views_in_order(), vec![first, second]);
     }
 }
