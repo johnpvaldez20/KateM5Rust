@@ -270,8 +270,8 @@ fn width_value(key: &str, value: &str) -> Result<u8, ConfigError> {
 
 fn bool_value(key: &str, value: &str) -> Result<bool, ConfigError> {
     match value {
-        "true" | "yes" | "on" => Ok(true),
-        "false" | "no" | "off" => Ok(false),
+        "true" | "yes" | "on" | "1" => Ok(true),
+        "false" | "no" | "off" | "0" => Ok(false),
         _ => Err(bad_value(key)),
     }
 }
@@ -739,6 +739,23 @@ document.ensure_trailing_newline = true
 
         let err = editor_config_from_toml("format_version = 1\ndocument.indent_with_spaces = ON\n")
             .expect_err("uppercase ON is bad");
+        assert_eq!(
+            err,
+            ConfigError::BadValue {
+                key: "document.indent_with_spaces".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn one_and_zero_are_booleans() {
+        let text = "format_version = 1\ndocument.indent_with_spaces = 1\ndocument.ensure_trailing_newline = 0\n";
+        let config = editor_config_from_toml(text).expect("1 and 0 parse");
+        assert!(config.default_document.indent_with_spaces);
+        assert!(!config.default_document.ensure_trailing_newline);
+
+        let err = editor_config_from_toml("format_version = 1\ndocument.indent_with_spaces = 2\n")
+            .expect_err("2 is bad");
         assert_eq!(
             err,
             ConfigError::BadValue {
