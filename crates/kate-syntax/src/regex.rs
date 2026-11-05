@@ -166,11 +166,11 @@ fn replace_captures(pattern: &str, captures: &[String], quote: bool) -> String {
 }
 
 fn has_leading_case_flag(pattern: &str) -> bool {
-    let rest = pattern.strip_prefix("(?");
-    let Some(rest) = rest else {
+    let Some(rest) = pattern.strip_prefix("(?") else {
         return false;
     };
-    rest.starts_with('i') || rest.starts_with("-i")
+    let flags = rest.split(')').next().unwrap_or(rest);
+    flags.contains('i')
 }
 
 const H_SPACE: &str =
@@ -432,5 +432,13 @@ mod tests {
         let pattern = translate_pattern(r"\h+", false, false, None).expect("pattern");
         assert!(!pattern.contains(r"\h"), "{pattern}");
         assert!(pattern.contains(r"\t"), "{pattern}");
+    }
+
+    #[test]
+    fn a_case_flag_after_m_stays_one_flag() {
+        let result = translate_pattern("(?mi)a", true, false, None).expect("pattern");
+        assert_eq!(result, "(?mi)a");
+        let result = translate_pattern("(?m)a", true, false, None).expect("pattern");
+        assert_eq!(result, "(?i)(?m)a");
     }
 }

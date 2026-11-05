@@ -392,7 +392,7 @@ fn edit_binding(name: &str) -> Option<Command> {
         "escape" => Some(Command::RemoveSecondaryCursors),
         "ctrl-space" => Some(Command::CompleteWord),
         "ctrl-]" => Some(Command::Indent),
-        "ctrl-[" => Some(Command::Unindent),
+        "ctrl-[" | "shift-tab" => Some(Command::Unindent),
         "f5" => Some(Command::Reload),
         _ => None,
     }
@@ -799,6 +799,15 @@ mod tests {
         assert_eq!(
             command_for_binding("ctrl-home"),
             Some(Command::Move(Movement::DocStart, Extend::No))
+        );
+    }
+
+    #[test]
+    fn shift_tab_unindents() {
+        assert_eq!(command_for_binding("shift-tab"), Some(Command::Unindent));
+        assert_eq!(
+            command_for_binding("tab"),
+            Some(Command::InsertText("\t".to_string()))
         );
     }
 
