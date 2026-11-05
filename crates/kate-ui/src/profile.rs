@@ -52,9 +52,39 @@ pub(crate) fn session_from_json(text: &str) -> Option<(Vec<String>, usize)> {
     Some((parsed.paths, parsed.active))
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SessionLayout {
+    paths: Vec<String>,
+    active: usize,
+    horizontal: bool,
+}
+
+/// Serialize open paths, the active index, and whether the panes sit side by side.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn session_layout_json(paths: &[String], active: usize, horizontal: bool) -> String {
+    serde_json::to_string(&SessionLayout {
+        paths: paths.to_vec(),
+        active,
+        horizontal,
+    })
+    .expect("session layout")
+}
+
+/// Parse a JSON object with `paths`, `active`, and `horizontal` keys. Returns `None` when the text is not that object.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn session_layout_from_json(text: &str) -> Option<(Vec<String>, usize, bool)> {
+    let Ok(parsed) = serde_json::from_str::<SessionLayout>(text) else {
+        return None;
+    };
+    Some((parsed.paths, parsed.active, parsed.horizontal))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{profile_is_on, sample_json, session_from_json, session_json};
+    use super::{
+        profile_is_on, sample_json, session_from_json, session_json, session_layout_from_json,
+        session_layout_json,
+    };
     use crate::FrameSample;
 
     #[test]
@@ -98,5 +128,17 @@ mod tests {
         assert_eq!(got_paths, paths);
         assert_eq!(got_active, 1);
         assert!(session_from_json("{}").is_none());
+    }
+
+    #[test]
+    fn session_layout_round_trips_a_horizontal_split() {
+        let paths = vec!["a.rs".to_owned(), "b.rs".to_owned()];
+        let text = session_layout_json(&paths, 0, true);
+        let (got_paths, got_active, got_horizontal) =
+            session_layout_from_json(&text).expect("round-trip");
+        assert_eq!(got_paths, paths);
+        assert_eq!(got_active, 0);
+        assert!(got_horizontal);
+        assert!(session_layout_from_json("{}").is_none());
     }
 }
