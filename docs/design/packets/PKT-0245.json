@@ -1,0 +1,166 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0245",
+  "title": "kate-core: fold the region at the caret line",
+  "summary": "toggle_region flips the innermost FoldRegion that contains the line, including its header. The end line stays outside the region. This is the fold command slice of PKT-0020. The test goes in the existing fold tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T17:58:39Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 261,
+    "branch": "pkt/PKT-0245-toggle-fold",
+    "base_sha": "3093d839b79fb416f83bbfde18df74b5d6a5d44c"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/261"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/fold.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/history.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-fileio/src/save.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-ui/src/profile.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/cache.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0065",
+      "PKT-0073",
+      "PKT-0122",
+      "PKT-0138",
+      "PKT-0153",
+      "PKT-0167",
+      "PKT-0182",
+      "PKT-0224",
+      "PKT-0020"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/fold.rs",
+        "definition": "fn toggle_region(regions: &mut [FoldRegion], line: u32) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "fold.rs is a private module of view.rs. It has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add toggle_region. Keep it public inside this private module. Add #[cfg_attr(not(test), allow(dead_code))]. A line is inside a region when line >= start && line < end. The chosen region has the greatest start. When two regions share that start, the one with the smaller end wins. Flip folded and return true. When no region contains the line, return false. Use let Some(region) = ... else { return false }. Do not nest an if inside an if.  Do not write two if arms that return the same value. Combine them with ||. That is clippy::if_same_then_else. Do not touch regions_from_events, indent_folds, or view.rs. The existing test syntax_events_make_fold_regions stays green. Do not rewrite its assertions. The test toggle_region_folds_the_header builds FoldRegion { start: 0, end: 4, folded: false } and FoldRegion { start: 1, end: 3, folded: false }. toggle_region of line 2 returns true and folds only the second region. toggle_region of line 0 returns true and folds the first region. toggle_region of line 4 returns false and leaves the first region folded. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Stay inside this one behavior. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked view::fold::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "view::fold::tests::toggle_region_folds_the_header",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because toggle_region does not exist. After the change line 2 flips the inner region. Line 0 flips the outer header. Line 4 flips nothing."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

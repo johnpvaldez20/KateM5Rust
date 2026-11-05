@@ -54,7 +54,10 @@ alongside and finish before 0012 needs them.
 
 ## Phase 2 — An editor you can use
 
-Titles only; JSON payloads are written when each issue opens.
+PKT-0024, PKT-0025, and PKT-0028 stay titles.
+Phase 3 stays titles.
+The first slices of the other Phase 2 rows are in `docs/design/WAVE-0020.md`.
+PKT-0245 is the fold command that follows PKT-0020.
 
 | Packet | Title | Lane | Depends on |
 |---|---|---|---|
@@ -664,6 +667,30 @@ The index is `docs/design/WAVE-0229.md`.
 | PKT-0234 | `kate-syntax`: read a fullwidth digit as an integer | LOCAL | 0008 |
 | PKT-0235 | `kate-fileio`: name an empty load path | LOCAL | 0193 |
 | PKT-0236 | `kate-core`: tell an error mark from a warning | LOCAL | 0204 |
+
+## Wave PKT-0020
+
+This wave is the first Phase 2 plan.
+It leaves multi-cursor, tabs, and syntax vendoring for later waves.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+PKT-0245 waits for PKT-0020 because both edit `fold.rs`.
+The other six packets use different files and can start together.
+The index is `docs/design/WAVE-0020.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0020 | `kate-core`: build fold regions from syntax events | LOCAL | 0224 |
+| PKT-0021 | `kate-ui`: step one visual row on a wrapped line | LOCAL | 0213 |
+| PKT-0022 | `kate-ui`: record the gutter columns for one line | LOCAL | 0218 |
+| PKT-0023 | `kate-search`: list the hits a find bar paints | LOCAL | 0215 |
+| PKT-0026 | `kate-ui`: round-trip open paths as session JSON | LOCAL | 0227 |
+| PKT-0027 | `kate-ui`: name the reload and keep answers | LOCAL | 0172 |
+| PKT-0029 | `kate-ui`: choose the light or dark theme name | LOCAL | 0196 |
+| PKT-0245 | `kate-core`: fold the region at the caret line | LOCAL | 0020 |
 
 ## Packet sizing rules the gatekeeper applies
 
