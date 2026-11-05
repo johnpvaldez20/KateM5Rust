@@ -21,7 +21,7 @@ pub struct FuzzyHit {
 /// No subsequence returns `None`.
 /// Each match adds 16.
 /// Index 0 adds 8 and does not also get the separator bonus.
-/// A later scalar adds 8 when the previous scalar is not ASCII alphanumeric.
+/// A later scalar adds 8 when the previous scalar is not a letter or a digit.
 /// The next scalar after the previous match adds 8.
 /// Each skipped scalar between matches subtracts 1.
 /// Case fold uses `char::to_lowercase`.
@@ -69,7 +69,7 @@ fn score_one(chars: &[char], index: usize, previous_match: Option<usize>) -> i32
 fn boundary_bonus(chars: &[char], index: usize) -> i32 {
     match index.checked_sub(1).map(|at| chars[at]) {
         None => 8,
-        Some(ch) if !ch.is_ascii_alphanumeric() => 8,
+        Some(ch) if !ch.is_alphanumeric() => 8,
         Some(_) => 0,
     }
 }
@@ -194,7 +194,7 @@ mod tests {
         assert_eq!(
             fuzzy_match("ab", "a２B"),
             Some(FuzzyHit {
-                score: 55,
+                score: 47,
                 positions: vec![0, 2],
             })
         );
@@ -203,6 +203,17 @@ mod tests {
             Some(FuzzyHit {
                 score: 47,
                 positions: vec![0, 2],
+            })
+        );
+    }
+
+    #[test]
+    fn a_letter_after_an_accented_letter_has_no_boundary_bonus() {
+        assert_eq!(
+            fuzzy_match("x", "caféx"),
+            Some(FuzzyHit {
+                score: 16,
+                positions: vec![4],
             })
         );
     }
