@@ -139,7 +139,7 @@ fn is_quote(ch: char) -> bool {
 }
 
 fn is_ascii_word(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() || ch == '_'
+    ch.is_alphanumeric() || ch == '_'
 }
 
 #[cfg(test)]
@@ -343,5 +343,25 @@ mod tests {
         let buf = TextBuffer::from_str("a");
         let selection = Selection::caret(Offset(1));
         assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+    }
+
+    #[test]
+    fn a_quote_after_an_accented_letter_stays_plain() {
+        let buf = TextBuffer::from_str("\u{00e9}");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+
+        let buf = TextBuffer::from_str("a");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+
+        let buf = TextBuffer::from_str(" ");
+        let selection = Selection::caret(Offset(1));
+        assert_eq!(
+            plan_pair(&buf, selection, "\""),
+            PairPlan::Wrap {
+                caret_after_open: true
+            }
+        );
     }
 }
