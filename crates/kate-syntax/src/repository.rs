@@ -785,7 +785,7 @@ fn glob_at(cand: &[char], wild: &[char], mut cpos: isize, mut wpos: isize) -> bo
                 wpos -= 1;
             }
             ch => {
-                if cpos < 0 || cand[cpos as usize] != ch {
+                if cpos < 0 || !cand[cpos as usize].eq_ignore_ascii_case(&ch) {
                     return false;
                 }
                 cpos -= 1;
@@ -1076,8 +1076,15 @@ mod tests {
         assert_eq!(repo.definition(exact).mime_types, ["text/plain"]);
         let file = repo.for_file_name("notes.txt").expect("txt");
         assert_eq!(file, exact);
-        assert_eq!(repo.for_file_name("notes.TXT"), None);
+        assert_eq!(repo.for_file_name("notes.TXT"), Some(exact));
         let folded = repo.for_mime_type("Text/Plain").expect("Text/Plain");
         assert_eq!(folded, exact);
+    }
+
+    #[test]
+    fn an_upper_extension_matches_rust() {
+        let repo = load_vendored();
+        let id = repo.for_file_name("Main.RS").expect("Main.RS matches");
+        assert_eq!(repo.definition(id).name, "Rust");
     }
 }
