@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 270,
     "branch": "pkt/PKT-0249-tab-after-close",
     "base_sha": "38a960e7bf80530db9828fc24519b0c68030b949"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/270"
   },
   "lane": {
     "runtime": "LOCAL",
