@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 190,
     "branch": "pkt/PKT-0185-modeline-flag-case",
     "base_sha": "038dff0ba61e03ad7bf36a0d9ab1b0b72feea97c"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/190"
   },
   "lane": {
     "runtime": "LOCAL",
