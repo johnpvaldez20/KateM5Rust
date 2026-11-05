@@ -89,7 +89,7 @@ fn camel_bonus(chars: &[char], index: usize) -> i32 {
     }
     let previous = chars[index - 1];
     let current = chars[index];
-    if previous.is_ascii_lowercase() && current.is_ascii_uppercase() {
+    if previous.is_lowercase() && current.is_uppercase() {
         8
     } else {
         0
@@ -214,6 +214,17 @@ mod tests {
             Some(FuzzyHit {
                 score: 16,
                 positions: vec![4],
+            })
+        );
+    }
+
+    #[test]
+    fn a_unicode_camel_hump_adds_eight() {
+        assert_eq!(
+            fuzzy_match("\u{e9}", "a\u{c9}"),
+            Some(FuzzyHit {
+                score: 24,
+                positions: vec![1],
             })
         );
     }
