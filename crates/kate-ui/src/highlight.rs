@@ -29,6 +29,14 @@ pub(crate) struct HighlightStep {
     pub plain_from: Option<u32>,
 }
 
+impl HighlightStep {
+    /// True when this step has work: a range to ensure or lines to draw plain.
+    #[allow(dead_code)]
+    pub(crate) fn needs_paint(&self) -> bool {
+        self.ensure_through.is_some() || self.plain_from.is_some()
+    }
+}
+
 /// Next line to color after a plain cache miss.
 ///
 /// `color_at` is the next line to color.
@@ -211,5 +219,20 @@ mod tests {
         let step = highlight_step(100, 10, 150, 0);
         assert_eq!(step.ensure_through, None);
         assert_eq!(step.plain_from, Some(100));
+    }
+
+    #[test]
+    fn a_zero_budget_behind_the_checkpoint_needs_no_paint() {
+        // Viewport behind checkpoint with zero budget: already colored, no work.
+        let step = highlight_step(1000, 10, 50, 0);
+        assert!(!step.needs_paint());
+
+        // Viewport at the checkpoint with zero budget: plain_from is Some, needs paint.
+        let step = highlight_step(0, 0, 39, 0);
+        assert!(step.needs_paint());
+
+        // Viewport at the checkpoint with budget: ensure_through is Some, needs paint.
+        let step = highlight_step(0, 0, 39, 40);
+        assert!(step.needs_paint());
     }
 }
