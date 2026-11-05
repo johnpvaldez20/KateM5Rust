@@ -69,7 +69,7 @@ pub fn completion_suffix(buf: &kate_text::TextBuffer, at: kate_text::Offset) -> 
 }
 
 fn is_word_char(ch: char) -> bool {
-    ch == '\'' || ch.is_alphanumeric() || ch == '_'
+    ch == '\'' || ch == '\u{2019}' || ch.is_alphanumeric() || ch == '_'
 }
 
 fn rewind_word(buf: &kate_text::TextBuffer, at: usize) -> usize {
@@ -213,5 +213,16 @@ mod tests {
         let got = word_completions(&buf, Offset(8), 4);
         assert_eq!(got, vec!["café".to_string()]);
         assert_eq!(completion_suffix(&buf, Offset(8)), Some("é".to_string()));
+    }
+
+    #[test]
+    fn a_curly_apostrophe_stays_inside_the_word() {
+        let buf = TextBuffer::from_str("don\u{2019}t don");
+        let got = word_completions(&buf, Offset(9), 4);
+        assert_eq!(got, vec!["don\u{2019}t".to_string()]);
+        assert_eq!(
+            completion_suffix(&buf, Offset(9)),
+            Some("\u{2019}t".to_string())
+        );
     }
 }
