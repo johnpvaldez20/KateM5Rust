@@ -163,6 +163,11 @@ impl MarkKind {
     pub fn is_breakpoint(self) -> bool {
         matches!(self, Self::BreakpointActive | Self::BreakpointDisabled)
     }
+
+    /// `true` when this is a warning or an error.
+    pub fn is_diagnostic(self) -> bool {
+        matches!(self, Self::Warning | Self::Error)
+    }
 }
 
 /// Indent and trailing-space policy for one document.
@@ -494,5 +499,15 @@ end_of_line = lf
         assert!(!MarkKind::Execution.is_breakpoint());
         assert!(!MarkKind::Warning.is_breakpoint());
         assert!(!MarkKind::Error.is_breakpoint());
+    }
+
+    #[test]
+    fn a_warning_kind_is_a_diagnostic() {
+        assert!(MarkKind::Warning.is_diagnostic());
+        assert!(MarkKind::Error.is_diagnostic());
+        assert!(!MarkKind::Bookmark.is_diagnostic());
+        assert!(!MarkKind::BreakpointActive.is_diagnostic());
+        assert!(!MarkKind::BreakpointDisabled.is_diagnostic());
+        assert!(!MarkKind::Execution.is_diagnostic());
     }
 }
