@@ -465,6 +465,32 @@ The index is `docs/design/WAVE-0173.md`.
 | PKT-0179 | `kate-text`: tell an insert from a delete | LOCAL | 0002 |
 | PKT-0180 | `kate-core`: name a bookmark mark | LOCAL | 0160 |
 
+## Wave PKT-0181
+
+WAVE-0173 code is in review.
+This wave leaves `keys.rs`, `completion.rs`, `selection.rs`, `encode.rs`, `decode.rs`, `fuzzy.rs`, `edit.rs`, and `document.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0181.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0181 | `kate-core`: indent after a brace before a block comment | LOCAL | 0166 |
+| PKT-0182 | `kate-core`: keep a block comment inside a fold | LOCAL | 0167 |
+| PKT-0183 | `kate-ui`: give a Unicode line break no width | LOCAL | 0168 |
+| PKT-0184 | `kate-core`: accept 1 and 0 as booleans | LOCAL | 0169 |
+| PKT-0185 | `kate-core`: accept any letter case in a modeline flag | LOCAL | 0170 |
+| PKT-0186 | `kate-text`: return the scalar before an offset | LOCAL | 0162 |
+| PKT-0187 | `kate-text`: tell an opening bracket from a closer | LOCAL | 0163 |
+| PKT-0188 | `kate-core`: tell when a view has scrolled | LOCAL | 0137 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
