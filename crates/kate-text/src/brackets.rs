@@ -17,7 +17,13 @@ enum Hit {
 }
 
 /// Opener and closer for each pair.
-const PAIRS: [(char, char); 4] = [('(', ')'), ('[', ']'), ('{', '}'), ('<', '>')];
+const PAIRS: [(char, char); 5] = [
+    ('(', ')'),
+    ('[', ']'),
+    ('{', '}'),
+    ('<', '>'),
+    ('\u{FF08}', '\u{FF09}'),
+];
 
 /// Returns the offset of the bracket that pairs with the scalar at `at`.
 ///
@@ -281,9 +287,19 @@ mod tests {
         assert!(super::is_closer(']'));
         assert!(super::is_closer('}'));
         assert!(super::is_closer('>'));
+        assert!(super::is_closer('\u{FF09}'));
         assert!(!super::is_closer('('));
         assert!(!super::is_closer('<'));
         assert!(!super::is_closer('"'));
         assert!(!super::is_closer('a'));
+    }
+
+    #[test]
+    fn a_fullwidth_parenthesis_matches() {
+        let buf = TextBuffer::from_str("\u{FF08}a\u{FF09}");
+        assert_eq!(matching_bracket(&buf, Offset(0)), Some(Offset(2)));
+        assert!(super::is_opener('\u{FF08}'));
+        assert!(super::is_closer('\u{FF09}'));
+        assert!(!super::is_opener('\u{FF09}'));
     }
 }
