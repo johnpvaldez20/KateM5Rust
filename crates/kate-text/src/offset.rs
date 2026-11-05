@@ -47,6 +47,11 @@ impl CharRange {
     pub fn contains(&self, offset: Offset) -> bool {
         self.start <= offset && offset < self.end
     }
+
+    /// Returns true when two half-open ranges share at least one scalar.
+    pub fn intersects(&self, other: CharRange) -> bool {
+        self.start.max(other.start) < self.end.min(other.end)
+    }
 }
 
 /// Derived view of an Offset. `col` is in chars from line start.
@@ -80,5 +85,21 @@ mod tests {
         assert!(empty.is_empty());
         assert_eq!(empty.len(), 0);
         assert!(!empty.contains(Offset(3)));
+    }
+
+    #[test]
+    fn ranges_touch_without_overlapping() {
+        // Overlapping: [1,4) and [3,5) share scalars 3.
+        assert!(
+            CharRange::new(Offset(1), Offset(4)).intersects(CharRange::new(Offset(3), Offset(5)))
+        );
+        // Touching at the end: [1,4) and [4,6) share no scalar.
+        assert!(
+            !CharRange::new(Offset(1), Offset(4)).intersects(CharRange::new(Offset(4), Offset(6)))
+        );
+        // Empty range [3,3) inside [1,4) shares no scalar.
+        assert!(
+            !CharRange::new(Offset(3), Offset(3)).intersects(CharRange::new(Offset(1), Offset(4)))
+        );
     }
 }
