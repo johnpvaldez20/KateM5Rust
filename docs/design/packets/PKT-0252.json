@@ -53,13 +53,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 1,
+    "issue_number": 275,
     "branch": "pkt/PKT-0252-adblock-xml",
     "base_sha": "1b1f38ea8e1100ad22dc77a437d03056048a39f8"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/275"
   },
   "lane": {
     "runtime": "LOCAL",
