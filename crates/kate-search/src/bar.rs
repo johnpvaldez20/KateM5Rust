@@ -84,9 +84,13 @@ impl FindBar {
     /// Returns [`SearchError::InvalidRegex`] when the regex does not compile.
     pub fn replace_one(&self, buf: &TextBuffer, hit: &Match) -> Result<Transaction, SearchError> {
         let new = expanded_replacement(self, buf, hit)?;
+        let old = slice_text(buf.text(), hit.range);
+        if old == new {
+            return Ok(Transaction::default());
+        }
         let edit = Edit {
             start: hit.range.start(),
-            old: slice_text(buf.text(), hit.range),
+            old,
             new,
         };
         Ok(Transaction::single(edit))
@@ -308,5 +312,30 @@ mod tests {
 
         let bad = sample("(", "", FindMode::Regex, false);
         assert!(bad.hit_count(&buf).is_err());
+    }
+
+    #[test]
+    fn a_same_replacement_inserts_nothing() {
+        let buf = TextBuffer::from_str("aba");
+        let bar = sample("a", "a", FindMode::Plain, false);
+        let hit = bar
+            .find_from(&buf, Offset(0))
+            .expect("plain search does not fail")
+            .expect("a matches");
+        let tx = bar
+            .replace_one(&buf, &hit)
+            .expect("plain replace does not fail");
+        assert!(tx.is_empty(), "replacing a with a yields no edit");
+
+        let bar = sample("a", "b", FindMode::Plain, false);
+        let hit = bar
+            .find_from(&buf, Offset(0))
+            .expect("plain search does not fail")
+            .expect("a matches");
+        let tx = bar
+            .replace_one(&buf, &hit)
+            .expect("plain replace does not fail");
+        assert_eq!(tx.edits().len(), 1);
+        assert_eq!(tx.edits()[0].new, "b");
     }
 }
