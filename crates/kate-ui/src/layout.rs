@@ -85,7 +85,7 @@ pub(crate) fn visual_row_count(line: &str, columns: u32, tab_width: u8) -> u32 {
     for scalar in line.chars() {
         if scalar == '\t' {
             width = width.saturating_add(step - (width % step));
-        } else if !is_line_break(scalar) {
+        } else if !(is_line_break(scalar) || scalar == '\u{200B}') {
             width = width.saturating_add(1);
         }
     }
@@ -261,6 +261,12 @@ mod tests {
         assert_eq!(visual_row_count("ab\u{2029}cd", 4, 4), 1);
         assert_eq!(visual_row_count("ab\ncd", 4, 4), 1);
         assert_eq!(visual_row_count("ab\rcd", 4, 4), 1);
+    }
+
+    #[test]
+    fn a_zero_width_space_adds_no_row() {
+        assert_eq!(visual_row_count("ab\u{200B}", 2, 4), 1);
+        assert_eq!(visual_row_count("ab", 2, 4), 1);
     }
 }
 
