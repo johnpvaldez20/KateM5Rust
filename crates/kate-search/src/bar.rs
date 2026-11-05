@@ -115,7 +115,7 @@ impl FindBar {
             return Ok(0);
         }
         let hits = crate::find_all(buf, &self.query())?;
-        Ok(hits.len())
+        Ok(hits.iter().filter(|hit| !hit.range.is_empty()).count())
     }
 }
 
@@ -312,6 +312,16 @@ mod tests {
 
         let bad = sample("(", "", FindMode::Regex, false);
         assert!(bad.hit_count(&buf).is_err());
+    }
+
+    #[test]
+    fn an_empty_regex_hit_does_not_count() {
+        let bar = sample("a*", "", FindMode::Regex, false);
+        let buf_b = TextBuffer::from_str("b");
+        assert_eq!(bar.hit_count(&buf_b).expect("regex compiles"), 0);
+
+        let buf_a = TextBuffer::from_str("a");
+        assert_eq!(bar.hit_count(&buf_a).expect("regex compiles"), 1);
     }
 
     #[test]
