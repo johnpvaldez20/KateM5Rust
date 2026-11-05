@@ -65,6 +65,12 @@ pub fn is_bracket(ch: char) -> bool {
     bracket_mate(ch).is_some()
 }
 
+/// Returns `true` when `ch` is an opening bracket.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn is_opener(ch: char) -> bool {
+    PAIRS.iter().any(|(open, _)| *open == ch)
+}
+
 /// Returns the bracket scalar the scan starts on.
 fn bracket_at(buf: &TextBuffer, at: Offset) -> Option<(usize, char)> {
     let len = buf.len().0;
@@ -251,5 +257,15 @@ mod tests {
         assert!(super::is_bracket('<'));
         assert!(!super::is_bracket('"'));
         assert!(!super::is_bracket('a'));
+    }
+
+    #[test]
+    fn is_opener_names_only_the_open_side() {
+        assert!(super::is_opener('('));
+        assert!(super::is_opener('<'));
+        assert!(!super::is_opener(')'));
+        assert!(!super::is_opener('>'));
+        assert!(!super::is_opener('"'));
+        assert!(!super::is_opener('a'));
     }
 }
