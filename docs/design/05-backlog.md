@@ -578,6 +578,36 @@ The index is `docs/design/WAVE-0205.md`.
 | PKT-0211 | `kate-core`: fold a line that a carriage return ends | LOCAL | 0188 |
 | PKT-0212 | `kate-core`: count the scalars in a selection | LOCAL | 0175 |
 
+## Wave PKT-0213
+
+WAVE-0205 plans are on main.
+This wave leaves `repository.rs`, `syntax_cache.rs`, `brackets.rs`, `buffer.rs`, `modeline.rs`, `config.rs`, `view.rs`, and `selection.rs` unchanged.
+WAVE-0197 code is on main.
+This wave leaves `completion.rs`, `edit.rs`, `theme.rs`, `regex.rs`, `profile.rs`, and `document.rs` unchanged.
+`fuzzy.rs` and `keys.rs` each get one new behavior on a different function.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Two arms that return the same value use one `||` condition.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0213.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0213 | `kate-ui`: give a zero-width space no width | LOCAL | 0183 |
+| PKT-0214 | `kate-fileio`: count a lone CR in a line position | LOCAL | 0176 |
+| PKT-0215 | `kate-search`: skip an empty hit in the count | LOCAL | 0156 |
+| PKT-0216 | `kate-text`: tell when two ranges touch | LOCAL | 0192 |
+| PKT-0217 | `kate-core`: score a camel hump on a unicode letter | LOCAL | 0198 |
+| PKT-0218 | `kate-ui`: treat meta and command as cmd | LOCAL | 0199 |
+| PKT-0219 | `kate-text`: report how many undos are stored | LOCAL | 0004 |
+| PKT-0220 | `kate-core`: skip a byte-order mark at smart home | LOCAL | 0189 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
