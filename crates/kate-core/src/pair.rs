@@ -70,6 +70,7 @@ fn closer_for(opener: char) -> char {
         '"' => '"',
         '\'' => '\'',
         '`' => '`',
+        '\u{201C}' => '\u{201D}',
         other => other,
     }
 }
@@ -127,15 +128,15 @@ fn char_at(buf: &kate_text::TextBuffer, index: usize) -> Option<char> {
 }
 
 fn is_opener(ch: char) -> bool {
-    matches!(ch, '(' | '[' | '{' | '"' | '\'' | '`')
+    matches!(ch, '(' | '[' | '{' | '"' | '\'' | '`' | '\u{201C}')
 }
 
 fn is_closer(ch: char) -> bool {
-    matches!(ch, ')' | ']' | '}' | '"' | '\'' | '`')
+    matches!(ch, ')' | ']' | '}' | '"' | '\'' | '`' | '\u{201D}')
 }
 
 fn is_quote(ch: char) -> bool {
-    matches!(ch, '"' | '\'' | '`')
+    matches!(ch, '"' | '\'' | '`' | '\u{201C}' | '\u{201D}')
 }
 
 fn is_ascii_word(ch: char) -> bool {
@@ -378,5 +379,26 @@ mod tests {
         let buf = TextBuffer::from_str("a");
         let selection = Selection::caret(Offset(1));
         assert_eq!(plan_pair(&buf, selection, "\""), PairPlan::Plain);
+    }
+
+    #[test]
+    fn a_curly_double_quote_wraps() {
+        let sel = Selections::single(Selection::caret(Offset(2)));
+        let (text, after) = type_at("a ", &sel, "\u{201C}");
+        assert_eq!(text, "a \u{201C}\u{201D}");
+        assert!(after.primary().is_caret());
+        assert_eq!(after.primary().head, Offset(3));
+
+        let sel = Selections::single(Selection::caret(Offset(1)));
+        let (text, after) = type_at("a", &sel, "\u{201C}");
+        assert_eq!(text, "a\u{201C}");
+        assert!(after.primary().is_caret());
+        assert_eq!(after.primary().head, Offset(2));
+
+        let sel = Selections::single(Selection::caret(Offset(1)));
+        let (text, after) = type_at("a\u{201D}", &sel, "\u{201D}");
+        assert_eq!(text, "a\u{201D}");
+        assert!(after.primary().is_caret());
+        assert_eq!(after.primary().head, Offset(2));
     }
 }
