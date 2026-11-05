@@ -1,0 +1,160 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0188",
+  "title": "kate-core: tell when a view has scrolled",
+  "summary": "is_scrolled is true when the first line or the first column is not zero. A new view is not scrolled. The test goes in the existing view tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T06:44:47Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0188-view-scrolled",
+    "base_sha": "038dff0ba61e03ad7bf36a0d9ab1b0b72feea97c"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/view.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/selection.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-text/src/edit.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/brackets.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0065",
+      "PKT-0073",
+      "PKT-0087",
+      "PKT-0102",
+      "PKT-0123",
+      "PKT-0137"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/view.rs",
+        "definition": "pub fn is_scrolled(&self) -> bool"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "view.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add is_scrolled on impl View. The body is one condition: self.scroll.first_line != 0 || self.scroll.first_col != 0. Do not nest an if inside an if. Do not touch apply_indent_folds, offset_is_folded, folded_range_at, fold_covering_count, or line_scalar. The existing test apply_indent_folds_stores_char_ranges stays green. Do not rewrite its assertions. The test a_new_view_is_not_scrolled builds a View with Scroll::default and checks is_scrolled is false. The same view with first_line 2 is true. The same view with first_line 0 and first_col 3 is true. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked view::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "view::tests::a_new_view_is_not_scrolled",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because is_scrolled does not exist. After the change a default scroll is false. A first line of 2 is true. A first column of 3 is true."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
