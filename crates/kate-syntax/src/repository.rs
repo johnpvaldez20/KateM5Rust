@@ -785,7 +785,8 @@ fn glob_at(cand: &[char], wild: &[char], mut cpos: isize, mut wpos: isize) -> bo
                 wpos -= 1;
             }
             ch => {
-                if cpos < 0 || !cand[cpos as usize].eq_ignore_ascii_case(&ch) {
+                if cpos < 0 || cand[cpos as usize].to_lowercase().next() != ch.to_lowercase().next()
+                {
                     return false;
                 }
                 cpos -= 1;
@@ -903,6 +904,19 @@ mod tests {
 
     const PLAIN_TEXT: &str = r##"
 <language name="Plain" section="Test" version="1" kateversion="5.0" extensions="*.txt" mimetype="text/plain" license="MIT">
+  <highlighting>
+    <contexts>
+      <context name="Normal" attribute="Normal" lineEndContext="#stay"/>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal" defStyleNum="dsNormal"/>
+    </itemDatas>
+  </highlighting>
+</language>
+"##;
+
+    const ACUTE: &str = r##"
+<language name="Acute" section="Test" version="1" kateversion="5.0" extensions="*.é" license="MIT">
   <highlighting>
     <contexts>
       <context name="Normal" attribute="Normal" lineEndContext="#stay"/>
@@ -1086,5 +1100,18 @@ mod tests {
         let repo = load_vendored();
         let id = repo.for_file_name("Main.RS").expect("Main.RS matches");
         assert_eq!(repo.definition(id).name, "Rust");
+    }
+
+    #[test]
+    fn an_accented_extension_matches_either_case() {
+        let mut repo = load_vendored();
+        repo.add_xml(ACUTE).expect("acute");
+        repo.link().expect("link");
+        let id = repo
+            .for_file_name("notes.É")
+            .expect("notes.É matches Acute");
+        assert_eq!(repo.definition(id).name, "Acute");
+        let rust = repo.for_file_name("Main.RS").expect("Main.RS matches Rust");
+        assert_eq!(repo.definition(rust).name, "Rust");
     }
 }
