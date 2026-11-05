@@ -491,6 +491,35 @@ The index is `docs/design/WAVE-0181.md`.
 | PKT-0187 | `kate-text`: tell an opening bracket from a closer | LOCAL | 0163 |
 | PKT-0188 | `kate-core`: tell when a view has scrolled | LOCAL | 0137 |
 
+## Wave PKT-0189
+
+WAVE-0181 plans are on main.
+This wave leaves `indent.rs`, `fold.rs`, `layout.rs`, `config.rs`, `modeline.rs`, `buffer.rs`, `brackets.rs`, and `view.rs` unchanged.
+WAVE-0173 code is on main.
+This wave leaves `keys.rs`, `completion.rs`, `selection.rs`, `encode.rs`, `decode.rs`, `fuzzy.rs`, `edit.rs`, and `document.rs` unchanged.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Two arms that return the same value use one `||` condition.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0189.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0189 | `kate-core`: keep a curly apostrophe inside a word move | LOCAL | 0165 |
+| PKT-0190 | `kate-search`: treat a curly apostrophe as a word character | LOCAL | 0164 |
+| PKT-0191 | `kate-core`: keep a quote plain after an apostrophe | LOCAL | 0158 |
+| PKT-0192 | `kate-text`: tell when two ranges share a scalar | LOCAL | 0002 |
+| PKT-0193 | `kate-fileio`: name a load that is not a file | LOCAL | 0133 |
+| PKT-0194 | `kate-fileio`: name a save that is not a file | LOCAL | 0140 |
+| PKT-0195 | `kate-ui`: tell when a highlight step needs paint | LOCAL | 0171 |
+| PKT-0196 | `kate-ui`: map a gutter channel to a byte | LOCAL | 0013 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are

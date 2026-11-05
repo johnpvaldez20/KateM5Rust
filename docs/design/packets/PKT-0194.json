@@ -1,0 +1,161 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0194",
+  "title": "kate-fileio: name a save that is not a file",
+  "summary": "save onto a directory returns CreateTemp. The message is The path is not a file. A missing path still creates the file. The test goes in the existing save tests module.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-05T07:38:44Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "XAI",
+        "name": "grok-4.7",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "cursor_agent_id": "bc-8a36e39b-5842-585a-a891-8187ea661afd"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 1,
+    "branch": "pkt/PKT-0194-save-not-a-file",
+    "base_sha": "8d1e415bdd3fe5363c616c6c2d0f50d99750f08b"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/1"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A local Qwen3.8 coder model with 27B parameters on the owner Mac codes this packet. The change is one file and stays under about 60 lines.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-fileio/src/save.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-search/src/lib.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-text/src/lib.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-fileio/src/lib.rs",
+      "crates/kate-core/src/fanout.rs",
+      "crates/kate-search/src/bar.rs",
+      "crates/kate-search/src/replace.rs",
+      "crates/kate-ui/src/notice.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-core/src/completion.rs",
+      "crates/kate-core/src/selection.rs",
+      "crates/kate-fileio/src/encode.rs",
+      "crates/kate-fileio/src/decode.rs",
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-text/src/edit.rs",
+      "crates/kate-core/src/document.rs",
+      "crates/kate-core/src/indent.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-core/src/config.rs",
+      "crates/kate-core/src/modeline.rs",
+      "crates/kate-text/src/buffer.rs",
+      "crates/kate-text/src/brackets.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/movement.rs",
+      "crates/kate-search/src/literal.rs",
+      "crates/kate-core/src/pair.rs",
+      "crates/kate-text/src/offset.rs",
+      "crates/kate-fileio/src/load.rs",
+      "crates/kate-ui/src/highlight.rs",
+      "crates/kate-ui/src/cache.rs"
+    ],
+    "crates_touched": [
+      "kate-fileio"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0005",
+      "PKT-0006",
+      "PKT-0140"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-fileio/src/save.rs",
+        "definition": "pub fn save(path: &Path, text: &Rope, opts: &EncodeOptions) -> Result<Saved, SaveError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "save.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Change only the error string in the not-a-file branch of save. The message is The path is not a file. Keep SaveStep::CreateTemp. Keep ErrorKind::InvalidInput. Keep the guard if let Ok(meta) = std::fs::metadata(path) && !meta.is_file(). Do not use ? for a missing path. Do not nest an if inside an if. Do not touch do_save, encode, or the temp name. The existing test save_refuses_a_directory stays green. Do not rewrite its assertions. The test save_onto_a_directory_names_the_path saves onto a new directory. The error is SaveError::Io. The step is CreateTemp. The display text of source is The path is not a file. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 60 lines. Run the full test module named in the commands, not only the new test."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-fileio --all-targets --locked -- -D warnings",
+      "cargo test -p kate-fileio --locked save::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "save::tests::save_onto_a_directory_names_the_path",
+        "kind": "UNIT",
+        "asserts": "This test fails on main. The directory error says not a regular file. After the change the message is The path is not a file. The step stays CreateTemp."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
