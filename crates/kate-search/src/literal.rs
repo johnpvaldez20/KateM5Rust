@@ -21,6 +21,9 @@ pub(crate) fn find(
     start: usize,
     end: usize,
 ) -> Vec<Match> {
+    if needle.is_empty() && whole_words {
+        return Vec::new();
+    }
     let mut spans = if needle.is_empty() {
         empty_spans(rope, case_sensitive, start, end)
     } else if case_sensitive {
@@ -28,9 +31,6 @@ pub(crate) fn find(
     } else {
         find_folded(rope, needle, start, end, whole_words)
     };
-    if needle.is_empty() && whole_words {
-        spans.retain(|span| is_whole_word(rope, span.0, span.1));
-    }
     spans.retain(|span| span.0 >= start && span.1 <= end);
     spans
         .into_iter()
@@ -354,7 +354,7 @@ fn class_re(pattern: &'static str, slot: usize) -> &'static regex::Regex {
 
 #[cfg(test)]
 mod tests {
-    use super::is_whole_word;
+    use super::{find, is_whole_word};
     use ropey::Rope;
 
     #[test]
@@ -369,5 +369,17 @@ mod tests {
         let rope = Rope::from_str("cat.");
         // Span 0..3 ("cat") IS a whole word: period is not a word character.
         assert!(is_whole_word(&rope, 0, 3));
+    }
+
+    #[test]
+    fn an_empty_whole_word_finds_nothing() {
+        let rope = Rope::from_str("ab");
+        let count = rope.len_chars();
+        // Empty needle with whole_words returns no hits.
+        let hits = find(&rope, "", true, true, 0, count);
+        assert!(hits.is_empty());
+        // Same call without whole_words still returns 3 hits (positions 0, 1, 2).
+        let hits = find(&rope, "", true, false, 0, count);
+        assert_eq!(hits.len(), 3);
     }
 }
