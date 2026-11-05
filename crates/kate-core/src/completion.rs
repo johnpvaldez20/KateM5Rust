@@ -15,7 +15,7 @@ use std::collections::HashSet;
 /// Words after that word come first.
 /// Words before that word come next.
 /// Each word is returned once.
-/// The match ignores ASCII case.
+/// The match ignores letter case.
 pub fn word_completions(
     buf: &kate_text::TextBuffer,
     at: kate_text::Offset,
@@ -95,7 +95,7 @@ fn has_ascii_prefix(word: &str, prefix: &str) -> bool {
         let Some(next) = chars.next() else {
             return false;
         };
-        next.eq_ignore_ascii_case(&ch)
+        next.to_lowercase().eq(ch.to_lowercase())
     })
 }
 
@@ -224,5 +224,13 @@ mod tests {
             completion_suffix(&buf, Offset(9)),
             Some("\u{2019}t".to_string())
         );
+    }
+
+    #[test]
+    fn a_capital_e_acute_completes_a_small_prefix() {
+        let buf = TextBuffer::from_str("\u{00C9}clair \u{00E9}cl");
+        let got = word_completions(&buf, Offset(10), 4);
+        assert_eq!(got, vec!["\u{00C9}clair".to_string()]);
+        assert_eq!(completion_suffix(&buf, Offset(10)), Some("air".to_string()));
     }
 }
