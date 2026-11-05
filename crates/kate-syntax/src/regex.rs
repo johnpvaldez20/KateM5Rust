@@ -35,6 +35,7 @@ pub fn translate_pattern(
     if minimal {
         translated = invert_greed(&translated);
     }
+    translated = fold_flag_case(&translated);
     if insensitive && !has_leading_case_flag(&translated) {
         translated.insert_str(0, "(?i)");
     }
@@ -163,6 +164,22 @@ fn replace_captures(pattern: &str, captures: &[String], quote: bool) -> String {
         result = result.replace(&token, &replacement);
     }
     result
+}
+
+fn fold_flag_case(pattern: &str) -> String {
+    let Some(rest) = pattern.strip_prefix("(?") else {
+        return pattern.to_string();
+    };
+    let Some(close) = rest.find(')') else {
+        return pattern.to_string();
+    };
+    let flags = &rest[..close];
+    let body = &rest[close..];
+    let folded: String = flags
+        .chars()
+        .map(|c| if c == 'I' { 'i' } else { c })
+        .collect();
+    format!("(?{folded}{body}")
 }
 
 fn has_leading_case_flag(pattern: &str) -> bool {
@@ -440,5 +457,15 @@ mod tests {
         assert_eq!(result, "(?mi)a");
         let result = translate_pattern("(?m)a", true, false, None).expect("pattern");
         assert_eq!(result, "(?i)(?m)a");
+    }
+
+    #[test]
+    fn a_capital_i_flag_stays_one_flag() {
+        let result = translate_pattern("(?I)a", true, false, None).expect("pattern");
+        assert_eq!(result, "(?i)a");
+        let result = translate_pattern("(?mI)a", true, false, None).expect("pattern");
+        assert_eq!(result, "(?mi)a");
+        let result = translate_pattern("I", true, false, None).expect("pattern");
+        assert_eq!(result, "(?i)I");
     }
 }
