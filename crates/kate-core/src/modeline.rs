@@ -354,9 +354,9 @@ fn trailing_policy(value: &str) -> Option<TrailingSpaces> {
 
 fn modeline_ending(value: &str) -> Option<LineEnding> {
     match value {
-        "unix" => Some(LineEnding::Lf),
-        "dos" => Some(LineEnding::CrLf),
-        "mac" => Some(LineEnding::Cr),
+        "unix" | "lf" => Some(LineEnding::Lf),
+        "dos" | "crlf" => Some(LineEnding::CrLf),
+        "mac" | "cr" => Some(LineEnding::Cr),
         _ => None,
     }
 }
@@ -1011,5 +1011,34 @@ indent_size = 3
         worker.join().expect("worker");
         assert_eq!(over.indent_width, Some(8));
         assert_eq!(over.tab_width, None);
+    }
+
+    #[test]
+    fn a_modeline_accepts_lf_crlf_and_cr() {
+        assert_eq!(
+            modeline_overrides("kate: eol lf;\n").line_ending,
+            Some(LineEnding::Lf)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol crlf;\n").line_ending,
+            Some(LineEnding::CrLf)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol cr;\n").line_ending,
+            Some(LineEnding::Cr)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol unix;\n").line_ending,
+            Some(LineEnding::Lf)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol dos;\n").line_ending,
+            Some(LineEnding::CrLf)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol mac;\n").line_ending,
+            Some(LineEnding::Cr)
+        );
+        assert_eq!(modeline_overrides("kate: eol LF;\n").line_ending, None);
     }
 }
