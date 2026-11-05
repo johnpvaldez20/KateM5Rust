@@ -64,10 +64,22 @@ pub(crate) fn highlight_step(checkpoint: u32, first: u32, last: u32, budget: u32
             plain_from: Some(first),
         };
     }
+    if budget == 0 && last < checkpoint {
+        return HighlightStep {
+            ensure_through: None,
+            plain_from: None,
+        };
+    }
+    if budget == 0 && first < checkpoint {
+        return HighlightStep {
+            ensure_through: None,
+            plain_from: Some(checkpoint),
+        };
+    }
     if budget == 0 {
         return HighlightStep {
             ensure_through: None,
-            plain_from: if last < checkpoint { None } else { Some(first) },
+            plain_from: Some(first),
         };
     }
     if last < checkpoint {
@@ -189,5 +201,15 @@ mod tests {
         // Empty viewport (last < first) still returns plain_from Some(first).
         let step = highlight_step(0, 10, 5, 0);
         assert_eq!(step.plain_from, Some(10));
+    }
+
+    #[test]
+    fn a_zero_budget_starts_plain_at_the_checkpoint() {
+        // Viewport straddles the checkpoint: 10..=150 with checkpoint at 100.
+        // Zero budget means we cannot walk any lines, so color stays before
+        // the checkpoint and plain starts there.
+        let step = highlight_step(100, 10, 150, 0);
+        assert_eq!(step.ensure_through, None);
+        assert_eq!(step.plain_from, Some(100));
     }
 }

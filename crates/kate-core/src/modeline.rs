@@ -353,11 +353,14 @@ fn trailing_policy(value: &str) -> Option<TrailingSpaces> {
 }
 
 fn modeline_ending(value: &str) -> Option<LineEnding> {
-    match value {
-        "unix" | "lf" => Some(LineEnding::Lf),
-        "dos" | "crlf" => Some(LineEnding::CrLf),
-        "mac" | "cr" => Some(LineEnding::Cr),
-        _ => None,
+    if value.eq_ignore_ascii_case("unix") || value.eq_ignore_ascii_case("lf") {
+        Some(LineEnding::Lf)
+    } else if value.eq_ignore_ascii_case("dos") || value.eq_ignore_ascii_case("crlf") {
+        Some(LineEnding::CrLf)
+    } else if value.eq_ignore_ascii_case("mac") || value.eq_ignore_ascii_case("cr") {
+        Some(LineEnding::Cr)
+    } else {
+        None
     }
 }
 
@@ -1039,6 +1042,29 @@ indent_size = 3
             modeline_overrides("kate: eol mac;\n").line_ending,
             Some(LineEnding::Cr)
         );
-        assert_eq!(modeline_overrides("kate: eol LF;\n").line_ending, None);
+    }
+
+    #[test]
+    fn a_modeline_accepts_upper_endings() {
+        assert_eq!(
+            modeline_overrides("kate: eol LF;\n").line_ending,
+            Some(LineEnding::Lf)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol CRLF;\n").line_ending,
+            Some(LineEnding::CrLf)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol CR;\n").line_ending,
+            Some(LineEnding::Cr)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol lf;\n").line_ending,
+            Some(LineEnding::Lf)
+        );
+        assert_eq!(
+            modeline_overrides("kate: eol unix;\n").line_ending,
+            Some(LineEnding::Lf)
+        );
     }
 }

@@ -190,8 +190,9 @@ fn ends_with_opener(body: &str) -> bool {
 }
 
 fn ends_with_colon(body: &str) -> bool {
+    let code = body.split_once('#').map(|(head, _)| head).unwrap_or(body);
     matches!(
-        body.trim_end_matches([' ', '\t']).chars().next_back(),
+        code.trim_end_matches([' ', '\t']).chars().next_back(),
         Some(':')
     )
 }
@@ -515,5 +516,13 @@ mod tests {
         assert_eq!(inserted("    foo{// note", &config, true), "\n        ");
         assert_eq!(inserted("    foo // {", &config, true), "\n    ");
         assert_eq!(inserted("http://", &config, true), "\n");
+    }
+
+    #[test]
+    fn a_colon_before_a_hash_comment_still_indents() {
+        let config = DocumentConfig::default();
+        assert_eq!(python_inserted("    foo: # note", &config), "\n        ");
+        assert_eq!(python_inserted("    return # done", &config), "\n");
+        assert_eq!(python_inserted("    # note:", &config), "\n    ");
     }
 }
