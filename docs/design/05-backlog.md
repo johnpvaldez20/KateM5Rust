@@ -608,6 +608,34 @@ The index is `docs/design/WAVE-0213.md`.
 | PKT-0219 | `kate-text`: report how many undos are stored | LOCAL | 0004 |
 | PKT-0220 | `kate-core`: skip a byte-order mark at smart home | LOCAL | 0189 |
 
+## Wave PKT-0221
+
+WAVE-0213 plans are on main.
+This wave leaves `layout.rs`, `encode.rs`, `bar.rs`, `offset.rs`, `fuzzy.rs`, `keys.rs`, `history.rs`, and `movement.rs` unchanged.
+`view.rs` stays unchanged while PKT-0211 is in flight.
+A local Qwen3.8 coder model with 27B parameters codes every packet on the owner Mac.
+Each packet is one file.
+Each change stays under about 60 lines.
+Add each test inside the one existing test module.
+Do not add a second `mod tests`.
+Each packet lists the nearby functions that stay unchanged.
+A nested condition is written as `if a && b` or one `if else if`.
+Two arms that return the same value use one `||` condition.
+Spaces and tabs use `[' ', '\t']`.
+A packet that changes a documented rule names the tests and comments that may change.
+The index is `docs/design/WAVE-0221.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0221 | `kate-core`: complete a word in either letter case | LOCAL | 0197 |
+| PKT-0222 | `kate-core`: pair a curly double quote | LOCAL | 0191 |
+| PKT-0223 | `kate-core`: indent after a fullwidth colon | LOCAL | 0181 |
+| PKT-0224 | `kate-core`: keep a no-break space inside a fold | LOCAL | 0182 |
+| PKT-0225 | `kate-search`: keep a soft hyphen inside a word | LOCAL | 0190 |
+| PKT-0226 | `kate-text`: tell a replacement from an insert | LOCAL | 0200 |
+| PKT-0227 | `kate-ui`: accept TRUE for a profile line | LOCAL | 0203 |
+| PKT-0228 | `kate-syntax`: fold a capital I in a case flag | LOCAL | 0202 |
+
 ## Packet sizing rules the gatekeeper applies
 
 - A packet touches one crate. Two crates need a reason in `summary` and are
