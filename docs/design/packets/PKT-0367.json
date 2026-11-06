@@ -1,0 +1,163 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0367",
+  "title": "kate-syntax: list every vendored definition in vendored.rs",
+  "summary": "Add vendored.rs with the VENDORED list of include_str entries and vendored_repository, which parses and links every entry. The list starts with the six early files. Repository gains definition_count. lib.rs exports the list and the function. The test module in repository.rs keeps its own six-entry list. Each later wiring packet adds one entry to VENDORED.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 307,
+    "branch": "pkt/PKT-0367-vendored-list",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/307"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine codes this packet in the ~/code/KateM5Rust-wire worktree. kate-syntax builds and tests on Linux. No macOS tool is needed. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/vendored.rs",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/repository.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/definitions/",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-syntax/src/definition.rs",
+      "crates/kate-syntax/src/state.rs",
+      "crates/kate-syntax/src/theme.rs",
+      "crates/kate-syntax/tests/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0008",
+      "PKT-0009",
+      "PKT-0028",
+      "PKT-0043",
+      "PKT-0100",
+      "PKT-0205",
+      "PKT-0231"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/vendored.rs",
+        "definition": "/// Every vendored syntax definition as xml text, in load order.\npub const VENDORED: &[&str] = &[\n    include_str!(\"../definitions/rust.xml\"),\n    include_str!(\"../definitions/comments.xml\"),\n    include_str!(\"../definitions/alert.xml\"),\n    include_str!(\"../definitions/modelines.xml\"),\n    include_str!(\"../definitions/spdx-comments.xml\"),\n    include_str!(\"../definitions/ansic89.xml\"),\n];"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/vendored.rs",
+        "definition": "/// Parse and link every entry of `VENDORED`.\npub fn vendored_repository() -> Result<Repository, LoadError>"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/repository.rs",
+        "definition": "impl Repository {\n    /// Number of definitions that `add_xml` stored.\n    pub fn definition_count(&self) -> usize;\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/lib.rs",
+        "definition": "mod vendored;\npub use vendored::{VENDORED, vendored_repository};"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Create crates/kate-syntax/src/vendored.rs with the SPDX copyright line and the MIT license line that gatecheck requires. VENDORED holds the six early files in the order rust, comments, alert, modelines, spdx-comments, ansic89. vendored_repository calls Repository::empty, add_xml for each entry with ?, then link with ?, and returns the repository. Add pub fn definition_count to Repository in repository.rs. It returns self.definitions.len(). Do not change any other function in repository.rs. Do not change the VENDORED const inside repository::tests. That test module keeps its own list and six_vendored_definitions_load_and_link stays green. In lib.rs add mod vendored and the pub use line. Keep the other exports. vendored.rs gets one test module named tests. The test every_vendored_definition_loads_and_links calls vendored_repository, asserts definition_count equals VENDORED.len(), and for each DefId from 0 to that count asserts the license is MIT and Highlighter::new returns Ok. Do not nest an if inside an if. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Keep the change under about 80 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked vendored::tests",
+      "cargo test -p kate-syntax --locked repository::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "vendored::tests::every_vendored_definition_loads_and_links",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because vendored.rs does not exist. After the change vendored_repository links six definitions, each has license MIT, and Highlighter::new is Ok for each DefId."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

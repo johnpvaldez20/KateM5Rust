@@ -1,0 +1,153 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0370",
+  "title": "kate-syntax: read a branch reset group",
+  "summary": "PCRE (?|a(x)|b(y)) numbers the group in each alternative as group 1. fancy-regex rejects (?|. translate_pattern writes (?: for it. For a pattern that had (?|, regex_hit keeps only the groups that took part in the match, so %1 names the group of the alternative that matched. mib.xml needs this before its wiring packet.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 307,
+    "branch": "pkt/PKT-0370-branch-reset",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/307"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine codes this packet in the ~/code/KateM5Rust-wire worktree. kate-syntax builds and tests on Linux. No macOS tool is needed. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-syntax/src/engine.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/definitions/",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/vendored.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-syntax/tests/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0008",
+      "PKT-0202",
+      "PKT-0228",
+      "PKT-0234",
+      "PKT-0369"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/regex.rs",
+        "definition": "/// True when `pcre` holds a PCRE branch reset group `(?|`.\n/// The function is pub(crate).\nfn has_branch_reset(pcre: &str) -> bool"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/engine.rs",
+        "definition": "/// `branch_reset` true keeps only the groups that took part in the match.\nfn regex_hit(regex: &Regex, line: &Prepared<'_>, offset: usize, branch_reset: bool) -> Option<Hit>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "In regex.rs translate_pcre, when not in_class and the text at index starts with (?| push (?: and advance by three. Add has_branch_reset, which returns pcre.contains(\"(?|\"). In engine.rs match_regex, compute let branch_reset = has_branch_reset(pattern); and pass it to regex_hit. In regex_hit, when branch_reset is true, groups holds the text of each group from index 1 that is Some, in order, and skips a group that is None. When branch_reset is false the current behavior stays: groups runs to the last Some group and a None group inside that range is an empty string. Do not nest an if inside an if. Both files have one test module named tests. Add each new test at the end of that module. Do not write a second mod tests. The regex test a_branch_reset_group_compiles asserts translate_pattern of (?|(a)|(b)) is (?:(a)|(b)) and that fancy_regex::Regex::new accepts it. The engine test a_branch_reset_capture_feeds_the_dynamic_rule loads a definition with a lookAhead RegExpr (?|(\\w+)\\s*::=|SYNTAX\\s*(\\w+)) that pushes a dynamic context with StringDetect String=%1 dynamic=true, highlights the line SYNTAX Foo Foo, and asserts the second Foo gets the Syntax attribute. The existing tests stay green. Branch from the current tip of main. If main has moved, use the new tip. Keep the change under about 70 lines across both files."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked regex::tests",
+      "cargo test -p kate-syntax --locked engine::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "regex::tests::a_branch_reset_group_compiles",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because fancy_regex rejects (?| and translate_pattern copies it. After the change the group is (?: and compiles."
+      },
+      {
+        "name": "engine::tests::a_branch_reset_capture_feeds_the_dynamic_rule",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because the rule does not compile. After the change the second alternative fills %1 and the dynamic StringDetect matches the second Foo."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,162 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0385",
+  "title": "kate-syntax: wire the COBOL definition into VENDORED",
+  "summary": "Add include_str of cobol.xml to the VENDORED list in vendored.rs, add the SOURCES.md row for cobol.xml, and add a test that loads COBOL by name and builds its Highlighter. This is wiring 5 of 8 in wiring wave 2 of 15. The xml file stays as PKT-0263 copied it.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 307,
+    "branch": "pkt/PKT-0385-wire-cobol",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/307"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine codes this packet in the ~/code/KateM5Rust-wire worktree. kate-syntax builds and tests on Linux. No macOS tool is needed. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/vendored.rs",
+      "crates/kate-syntax/definitions/SOURCES.md"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/definitions/cobol.xml",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-syntax/tests/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0263",
+      "PKT-0367",
+      "PKT-0373",
+      "PKT-0374",
+      "PKT-0375",
+      "PKT-0376",
+      "PKT-0377",
+      "PKT-0378",
+      "PKT-0379",
+      "PKT-0380",
+      "PKT-0381",
+      "PKT-0382",
+      "PKT-0383",
+      "PKT-0384"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/vendored.rs",
+        "definition": "pub const VENDORED: &[&str] = &[\n    // the earlier entries stay in their order\n    include_str!(\"../definitions/cobol.xml\"),\n];"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/vendored.rs",
+        "definition": "#[test]\nfn cobol_is_vendored()"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "crates/kate-syntax/definitions/SOURCES.md",
+        "definition": "| file | upstream path | upstream commit | license attribute |\n|---|---|---|---|\n| cobol.xml | data/syntax/cobol.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "vendored.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add include_str!(\"../definitions/cobol.xml\") as the last entry of VENDORED. Keep every earlier entry in its order. Add one row to the table in SOURCES.md after the last row: | cobol.xml | data/syntax/cobol.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |. Do not change another row. The test cobol_is_vendored calls vendored_repository, unwraps it, finds by_name(\"COBOL\"), asserts definition(id).license is MIT, and asserts Highlighter::new(&repo, id) is Ok. The existing test every_vendored_definition_loads_and_links stays green. Do not edit cobol.xml. Do not edit repository.rs. Wait until PKT-0263 and PKT-0384 are on main. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. When Highlighter::new returns RegexError::Unsupported, stop, keep the xml unchanged, and open an issue that names the pattern. Keep the change under about 20 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked vendored::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "vendored::tests::cobol_is_vendored",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because by_name(\"COBOL\") is None. After the change the definition loads with license MIT and its rules compile."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
