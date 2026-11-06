@@ -1,0 +1,154 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0322",
+  "title": "kate-syntax: copy the MIT Ninja definition",
+  "summary": "Copy ninja.xml from KSyntaxHighlighting data/syntax at commit 6d8ab7945958e7354295db7f399cce06f7de7571. The language name is Ninja. The license attribute is MIT. The copy is the whole upstream file. repository.rs and SOURCES.md stay unchanged. This is file 8 of 8 in MIT copy wave 9 of 15.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 306,
+    "branch": "pkt/PKT-0322-ninja-xml",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/306"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine copies this one MIT syntax file. The worktree is ~/code/KateM5Rust-mit-09. The packet does not edit Rust and needs no macOS tool. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/definitions/ninja.xml"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/src/",
+      "crates/kate-syntax/definitions/SOURCES.md",
+      "crates/kate-syntax/definitions/alert.xml",
+      "crates/kate-syntax/definitions/ansic89.xml",
+      "crates/kate-syntax/definitions/comments.xml",
+      "crates/kate-syntax/definitions/modelines.xml",
+      "crates/kate-syntax/definitions/rust.xml",
+      "crates/kate-syntax/definitions/spdx-comments.xml",
+      "crates/kate-syntax/definitions/klipper-gcode.xml",
+      "crates/kate-syntax/definitions/latex-logfile.xml",
+      "crates/kate-syntax/definitions/logfile-advanced-selector.xml",
+      "crates/kate-syntax/definitions/logfile-selector.xml",
+      "crates/kate-syntax/definitions/logfile.xml",
+      "crates/kate-syntax/definitions/mapcss.xml",
+      "crates/kate-syntax/definitions/metamath.xml",
+      "crates/kate-syntax/definitions/mib.xml",
+      "crates/kate-syntax/definitions/mips.xml",
+      "crates/kate-syntax/definitions/modula-2-iso-only.xml",
+      "crates/kate-syntax/definitions/modula-2-pim-only.xml",
+      "crates/kate-syntax/definitions/modula-2-r10-only.xml",
+      "crates/kate-syntax/definitions/modula-2.xml",
+      "crates/kate-syntax/definitions/nftables.xml",
+      "crates/kate-syntax/definitions/nginx.xml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0028"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "crates/kate-syntax/definitions/ninja.xml",
+        "definition": "| file | language name | upstream path | upstream commit | license attribute |\n|---|---|---|---|---|\n| ninja.xml | Ninja | data/syntax/ninja.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Create crates/kate-syntax/definitions/ninja.xml by copying data/syntax/ninja.xml from KSyntaxHighlighting commit 6d8ab7945958e7354295db7f399cce06f7de7571. Copy the whole file. Do not add a copyright comment. Do not remove an upstream comment. This file has no SPDX header. Do not add one. The language name is Ninja. The license attribute is MIT. Do not change the license attribute. Do not edit repository.rs. Do not add an include_str line. Do not edit SOURCES.md. Do not edit the six files that are already vendored. Do not edit a file from an earlier wave. Do not edit the other seven files of this wave. This file includes ##Comments. comments.xml is already vendored. Do not add a second syntax file. This packet adds no Rust test. cargo test -p kate-syntax --locked repository::tests::six_vendored_definitions_load_and_link stays green. Do not rewrite that test. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. Start this copy after PKT-0028 is on main. The include_str line for this file is PKT-0444. That packet waits for this one."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked repository::tests::six_vendored_definitions_load_and_link"
+    ],
+    "regression_tests": [
+      {
+        "name": "repository::tests::six_vendored_definitions_load_and_link",
+        "kind": "GOLDEN",
+        "asserts": "The file ninja.xml is absent on main. After the copy, the language name is Ninja and the license attribute is MIT. The existing test six_vendored_definitions_load_and_link stays green because this packet does not change Rust."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
