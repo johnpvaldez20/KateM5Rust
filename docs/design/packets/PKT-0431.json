@@ -55,13 +55,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 299,
+    "issue_number": 307,
     "branch": "pkt/PKT-0431-wire-logfile-advanced-selector",
     "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/299"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/307"
   },
   "lane": {
     "runtime": "LOCAL",
