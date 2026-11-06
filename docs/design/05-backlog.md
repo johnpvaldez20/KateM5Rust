@@ -61,7 +61,9 @@ MIT copy wave 1 of 15 is in `docs/design/WAVE-0028.md`.
 Eight files start at `abnf.xml`.
 MIT copy wave 2 of 15 is in `docs/design/WAVE-0259.md`.
 Eight files start at `cashscript.xml`.
-100 MIT files remain queued.
+MIT copy wave 3 of 15 is in `docs/design/WAVE-0267.md`.
+Eight files start at `csv-semicolon.xml`.
+92 MIT files remain queued.
 Phase 3 stays titles.
 
 | Packet | Title | Lane | Depends on |
@@ -767,6 +769,29 @@ The index is `docs/design/WAVE-0259.md`.
 | PKT-0264 | `kate-syntax`: copy the MIT CoffeeScript definition | CLOUD | 0028 |
 | PKT-0265 | `kate-syntax`: copy the MIT Common Lisp definition | CLOUD | 0028 |
 | PKT-0266 | `kate-syntax`: copy the MIT CSV (pipe) definition | CLOUD | 0028 |
+
+## Wave PKT-0267
+
+This is MIT copy wave 3 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+92 MIT files remain queued.
+A Cursor cloud agent copies each file.
+The owner Mac stays out of this wave.
+The `include_str` packets wait until these eight files are on main.
+Phase 3 stays titles.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0267.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0267 | `kate-syntax`: copy the MIT CSV (semicolon) definition | CLOUD | 0028 |
+| PKT-0268 | `kate-syntax`: copy the MIT CSV (whitespace) definition | CLOUD | 0028 |
+| PKT-0269 | `kate-syntax`: copy the MIT D2 definition | CLOUD | 0028 |
+| PKT-0270 | `kate-syntax`: copy the MIT Dart definition | CLOUD | 0028 |
+| PKT-0271 | `kate-syntax`: copy the MIT Dockerfile definition | CLOUD | 0028 |
+| PKT-0272 | `kate-syntax`: copy the MIT DotEnv definition | CLOUD | 0028 |
+| PKT-0273 | `kate-syntax`: copy the MIT Doxygen definition | CLOUD | 0028 |
+| PKT-0274 | `kate-syntax`: copy the MIT Earthfile definition | CLOUD | 0028 |
 
 ## Packet sizing rules the gatekeeper applies
 
