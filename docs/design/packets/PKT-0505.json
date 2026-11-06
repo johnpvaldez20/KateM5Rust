@@ -1,0 +1,151 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0505",
+  "title": "kate-ui: save the session on quit and restore it on launch",
+  "summary": "On quit the window writes session_layout_json with the open paths, the active index, and the split direction to session_path. On launch without a path argument it reads that file and opens the paths. A missing or bad file opens one untitled document.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0505-session-restore",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs imports GPUI, the crate builds only on macOS, and the owner looks at the window after the change.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/profile.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0026",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0089",
+      "PKT-0112",
+      "PKT-0203",
+      "PKT-0227",
+      "PKT-0248",
+      "PKT-0372",
+      "PKT-0498",
+      "PKT-0499",
+      "PKT-0501",
+      "PKT-0503",
+      "PKT-0504"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "/// The session JSON for the open documents that have a path.\nfn session_text(ws: &Workspace) -> String"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "session_text collects the path of each document with a file in views_in_order, the index of the active view among them, and horizontal true when the layout root is a Horizontal split, and calls profile::session_layout_json. Quit writes session_text to profile::session_path(home) with write_text_atomically; home comes from the HOME environment variable; a missing HOME skips the write. launch with None reads the file, parses it with session_layout_from_json, opens each path that exists, activates the saved index, and splits once when horizontal is true. No file or a bad file keeps the current untitled document. The test session_text_lists_the_open_paths opens two temp files, asserts session_layout_from_json of session_text gives both paths and active 1. The owner quits with two files open and relaunches. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked session::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "session::tests::session_text_lists_the_open_paths",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because session_text does not exist. After the change the JSON holds both paths and the active index."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

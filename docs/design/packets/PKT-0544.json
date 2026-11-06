@@ -1,0 +1,142 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0544",
+  "title": "kate-core: replay a journal onto the text on disk",
+  "summary": "replay_journal applies the journal lines in order to the text that is on disk and returns the recovered text. A line whose old text does not match the buffer is a Mismatch, and a line whose revision_before is not the previous revision_after is a Revision error. The first line's revision_before is not checked.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0544-journal-replay",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. workspace.rs is a 3,500-line file and the change touches its command dispatch. The Linux VM builds and tests kate-core. The owner Mac stays free for the window.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/recovery.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0038",
+      "PKT-0543"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/recovery.rs",
+        "definition": "#[derive(Debug, PartialEq, Eq)]\npub enum ReplayError {\n    Mismatch { line: usize },\n    Revision { line: usize },\n    Overlap { line: usize },\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/recovery.rs",
+        "definition": "/// The text after every line applies to `text`.\npub fn replay_journal(text: &str, lines: &[JournalLine]) -> Result<String, ReplayError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Build a TextBuffer::from_str(text). For each line build Edits and a Transaction::new; a TransactionError is Overlap. Apply it; ApplyError::OldTextMismatch and OutOfBounds are Mismatch. Return buffer.text().to_string(). ReplayError and replay_journal are pub and carry #[cfg_attr(not(test), allow(dead_code))] until the stash packet exports them. The test replay_applies_the_lines_in_order replays two lines onto ab: insert X at 0 with revisions 0 to 1, then replace b at 2 with Y with revisions 1 to 2, and asserts XaY; a second case with revisions 1 to 2 then 5 to 6 is Revision { line: 1 }; a line whose old text is wrong is Mismatch { line: 0 }. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked recovery::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "recovery::tests::replay_applies_the_lines_in_order",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because replay_journal does not exist. After the change the lines rebuild the text and a broken chain or old text is an error that names the line."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

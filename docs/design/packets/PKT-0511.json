@@ -1,0 +1,151 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0511",
+  "title": "kate-ui: read the user config at launch",
+  "summary": "launch reads config.toml from user_config_path(home) with load_editor_config. A readable file sets the workspace config. A missing file keeps the default without a message. A bad file keeps the default and shows one notice sentence.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0511-launch-config",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs imports GPUI, the crate builds only on macOS, and the owner looks at the window after the change.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/session.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0089",
+      "PKT-0112",
+      "PKT-0372",
+      "PKT-0498",
+      "PKT-0499",
+      "PKT-0501",
+      "PKT-0503",
+      "PKT-0505",
+      "PKT-0506",
+      "PKT-0507",
+      "PKT-0508",
+      "PKT-0509",
+      "PKT-0510"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "/// The config to use and an optional notice sentence.\nfn config_or_default(loaded: Result<EditorConfig, kate_core::ConfigError>) -> (EditorConfig, Option<String>)"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "config_or_default returns (config, None) for Ok, (default, None) for ConfigError::Io, and (default, Some(sentence)) for the other errors; the sentence is The config file was not read. followed by the error. themed_workspace takes the config as a parameter. launch builds the path from HOME and user_config_path and calls load_editor_config. The test config_or_default_keeps_the_default_for_a_missing_file asserts an Io error gives the default and None, a BadVersion error gives the default and Some, and an Ok config is returned as it is. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked session::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "session::tests::config_or_default_keeps_the_default_for_a_missing_file",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because config_or_default does not exist. After the change a missing file is quiet, a bad file gives a sentence, and a good file is used."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

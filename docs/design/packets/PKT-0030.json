@@ -1,0 +1,171 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0030",
+  "title": "kate-session: create the crate and read a .kateproject file",
+  "summary": "The new crate kate-session reads Kate's .kateproject JSON into a Project value: the name, the base directory, the file sources, and the exclude patterns. It creates the module files that the next packets fill. The root manifest gains the workspace dependency line. svn, hg, darcs, fossil, and nested projects are skipped in this version.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0030-kateproject-reader",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. It creates a crate, edits the root manifest, and regenerates Cargo.lock. A large context helps and no macOS tool is needed.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-session/",
+      "Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "tools/",
+      "docs/"
+    ],
+    "crates_touched": [
+      "kate-session",
+      "workspace"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0012",
+      "PKT-0013",
+      "PKT-0043",
+      "PKT-0045",
+      "PKT-0500",
+      "PKT-0506",
+      "PKT-0512"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "TOML",
+        "path": "Cargo.toml",
+        "definition": "[workspace.dependencies]\nkate-session = { path = \"crates/kate-session\" }"
+      },
+      {
+        "language": "TOML",
+        "path": "crates/kate-session/Cargo.toml",
+        "definition": "[package]\nname = \"kate-session\"\ndescription = \"Projects from .kateproject files: file sources, git and directory walks, exclude patterns.\"\nversion.workspace = true\nedition.workspace = true\nrust-version.workspace = true\nrepository.workspace = true\npublish.workspace = true\nlicense = \"LGPL-2.1-or-later\"\n\n[dependencies]\n# .kateproject is JSON. std has no JSON parser.\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\n# exclude_patterns are regular expressions in Kate's project plugin.\nregex = \"1\"\n\n[dev-dependencies]\ntempfile = \"3.27.0\"\n\n[lints]\nworkspace = true"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-session/src/project.rs",
+        "definition": "/// One `.kateproject` file.\n#[derive(Clone, Debug, PartialEq, Eq)]\npub struct Project {\n    pub name: String,\n    /// The directory that holds the project file.\n    pub base_dir: std::path::PathBuf,\n    pub files: Vec<FileSource>,\n    /// Regular expressions. A relative path that matches one is dropped.\n    pub exclude_patterns: Vec<String>,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-session/src/project.rs",
+        "definition": "/// One entry of the `files` array.\n#[derive(Clone, Debug, PartialEq, Eq)]\npub enum FileSource {\n    /// `git: true`. The files that git tracks under `directory`.\n    Git { directory: std::path::PathBuf, recursive: bool },\n    /// A directory walk with name filters.\n    Directory { directory: std::path::PathBuf, filters: Vec<String>, recursive: bool, hidden: bool, symlinks: bool },\n    /// `list: [...]`. Explicit paths relative to `directory`.\n    List { directory: std::path::PathBuf, paths: Vec<std::path::PathBuf> },\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-session/src/project.rs",
+        "definition": "#[derive(Debug, PartialEq, Eq)]\npub enum ProjectError {\n    Json { message: String },\n    NoName,\n    Io { path: std::path::PathBuf, message: String },\n    Pattern { pattern: String, message: String },\n    Git { message: String },\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-session/src/project.rs",
+        "definition": "/// Read the JSON text of the project file at `project_file`.\npub fn project_from_json(text: &str, project_file: &std::path::Path) -> Result<Project, ProjectError>"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-session/src/lib.rs",
+        "definition": "mod exclude;\nmod git;\nmod project;\nmod walk;\n\npub use project::{FileSource, Project, ProjectError, project_from_json};"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Create crates/kate-session with the Cargo.toml above, src/lib.rs, src/project.rs, and the files src/exclude.rs, src/git.rs, and src/walk.rs that hold only the SPDX header and a //! doc line for now. Every Rust file starts with the SPDX copyright line and SPDX-License-Identifier: LGPL-2.1-or-later. Add the kate-session line to [workspace.dependencies] in the root Cargo.toml and nothing else there. Run cargo build so Cargo.lock gains the crate. project_from_json parses the text with serde_json::Value. A parse error is ProjectError::Json. A missing or empty name string is NoName. base_dir is the parent of project_file. Each object in files maps to one FileSource: directory defaults to . and is joined onto base_dir; git true or 1 gives Git with recursive, default true; a non-empty list array gives List; otherwise Directory with filters (array of strings, default empty), recursive (default true), hidden (default false), symlinks (default false). An entry with svn, hg, darcs, or fossil true is skipped. The key projects is ignored. exclude_patterns is an array of strings, default empty. Unknown keys are ignored like Kate does. The test module in project.rs has reads_a_git_project with {\"name\": \"Kate\", \"files\": [{\"git\": 1}]} and asserts one Git source with recursive true and base_dir equal to the parent of the given path, and reads_a_directory_project with filters [\"*.rs\"], hidden true, and exclude_patterns [\"target/\"] and asserts those values; an object without name is NoName. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-session --all-targets --locked -- -D warnings",
+      "cargo test -p kate-session --locked",
+      "cargo run -p gatecheck --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "project::tests::reads_a_git_project",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because the crate does not exist. After the change a git entry becomes FileSource::Git with recursive true and the base directory is the project file's parent."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

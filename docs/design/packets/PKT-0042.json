@@ -1,0 +1,143 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0042",
+  "title": "katem5rust: add the app bundle files",
+  "summary": "apps/katem5rust/macos holds Info.plist and bundle.sh. The script builds the release binary and assembles KateM5Rust.app with the plist, the binary, and the icon when the owner supplies one. bundle.rs includes the plist and a test reads its keys. Signing and notarization stay owner steps outside the repository.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0042-app-bundle",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The bundle script runs only on macOS and the owner opens the resulting app. The plist test runs in the rust (macos-15) job and on Linux.",
+    "requires": [
+      "MACOS_HOST",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "apps/katem5rust/macos/Info.plist",
+      "apps/katem5rust/macos/bundle.sh",
+      "apps/katem5rust/src/bundle.rs",
+      "apps/katem5rust/src/main.rs"
+    ],
+    "forbidden_paths": [
+      "crates/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "apps/katem5rust/Cargo.toml",
+      "tools/",
+      "docs/"
+    ],
+    "crates_touched": [
+      "katem5rust"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0013",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "apps/katem5rust/src/bundle.rs",
+        "definition": "/// The items below are pub(crate).\n/// The Info.plist of the app bundle.\nconst INFO_PLIST: &str = include_str!(\"../macos/Info.plist\");\n/// The string value that follows `<key>key</key>`, or None.\nfn plist_string(key: &str) -> Option<&'static str>"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "apps/katem5rust/macos/Info.plist",
+        "definition": "| key | value |\n|---|---|\n| CFBundleIdentifier | com.johnvaldez.katem5rust |\n| CFBundleName | KateM5Rust |\n| CFBundleDisplayName | KateM5Rust |\n| CFBundleExecutable | katem5rust |\n| CFBundlePackageType | APPL |\n| CFBundleShortVersionString | 0.1.0 |\n| CFBundleVersion | 1 |\n| CFBundleIconFile | AppIcon |\n| LSMinimumSystemVersion | 14.0 |\n| NSHighResolutionCapable | true |\n| NSPrincipalClass | NSApplication |\n| CFBundleDocumentTypes | one entry: LSItemContentTypes public.plain-text, public.source-code, public.text; CFBundleTypeRole Editor; LSHandlerRank Alternate |"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "apps/katem5rust/macos/bundle.sh",
+        "definition": "| step | command |\n|---|---|\n| 1 | cargo build --release --locked -p katem5rust |\n| 2 | rm -rf target/KateM5Rust.app and mkdir -p target/KateM5Rust.app/Contents/MacOS target/KateM5Rust.app/Contents/Resources |\n| 3 | cp target/release/katem5rust target/KateM5Rust.app/Contents/MacOS/ |\n| 4 | cp apps/katem5rust/macos/Info.plist target/KateM5Rust.app/Contents/ |\n| 5 | cp apps/katem5rust/macos/AppIcon.icns target/KateM5Rust.app/Contents/Resources/ when that file exists |\n| 6 | codesign --force --deep --sign \"$KATEM5_SIGN_IDENTITY\" target/KateM5Rust.app only when KATEM5_SIGN_IDENTITY is set |"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Write Info.plist as a plist XML document with the keys in the table. Write bundle.sh with set -euo pipefail and the six steps; it prints the bundle path at the end. AppIcon.icns is not in this packet; the owner adds it later and the script copies it when present. Notarization is a manual owner step with notarytool and is documented in a comment at the end of the script. Add mod bundle; to main.rs and create bundle.rs with the GPL-3.0-or-later SPDX header. plist_string finds <key>key</key> and returns the text of the next <string> element. The test info_plist_names_the_bundle asserts plist_string(CFBundleIdentifier) is Some(com.johnvaldez.katem5rust), CFBundleExecutable is Some(katem5rust), LSMinimumSystemVersion is Some(14.0), and plist_string(Nope) is None. The owner runs the script and double-clicks the app. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p katem5rust --all-targets --locked -- -D warnings",
+      "cargo test -p katem5rust --locked bundle::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "bundle::tests::info_plist_names_the_bundle",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because bundle.rs does not exist. After the change the plist holds the bundle identifier, the executable name, and the minimum system version."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

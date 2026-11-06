@@ -1,0 +1,164 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0035",
+  "title": "kate-ui: build the diagnostics rows and the underline spans",
+  "summary": "kate-ui gains the kate-lsp dependency and diagnostics.rs. diagnostic_rows resolves anchored diagnostics to sorted rows for the pane and drops stale ones. underlines_for_lines clips each diagnostic to the visible lines as column spans with a severity. The window paints both in the next packets.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0035-diagnostic-rows",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The file has no GPUI import, but kate-ui tests run in the rust (macos-15) job and the Mac lane owns crates/kate-ui.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/diagnostics.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs",
+      "Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0012",
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0030",
+      "PKT-0031",
+      "PKT-0033",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0497",
+      "PKT-0500",
+      "PKT-0506",
+      "PKT-0519",
+      "PKT-0520",
+      "PKT-0523",
+      "PKT-0536"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "TOML",
+        "path": "crates/kate-ui/Cargo.toml",
+        "definition": "[dependencies]\n# LSP client, anchored diagnostics, and request helpers for the window.\nkate-lsp = { workspace = true }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/diagnostics.rs",
+        "definition": "/// The items below are pub(crate).\n/// One row of the diagnostics pane.\n#[derive(Clone, Debug, PartialEq, Eq)]\nstruct DiagnosticRow {\n    pub line: u32,\n    pub col: u32,\n    pub severity: kate_lsp::diagnostics::Severity,\n    pub message: String,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/diagnostics.rs",
+        "definition": "/// The items below are pub(crate).\n/// One underline on one line, in columns.\n#[derive(Clone, Debug, PartialEq, Eq)]\nstruct Underline {\n    pub line: u32,\n    pub start_col: u32,\n    pub end_col: u32,\n    pub severity: kate_lsp::diagnostics::Severity,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/diagnostics.rs",
+        "definition": "/// The items below are pub(crate).\n/// Rows sorted by line then column. A stale diagnostic is dropped.\nfn diagnostic_rows(buf: &kate_text::TextBuffer, diagnostics: &[kate_lsp::diagnostics::Diagnostic]) -> Vec<DiagnosticRow>\n/// Underlines for lines `first..last`. A diagnostic over several lines gives one underline per line; an empty span gets one column.\nfn underlines_for_lines(buf: &kate_text::TextBuffer, diagnostics: &[kate_lsp::diagnostics::Diagnostic], first: u32, last: u32) -> Vec<Underline>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Add kate-lsp to the kate-ui dependencies with the comment and run cargo update -p kate-ui so Cargo.lock gains the edge and the kate-lsp crates only. Create diagnostics.rs with the SPDX header and add mod diagnostics; to lib.rs with the dead_code attribute. Use kate_lsp::diagnostics::diagnostic_span and buf.line_col. The test underlines_clip_to_each_line builds ab\\ncd\\nef, anchors one error from line 0 column 1 to line 2 column 1, and asserts underlines_for_lines for 0..3 gives three underlines: (0, 1, 2), (1, 0, 2), (2, 0, 1), and that diagnostic_rows gives one row at line 0 column 1. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked diagnostics::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "diagnostics::tests::underlines_clip_to_each_line",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because diagnostics.rs does not exist. After the change a three-line diagnostic becomes three underlines and one pane row."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

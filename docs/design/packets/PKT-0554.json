@@ -1,0 +1,163 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0554",
+  "title": "kate-ui: open the files that macOS sends",
+  "summary": "When Finder, the Dock, or open -a hands the running app file URLs, the window opens each file in a tab. paths_from_urls keeps file URLs, decodes percent escapes, and drops other schemes. The bundle's document types make the app an editor for text files.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0554-open-urls",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs imports GPUI, the crate builds only on macOS, and the owner looks at the window after the change.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/session.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0042",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0089",
+      "PKT-0112",
+      "PKT-0372",
+      "PKT-0498",
+      "PKT-0499",
+      "PKT-0501",
+      "PKT-0503",
+      "PKT-0505",
+      "PKT-0506",
+      "PKT-0507",
+      "PKT-0508",
+      "PKT-0509",
+      "PKT-0510",
+      "PKT-0511",
+      "PKT-0520",
+      "PKT-0521",
+      "PKT-0525",
+      "PKT-0538",
+      "PKT-0539",
+      "PKT-0540",
+      "PKT-0542",
+      "PKT-0547",
+      "PKT-0550",
+      "PKT-0553"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "/// Paths of the `file://` URLs, percent-decoded. Other URLs are dropped.\nfn paths_from_urls(urls: &[String]) -> Vec<std::path::PathBuf>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Register the GPUI open-URLs handler in launch; for each path from paths_from_urls send FileRequest::OpenPath to the window, creating the window first when none is open. The test paths_from_urls_decodes_file_urls asserts [file:///tmp/a%20b.rs, https://x] gives [/tmp/a b.rs]. The owner double-clicks a text file in Finder with the bundle installed. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked session::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "session::tests::paths_from_urls_decodes_file_urls",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because paths_from_urls does not exist. After the change a file URL becomes a decoded path and another scheme is dropped."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

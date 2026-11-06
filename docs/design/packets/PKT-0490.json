@@ -1,0 +1,152 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0490",
+  "title": "kate-core: select the next copy of the primary selection",
+  "summary": "Command::SelectNextOccurrence calls Selections::next_occurrence and adds the hit as the new primary selection. A caret or no hit leaves the selections unchanged. Cmd-D in the window sends this command.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0490-select-next",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. workspace.rs is a 3,500-line file and the change touches its command dispatch. The Linux VM builds and tests kate-core. The owner Mac stays free for the window.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/selection.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0018",
+      "PKT-0025",
+      "PKT-0055",
+      "PKT-0063",
+      "PKT-0074",
+      "PKT-0091",
+      "PKT-0093",
+      "PKT-0110",
+      "PKT-0117",
+      "PKT-0247",
+      "PKT-0250",
+      "PKT-0489"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/command.rs",
+        "definition": "pub enum Command {\n    // the existing variants stay\n    /// Add the next copy of the primary selection as the primary selection.\n    SelectNextOccurrence,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "/// Add `Selections::next_occurrence` as the primary selection.\nfn select_next_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add SelectNextOccurrence after RemoveSecondaryCursors in command.rs. Add the arm to run_motion. select_next_cmd reads the view selections and the document buffer, calls selections.next_occurrence(&buffer), and returns Ok(()) on None. On Some(hit) it builds Selections::new with the old ranges plus hit and the index of hit as primary, and stores it on the view. The test select_next_occurrence_adds_a_primary_selection types foo bar foo, sets the selections to one range 0..3 by assignment, executes the command, and asserts two selections with primary anchor 8 and head 11. A second execute adds nothing because no third foo exists. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::select_next_occurrence_adds_a_primary_selection",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because the command does not exist. After the change the second foo is the primary selection and a repeat adds nothing."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

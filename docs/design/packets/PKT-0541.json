@@ -1,0 +1,134 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0541",
+  "title": "kate-lsp: build and read definition and references requests",
+  "summary": "definition_params and references_params build the two requests. locations reads a response in any of its three shapes: one Location, an array of Location, or an array of LocationLink with targetUri and targetSelectionRange. location_target turns a file URI location into a path, a line, and a character.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0541-definition-requests",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "EITHER",
+    "reason": "Either lane may code this packet. It is one file, one behavior, and one test, and the rule text in this packet is the oracle. The first idle lane takes it.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/src/requests.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-lsp/src/lib.rs",
+      "crates/kate-lsp/src/client.rs",
+      "crates/kate-lsp/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-lsp"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0033",
+      "PKT-0037"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/requests.rs",
+        "definition": "pub fn definition_params(uri: &lsp_types::Uri, position: lsp_types::Position) -> serde_json::Value\npub fn references_params(uri: &lsp_types::Uri, position: lsp_types::Position, include_declaration: bool) -> serde_json::Value\n/// Locations in a definition or references result. Null gives an empty list.\npub fn locations(result: &serde_json::Value) -> Vec<lsp_types::Location>\n/// Path, line, and character of a file URI location. Another scheme gives None.\npub fn location_target(location: &lsp_types::Location) -> Option<(std::path::PathBuf, u32, u32)>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "A LocationLink maps to Location with targetUri and targetSelectionRange, or targetRange when the selection range is missing. location_target percent-decodes the URI path. The test locations_read_the_three_shapes asserts one Location object gives one entry, an array of two gives two, a LocationLink array gives the target selection range, and location_target of file:///tmp/a%20b.rs at line 3 character 4 gives (/tmp/a b.rs, 3, 4). Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "requests::tests::locations_read_the_three_shapes",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because locations does not exist. After the change all three result shapes give Location values and a file URI maps to a path."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

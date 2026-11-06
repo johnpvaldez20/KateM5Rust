@@ -1,0 +1,170 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0533",
+  "title": "kate-core: keep the applied transactions for the shell",
+  "summary": "Every transaction that execute applies, including undo and redo, is pushed to an outbox as a DocumentChange with the document, the revisions, the transaction, and a rope snapshot of the text before it. drain_changes hands them to the shell, which builds didChange events from them.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0533-change-outbox",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. workspace.rs is a 3,500-line file and the change touches its command dispatch. The Linux VM builds and tests kate-core. The owner Mac stays free for the window.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/document.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0016",
+      "PKT-0018",
+      "PKT-0025",
+      "PKT-0043",
+      "PKT-0055",
+      "PKT-0060",
+      "PKT-0063",
+      "PKT-0066",
+      "PKT-0074",
+      "PKT-0091",
+      "PKT-0092",
+      "PKT-0093",
+      "PKT-0110",
+      "PKT-0117",
+      "PKT-0247",
+      "PKT-0250",
+      "PKT-0489",
+      "PKT-0490",
+      "PKT-0491",
+      "PKT-0492",
+      "PKT-0493",
+      "PKT-0494",
+      "PKT-0495",
+      "PKT-0522",
+      "PKT-0526"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "/// One applied transaction.\n#[derive(Clone, Debug)]\npub struct DocumentChange {\n    pub document: DocumentId,\n    pub before: kate_text::Revision,\n    pub after: kate_text::Revision,\n    /// The text before the transaction. A rope snapshot is cheap.\n    pub before_text: kate_text::Rope,\n    pub transaction: kate_text::Transaction,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "impl Workspace {\n    /// Take every change since the last call, oldest first.\n    pub fn drain_changes(&mut self) -> Vec<DocumentChange>;\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/lib.rs",
+        "definition": "pub use workspace::{Axis, CloseResult, DocumentChange, EditorConfig, OpenError, SplitTree, Workspace};"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add changes: Vec<DocumentChange> to Workspace and push in apply_change before the buffer apply, with before_text from buffer.snapshot(), and after the apply fill after. Push the same shape from undo_cmd and redo_cmd with the transaction they apply. A transaction that fails to apply pushes nothing. drain_changes returns std::mem::take(&mut self.changes). Update the pub use line in lib.rs. The test drain_changes_returns_each_transaction_once types a, asserts one change with before revision 0, after revision 1, before_text empty, and a transaction with one insert; a second drain is empty; after Undo the drain has one change whose before_text is a. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::drain_changes_returns_each_transaction_once",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because drain_changes does not exist. After the change each applied transaction is handed out once with its pre-state text."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,174 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0033",
+  "title": "kate-lsp: create the crate and read the servers settings",
+  "summary": "The new crate kate-lsp reads Kate's lspclient settings.json: a servers map with command, rootIndicationFileNames, highlightingModeRegex, initializationOptions, settings, url, root, and use. global merges under every server and use chains resolve. The crate also gets its empty module files and the root manifest line.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0033-lsp-settings",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. It creates a crate, edits the root manifest, and regenerates Cargo.lock. A large context helps and no macOS tool is needed.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/",
+      "Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "tools/",
+      "docs/"
+    ],
+    "crates_touched": [
+      "kate-lsp",
+      "workspace"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0012",
+      "PKT-0013",
+      "PKT-0030",
+      "PKT-0043",
+      "PKT-0045",
+      "PKT-0500",
+      "PKT-0506",
+      "PKT-0512",
+      "PKT-0520",
+      "PKT-0526"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "TOML",
+        "path": "Cargo.toml",
+        "definition": "[workspace.dependencies]\nkate-lsp = { path = \"crates/kate-lsp\" }"
+      },
+      {
+        "language": "TOML",
+        "path": "crates/kate-lsp/Cargo.toml",
+        "definition": "[package]\nname = \"kate-lsp\"\ndescription = \"LSP client: Kate-compatible server settings, JSON-RPC over stdio, position encoding, diagnostics.\"\nversion.workspace = true\nedition.workspace = true\nrust-version.workspace = true\nrepository.workspace = true\npublish.workspace = true\nlicense = \"LGPL-2.1-or-later\"\n\n[dependencies]\nkate-text = { workspace = true }\n# settings.json and JSON-RPC bodies. std has no JSON.\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\n# The wire types of the protocol. Hand-written structs would drift from the specification.\nlsp-types = \"0.97\"\n# highlightingModeRegex is a regular expression in Kate's settings.\nregex = \"1\"\n\n[dev-dependencies]\ntempfile = \"3.27.0\"\n\n[lints]\nworkspace = true"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/config.rs",
+        "definition": "/// One server entry after `global` and `use` are applied.\n#[derive(Clone, Debug, PartialEq)]\npub struct ServerConfig {\n    pub command: Vec<String>,\n    pub root_indication_file_names: Vec<String>,\n    pub highlighting_mode_regex: String,\n    pub initialization_options: serde_json::Value,\n    pub settings: serde_json::Value,\n    pub url: Option<String>,\n    pub root: Option<String>,\n    pub document_language_id: Option<String>,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/config.rs",
+        "definition": "/// The `servers` map. A server without a command after resolution is left out.\n#[derive(Clone, Debug, PartialEq, Default)]\npub struct ServersConfig {\n    pub servers: std::collections::BTreeMap<String, ServerConfig>,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/config.rs",
+        "definition": "#[derive(Debug, PartialEq, Eq)]\npub enum ConfigError {\n    Json { message: String },\n    UseCycle { name: String },\n    UnknownUse { name: String, target: String },\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/config.rs",
+        "definition": "/// Parse a Kate lspclient settings.json text.\npub fn servers_from_json(text: &str) -> Result<ServersConfig, ConfigError>"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/lib.rs",
+        "definition": "pub mod client;\npub mod config;\npub mod diagnostics;\npub mod encoding;\npub mod hover;\npub mod jsonrpc;\npub mod requests;\npub mod sync;\n\npub use config::{ConfigError, ServerConfig, ServersConfig, servers_from_json};"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Create crates/kate-lsp with the Cargo.toml above, src/lib.rs, src/config.rs, and the files client.rs, diagnostics.rs, encoding.rs, hover.rs, jsonrpc.rs, requests.rs, and sync.rs that hold only the SPDX header and a //! doc line. Every Rust file starts with the SPDX copyright line and SPDX-License-Identifier: LGPL-2.1-or-later. Add the kate-lsp line to [workspace.dependencies] in the root Cargo.toml and nothing else there. Run cargo build so Cargo.lock gains the crate and lsp-types; keep the newest 0.97 patch that builds with the pinned toolchain and name it in the pull request. servers_from_json parses with serde_json::Value; a parse error is Json. For each entry of servers, start from the global object when present, then apply the entry's own keys; when the entry has use, resolve the named server first and apply its resolved keys under the entry's own keys; a chain that returns to a name is UseCycle; a use that names no server is UnknownUse. command is an array of strings; rootIndicationFileNames is a string or an array; highlightingModeRegex defaults to an empty string; initializationOptions and settings default to Value::Null; url, root, and documentLanguageId are optional strings; commandDebug and unknown keys are ignored. An entry whose resolved command is empty is left out of the map. The test reads_use_and_global parses {\"global\": {\"root\": \".\"}, \"servers\": {\"c\": {\"command\": [\"clangd\"], \"highlightingModeRegex\": \"^C$\"}, \"cpp\": {\"use\": \"c\", \"highlightingModeRegex\": \"^C\\\\+\\\\+$\"}, \"bib\": {\"use\": \"nope\"}}} and asserts cpp has command [clangd], regex ^C\\+\\+$, and root Some(.), and that the whole parse fails with UnknownUse for bib; a second text without bib parses. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked",
+      "cargo run -p gatecheck --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "config::tests::reads_use_and_global",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because the crate does not exist. After the change use copies the base command, global supplies root, and an unknown use is an error."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

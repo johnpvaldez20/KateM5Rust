@@ -1,0 +1,135 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0513",
+  "title": "kate-session: list the files of a directory source",
+  "summary": "directory_files walks a directory and returns the relative paths of the files whose names pass the wildcard filters. recursive descends into sub directories, hidden keeps dot files, and symlinks follows links to directories. The result is sorted.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0513-directory-walk",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The crate is pure Rust and builds anywhere. The backlog marks this title LOCAL so the Mac lane keeps the panes and their models together.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-session/src/walk.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-session/src/lib.rs",
+      "crates/kate-session/src/project.rs",
+      "crates/kate-session/src/git.rs",
+      "crates/kate-session/src/exclude.rs",
+      "crates/kate-session/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-session"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0030"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-session/src/walk.rs",
+        "definition": "/// The items below are pub(crate).\n/// Files under `directory` whose names match one filter, as paths relative to `directory`, sorted.\n/// No filter means every file. Hidden entries start with a dot.\nfn directory_files(directory: &std::path::Path, filters: &[String], recursive: bool, hidden: bool, symlinks: bool) -> Result<Vec<std::path::PathBuf>, ProjectError>\n/// `*` matches any run, `?` matches one scalar. The match is case sensitive and covers the whole name.\nfn wildcard_match(pattern: &str, name: &str) -> bool"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Both functions carry #[cfg_attr(not(test), allow(dead_code))] until Project::files calls them. Use std::fs::read_dir. A read error is ProjectError::Io with the path. A directory entry is descended when recursive is true; a symlink to a directory is descended only when symlinks is true; a symlink to a file counts as a file. A name that starts with a dot is skipped unless hidden is true; the rule applies to files and directories. Filters apply to file names only. wildcard_match is a small recursive matcher over chars for * and ?. The test directory_files_applies_filters_and_hidden builds a tempfile::tempdir with a.rs, b.txt, .hidden.rs, and sub/c.rs; asserts filters [\"*.rs\"] recursive true hidden false gives [a.rs, sub/c.rs]; hidden true adds .hidden.rs first; recursive false gives [a.rs]. The test wildcard_match_handles_star_and_question asserts *.rs matches a.rs, a?.rs matches ab.rs and not a.rs, and A.rs does not match a.rs. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-session --all-targets --locked -- -D warnings",
+      "cargo test -p kate-session --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "walk::tests::directory_files_applies_filters_and_hidden",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because directory_files does not exist. After the change the filter, the hidden flag, and the recursive flag select the expected relative paths in sorted order."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,144 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0519",
+  "title": "kate-ui: list the open documents",
+  "summary": "doclist.rs builds one DocRow per open document with its name, its path, the modified flag, and whether it is the document of the active view, sorted by name without regard to case. The document list pane paints these rows.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0519-document-rows",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The file has no GPUI import, but kate-ui tests run in the rust (macos-15) job and the Mac lane owns crates/kate-ui.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/doclist.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0031",
+      "PKT-0051",
+      "PKT-0497",
+      "PKT-0500"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/doclist.rs",
+        "definition": "/// The items below are pub(crate).\n/// One open document in the document list.\n#[derive(Clone, Debug, PartialEq, Eq)]\nstruct DocRow {\n    pub document: kate_core::DocumentId,\n    pub name: String,\n    pub path: Option<std::path::PathBuf>,\n    pub modified: bool,\n    pub active: bool,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/doclist.rs",
+        "definition": "/// The items below are pub(crate).\n/// Every open document sorted by name without regard to case.\nfn document_rows(ws: &kate_core::Workspace) -> Vec<DocRow>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Create doclist.rs with the SPDX header and add mod doclist; to lib.rs with the dead_code attribute. active is true when ws.active_view points at a view of that document. The test module is #[cfg(all(test, target_os = \"macos\"))] like files.rs. The test document_rows_sort_by_name opens two untitled documents, asserts two rows sorted by name, and that the second is active. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked doclist::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "doclist::tests::document_rows_sort_by_name",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because doclist.rs does not exist. After the change the rows are sorted and the active document is flagged."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

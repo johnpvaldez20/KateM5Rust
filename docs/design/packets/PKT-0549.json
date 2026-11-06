@@ -1,0 +1,149 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0549",
+  "title": "kate-ui: group the search hits by file",
+  "summary": "searchpane.rs groups FileHit values by path in first-seen order, formats one hit as line:col: text, and builds the SearchQuery from the pane toggles. The pane paints the groups in the next packet.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0549-search-groups",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The file has no GPUI import, but kate-ui tests run in the rust (macos-15) job and the Mac lane owns crates/kate-ui.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/searchpane.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0031",
+      "PKT-0035",
+      "PKT-0036",
+      "PKT-0051",
+      "PKT-0497",
+      "PKT-0500",
+      "PKT-0519",
+      "PKT-0523",
+      "PKT-0548"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/searchpane.rs",
+        "definition": "/// The items below are pub(crate).\n/// The hits of one file.\n#[derive(Clone, Debug, PartialEq, Eq)]\nstruct SearchGroup {\n    pub path: std::path::PathBuf,\n    pub hits: Vec<kate_search::FileHit>,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/searchpane.rs",
+        "definition": "/// The items below are pub(crate).\n/// Groups in the order the paths first appear.\nfn group_by_file(hits: Vec<kate_search::FileHit>) -> Vec<SearchGroup>\n/// `<line + 1>:<col + 1>: <text>`.\nfn hit_label(hit: &kate_search::FileHit) -> String\n/// A whole-buffer query from the pane toggles. Regex off means Pattern::Plain.\nfn pane_query(pattern: &str, regex: bool, case_sensitive: bool, whole_words: bool) -> kate_search::SearchQuery"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Create searchpane.rs with the SPDX header and add mod searchpane; to lib.rs with the dead_code attribute. The test group_by_file_keeps_first_seen_order builds hits for b.rs, a.rs, b.rs and asserts two groups, b.rs first with two hits, and that hit_label of line 0 col 2 text x is 1:3: x. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked searchpane::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "searchpane::tests::group_by_file_keeps_first_seen_order",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because searchpane.rs does not exist. After the change hits group by path in first-seen order and the label is one-based."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

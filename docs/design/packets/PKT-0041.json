@@ -1,0 +1,149 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0041",
+  "title": "kate-ui: list the settings fields and apply one edit",
+  "summary": "settings.rs lists the six EditorConfig fields with their keys, labels, and current values, and applies one edited value by a TOML round trip through kate-core: write the config as TOML, replace the one line, and parse it back. A bad value returns the parser's sentence.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0041-settings-fields",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The file has no GPUI import, but kate-ui tests run in the rust (macos-15) job and the Mac lane owns crates/kate-ui.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/settings.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0031",
+      "PKT-0035",
+      "PKT-0036",
+      "PKT-0051",
+      "PKT-0497",
+      "PKT-0500",
+      "PKT-0519",
+      "PKT-0523",
+      "PKT-0549"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/settings.rs",
+        "definition": "/// The items below are pub(crate).\n/// One editable field of the settings window.\n#[derive(Clone, Debug, PartialEq, Eq)]\nstruct SettingsField {\n    pub key: &'static str,\n    pub label: &'static str,\n    pub value: String,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/settings.rs",
+        "definition": "/// The items below are pub(crate).\n/// fallback_encoding and the five document fields, in the TOML order.\nfn settings_fields(config: &kate_core::EditorConfig) -> Vec<SettingsField>\n/// The config with `key` set to `value`, or the error sentence.\nfn apply_setting(config: &kate_core::EditorConfig, key: &str, value: &str) -> Result<kate_core::EditorConfig, String>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Create settings.rs with the SPDX header and add mod settings; to lib.rs with the dead_code attribute. The keys are fallback_encoding, document.tab_width, document.indent_width, document.indent_with_spaces, document.remove_trailing_spaces, document.ensure_trailing_newline. settings_fields parses editor_config_to_toml line by line and strips quotes from a string value. apply_setting rebuilds the TOML with the one line replaced, quoting a string value for the two string keys, and calls editor_config_from_toml; a ConfigError becomes a sentence that names the key. The test apply_setting_round_trips_through_toml asserts apply_setting(default, document.tab_width, 8) has tab_width 8, that document.tab_width x is Err, and that settings_fields(default) has six fields whose first key is fallback_encoding. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked settings::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "settings::tests::apply_setting_round_trips_through_toml",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because settings.rs does not exist. After the change a valid value applies, a bad value is a sentence, and six fields are listed."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,146 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0040",
+  "title": "kate-core: indent a CMake line after a block opener",
+  "summary": "cmake_newline copies the indent of the text before the caret and adds one unit when that text starts with a CMake block opener: if, elseif, else, foreach, while, function, macro, or block followed by an open parenthesis. The word match ignores ASCII case. A comment line adds nothing.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0040-cmake-indent",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "EITHER",
+    "reason": "Either lane may code this packet. It is one file, one behavior, and one test, and the rule text in this packet is the oracle. The first idle lane takes it.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/indent.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0018",
+      "PKT-0053",
+      "PKT-0084",
+      "PKT-0086",
+      "PKT-0097",
+      "PKT-0103",
+      "PKT-0120",
+      "PKT-0132",
+      "PKT-0150",
+      "PKT-0166",
+      "PKT-0181",
+      "PKT-0223"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/indent.rs",
+        "definition": "/// The text a newline inserts at `at` in a CMake file.\n/// One unit is added after a line whose first word is a block opener followed by `(`.\npub fn cmake_newline(buf: &TextBuffer, at: Offset, config: &DocumentConfig) -> String"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Use text_before_caret, leading_indent, and is_comment_line like python_newline. The first word is the run of ASCII letters after the indent; spaces may sit between it and the parenthesis. Add #[cfg_attr(not(test), allow(dead_code))] until newline_for_indenter calls it. The test cmake_newline_indents_after_a_block_opener asserts if(FOO) gives a newline plus one unit, ELSEIF (BAR) gives one unit, message(x) gives no extra indent, # if(x) gives no extra indent, and   set(x) keeps the two spaces. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::indent::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::indent::tests::cmake_newline_indents_after_a_block_opener",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because cmake_newline does not exist. After the change the openers add one unit and other lines copy the indent."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

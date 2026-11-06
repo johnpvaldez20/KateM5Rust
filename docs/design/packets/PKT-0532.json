@@ -1,0 +1,135 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0532",
+  "title": "kate-lsp: add a fake language server for the tests",
+  "summary": "The binary fake-lsp-server speaks JSON-RPC over stdio and answers the requests the client tests need: initialize, shutdown, hover, completion, definition, and references, and it publishes one diagnostic after didOpen. Integration tests spawn it through CARGO_BIN_EXE_fake-lsp-server. No network.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0532-fake-lsp-server",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. The crate is pure Rust, the test runs a fake server over pipes on Linux, and the backlog marks the LSP client CLOUD.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/src/bin/fake-lsp-server.rs",
+      "crates/kate-lsp/tests/fake_server.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-lsp/src/lib.rs",
+      "crates/kate-lsp/src/client.rs",
+      "crates/kate-lsp/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-lsp"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0033",
+      "PKT-0529"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/bin/fake-lsp-server.rs",
+        "definition": "/// Answer one request. `initialize` returns capabilities with textDocumentSync 2, hoverProvider, completionProvider, definitionProvider, referencesProvider, and positionEncoding utf-16.\n/// `textDocument/hover` returns MarkupContent \"fake hover\"; completion returns one item fakeItem; definition returns the document at line 1; references returns one Location at line 2; shutdown returns null; other methods return error -32601.\nfn answer(method: &str, params: &serde_json::Value) -> Result<serde_json::Value, (i64, String)>\n/// Read bodies from stdin until `exit`, write each answer, and publish a warning diagnostic at 0:0-0:1 after didOpen.\nfn main()"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Use kate_lsp::jsonrpc::{read_message, write_message, parse_message, response_body, notification_body}. The publishDiagnostics after didOpen carries the uri and the version from the params and one diagnostic with severity 2 and message fake. After didChange it publishes an empty list. exit ends the process with code 0. The integration test tests/fake_server.rs spawns env!(\"CARGO_BIN_EXE_fake-lsp-server\") with piped stdio, writes an initialize request, reads the response, asserts hoverProvider is true, writes shutdown and exit, and asserts the process exits 0. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "fake_server::initialize_answers_with_capabilities",
+        "kind": "INTEGRATION",
+        "asserts": "This test fails on main because the binary does not exist. After the change the fake server answers initialize over pipes and exits on exit."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

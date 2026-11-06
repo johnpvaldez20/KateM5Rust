@@ -1,0 +1,176 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0038",
+  "title": "kate-core: write a history entry as a journal line",
+  "summary": "recovery.rs defines the JSON Lines recovery journal: a header line with the document path and one line per applied transaction with its edits and revisions. journal_line serializes a HistoryEntry and journal_line_from_str reads a line back. kate-core gains serde and serde_json for it.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0038-journal-line",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. workspace.rs is a 3,500-line file and the change touches its command dispatch. The Linux VM builds and tests kate-core. The owner Mac stays free for the window.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/recovery.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/view.rs",
+      "Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0013",
+      "PKT-0016",
+      "PKT-0030",
+      "PKT-0033",
+      "PKT-0035",
+      "PKT-0043",
+      "PKT-0045",
+      "PKT-0060",
+      "PKT-0066",
+      "PKT-0092",
+      "PKT-0500",
+      "PKT-0506",
+      "PKT-0520",
+      "PKT-0522",
+      "PKT-0533"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "TOML",
+        "path": "crates/kate-core/Cargo.toml",
+        "definition": "[dependencies]\n# The recovery journal is JSON Lines. std has no JSON.\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\""
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/recovery.rs",
+        "definition": "/// First line of a journal file.\n#[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq)]\npub struct JournalHeader {\n    pub format_version: u32,\n    pub path: String,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/recovery.rs",
+        "definition": "#[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq)]\npub struct JournalEdit {\n    pub start: usize,\n    pub old: String,\n    pub new: String,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/recovery.rs",
+        "definition": "/// One applied transaction.\n#[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq)]\npub struct JournalLine {\n    pub revision_before: u64,\n    pub revision_after: u64,\n    pub edits: Vec<JournalEdit>,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/recovery.rs",
+        "definition": "pub fn header_line(path: &std::path::Path) -> String\n/// One JSON object on one line for the forward transaction of `entry`.\npub fn journal_line(entry: &kate_text::HistoryEntry) -> String\npub fn journal_line_from_str(text: &str) -> Option<JournalLine>\n/// `home/Library/Application Support/KateM5Rust/recovery`.\npub fn recovery_dir(home: &std::path::Path) -> std::path::PathBuf\n/// `dir/<hex digest>.jsonl`.\npub fn journal_path(dir: &std::path::Path, digest: &[u8; 32]) -> std::path::PathBuf"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/lib.rs",
+        "definition": "mod recovery;\npub use recovery::{JournalEdit, JournalHeader, JournalLine, header_line, journal_line, journal_line_from_str, journal_path, recovery_dir};"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add serde and serde_json to kate-core with the comment and run cargo update -p kate-core so Cargo.lock gains the edges only. Create recovery.rs with the SPDX header and add the module and the exports to lib.rs. format_version is 1. journal_line maps entry.forward.edits() to JournalEdit with start.0 and entry.revision_before.0 and revision_after.0, and serializes with serde_json::to_string, which has no newline. The test a_journal_line_round_trips builds a HistoryEntry with one insert of ab at Offset(2), revisions 3 and 4, asserts journal_line has no newline and journal_line_from_str gives one edit with start 2 and new ab, and that journal_path with a digest of 32 zero bytes ends with 64 zeros and .jsonl. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked recovery::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "recovery::tests::a_journal_line_round_trips",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because recovery.rs does not exist. After the change a history entry becomes one JSON line that reads back with its edits and revisions."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

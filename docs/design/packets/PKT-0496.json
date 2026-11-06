@@ -1,0 +1,144 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0496",
+  "title": "kate-ui: map visual rows to lines around collapsed folds",
+  "summary": "rows_to_lines returns the logical line for each visual row from a first line, skipping the lines that a collapsed fold hides. The header line of a fold stays visible. The fold packets in the window call it.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0496-rows-to-lines",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The file has no GPUI import, but kate-ui tests run in the rust (macos-15) job and the Mac lane owns crates/kate-ui.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/layout.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0021",
+      "PKT-0068",
+      "PKT-0069",
+      "PKT-0089",
+      "PKT-0105",
+      "PKT-0129",
+      "PKT-0152",
+      "PKT-0168",
+      "PKT-0183",
+      "PKT-0213",
+      "PKT-0249"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/layout.rs",
+        "definition": "/// The items below are pub(crate).\n/// Logical line for each of `rows` visual rows starting at `first_line`.\n/// A collapsed span (header, end) hides the lines header + 1 through end.\n/// The result stops at `line_count`.\nfn rows_to_lines(first_line: u32, rows: u32, line_count: u32, collapsed: &[(u32, u32)]) -> Vec<u32>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Add rows_to_lines with #[cfg_attr(not(test), allow(dead_code))]. Walk line from first_line; when a collapsed span has header equal to line, push line and jump to end + 1; otherwise push line and add one; stop when the result has rows entries or line reaches line_count. A span whose header is below first_line and whose end is at or past first_line hides the lines up to end. The test rows_to_lines_skips_a_collapsed_fold uses line_count 10, span (2, 5), first_line 0, rows 4, and asserts [0, 1, 2, 6]; with first_line 3 it asserts [6, 7, 8, 9]; with no spans and rows 3 it asserts [0, 1, 2]. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked layout::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "layout::tests::rows_to_lines_skips_a_collapsed_fold",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because rows_to_lines does not exist. After the change the hidden lines 3 to 5 are skipped and a start inside the fold jumps past its end."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

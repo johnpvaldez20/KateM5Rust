@@ -1,0 +1,151 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0495",
+  "title": "kate-core: list the lines edited since the last save",
+  "summary": "Workspace::touched_lines returns the sorted line numbers that edits touched since the document was opened or last saved. The set exists as DocExtra::touched. The gutter paints the modified-line bar from it.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0495-touched-lines",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. workspace.rs is a 3,500-line file and the change touches its command dispatch. The Linux VM builds and tests kate-core. The owner Mac stays free for the window.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/view.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0018",
+      "PKT-0025",
+      "PKT-0055",
+      "PKT-0063",
+      "PKT-0074",
+      "PKT-0091",
+      "PKT-0093",
+      "PKT-0110",
+      "PKT-0117",
+      "PKT-0247",
+      "PKT-0250",
+      "PKT-0489",
+      "PKT-0490",
+      "PKT-0491",
+      "PKT-0492",
+      "PKT-0493",
+      "PKT-0494"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "impl Workspace {\n    /// Lines that edits touched since open or the last save, in order. Empty for an unknown document.\n    pub fn touched_lines(&self, doc: DocumentId) -> Vec<u32>;\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add touched_lines to the first impl Workspace block. It copies self.extra[doc].touched into a Vec; a missing document returns an empty Vec. Check how write_file clears or keeps touched on save and do not change that behavior. The test touched_lines_names_the_edited_lines types a\\nb\\n, asserts touched_lines holds 0 and 1 after a two-line insert, and asserts an unknown DocumentId gives an empty Vec. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::touched_lines_names_the_edited_lines",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because touched_lines does not exist. After the change the edited lines are listed in order and an unknown document is empty."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,165 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0508",
+  "title": "kate-ui: paint fold markers, bookmarks, and the modified bar in the gutter",
+  "summary": "The gutter shows a fold marker on each fold header line, a filled marker when the fold is shut, a bookmark dot for a Bookmark mark, and a bar on each line that Workspace::touched_lines names. keys::gutter_row builds the row and paint.rs draws it next to the line number.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0508-gutter-marks",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs imports GPUI, the crate builds only on macOS, and the owner looks at the window after the change.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/keys.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0022",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0070",
+      "PKT-0071",
+      "PKT-0079",
+      "PKT-0088",
+      "PKT-0089",
+      "PKT-0095",
+      "PKT-0112",
+      "PKT-0114",
+      "PKT-0118",
+      "PKT-0125",
+      "PKT-0141",
+      "PKT-0157",
+      "PKT-0173",
+      "PKT-0199",
+      "PKT-0218",
+      "PKT-0372",
+      "PKT-0493",
+      "PKT-0495",
+      "PKT-0498",
+      "PKT-0499",
+      "PKT-0501",
+      "PKT-0502",
+      "PKT-0503",
+      "PKT-0505",
+      "PKT-0506",
+      "PKT-0507"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/paint.rs",
+        "definition": "/// The items below are pub(crate).\n/// Gutter rows for the visible lines: number, modified, fold mark, bookmark.\nfn gutter_rows(ws: &Workspace, doc: DocumentId, view: ViewId, lines: &[u32]) -> Vec<crate::keys::GutterRow>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "gutter_rows calls keys::gutter_row for each line: modified from touched_lines, fold Some(FoldMark::Open) when a view fold range starts at the end of that line, Some(FoldMark::Closed) when that range is collapsed, marked when a Bookmark mark resolves to the line. Widen the gutter by two glyph cells and draw the marks with the line number color. A click on a fold mark runs Command::ToggleFold with a MoveTo to that line first. The test gutter_rows_mark_the_fold_header opens a\\n  b\\n in a workspace, asserts the row for line 0 has fold Some(Open) and line 1 has None, and after ToggleFold on line 1 asserts line 0 is Some(Closed). The owner sees the markers in an indented file. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked paint::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "paint::tests::gutter_rows_mark_the_fold_header",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because gutter_rows does not exist. After the change the header line shows an open mark and a collapsed fold shows a closed mark."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

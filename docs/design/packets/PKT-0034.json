@@ -1,0 +1,147 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0034",
+  "title": "kate-lsp: start, initialize, and stop a server",
+  "summary": "LspClient spawns the server command with piped stdio and a reader thread. initialize sends the initialize request with the root, waits for the response, stores the capabilities and the position encoding, and sends initialized. shutdown sends shutdown and exit and waits for the process. request and notify write bodies.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 300,
+    "branch": "pkt/PKT-0034-lsp-client",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/300"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. The crate is pure Rust, the test runs a fake server over pipes on Linux, and the backlog marks the LSP client CLOUD.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/src/client.rs",
+      "crates/kate-lsp/tests/client.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-lsp/src/lib.rs",
+      "crates/kate-lsp/src/jsonrpc.rs",
+      "crates/kate-lsp/src/config.rs",
+      "crates/kate-lsp/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-lsp"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0033",
+      "PKT-0527",
+      "PKT-0532"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/client.rs",
+        "definition": "/// One running language server.\npub struct LspClient {\n    child: std::process::Child,\n    writer: std::process::ChildStdin,\n    inbound: std::sync::mpsc::Receiver<serde_json::Value>,\n    next_id: i64,\n    pending: std::collections::HashMap<i64, &'static str>,\n    pub capabilities: Option<lsp_types::ServerCapabilities>,\n    pub encoding: PositionEncoding,\n    pub root: std::path::PathBuf,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/client.rs",
+        "definition": "#[derive(Debug)]\npub enum LspError {\n    Spawn { command: String, message: String },\n    Io { message: String },\n    Protocol { message: String },\n    ServerError { code: i64, message: String },\n    Timeout { method: String },\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/client.rs",
+        "definition": "impl LspClient {\n    /// Spawn `config.command` with `root` as the working directory and start the reader thread.\n    pub fn spawn(config: &ServerConfig, root: &std::path::Path) -> Result<LspClient, LspError>;\n    /// initialize, wait up to `timeout`, store capabilities and encoding, send initialized.\n    pub fn initialize(&mut self, timeout: std::time::Duration) -> Result<(), LspError>;\n    /// Write a request and return its id.\n    pub fn request(&mut self, method: &'static str, params: serde_json::Value) -> Result<i64, LspError>;\n    pub fn notify(&mut self, method: &str, params: serde_json::Value) -> Result<(), LspError>;\n    /// Block until the response with `id` arrives or `timeout` passes. Other bodies are kept for `poll`.\n    pub fn wait_for(&mut self, id: i64, timeout: std::time::Duration) -> Result<serde_json::Value, LspError>;\n    /// shutdown request, exit notification, wait for the process.\n    pub fn shutdown(self, timeout: std::time::Duration) -> Result<(), LspError>;\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "spawn uses std::process::Command with the first command element as the program and the rest as arguments, stdin and stdout piped, stderr inherited; a spawn error is Spawn with the joined command. The reader thread loops read_message on a BufReader of stdout and sends each body on the channel until None or an error. initialize sends initialize with processId, rootUri as a file URI of root, and capabilities that list general.positionEncodings [utf-16, utf-8]; the result's capabilities deserialize into lsp_types::ServerCapabilities; positionEncoding utf-8 sets Utf8, anything else Utf16. wait_for pulls from the channel with recv_timeout until a Response with the id arrives; a Response error is ServerError; other bodies are pushed to a held Vec that poll returns later; the deadline is Timeout. The integration test tests/client.rs spawns the fake server through a ServerConfig whose command is [env!(\"CARGO_BIN_EXE_fake-lsp-server\")], initializes with a 5 second timeout, asserts capabilities hover_provider is Some, encoding Utf16, and shutdown is Ok. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "client::spawn_initialize_and_shutdown",
+        "kind": "INTEGRATION",
+        "asserts": "This test fails on main because LspClient does not exist. After the change the fake server initializes over pipes and shuts down cleanly."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
