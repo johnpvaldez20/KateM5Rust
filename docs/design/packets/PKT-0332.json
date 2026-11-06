@@ -55,13 +55,13 @@
   },
   "github": {
     "repository": "johnpvaldez20/KateM5Rust",
-    "issue_number": 298,
+    "issue_number": 306,
     "branch": "pkt/PKT-0332-qface-xml",
     "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
   },
   "handoff_artifact": {
     "kind": "ISSUE",
-    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/298"
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/306"
   },
   "lane": {
     "runtime": "LOCAL",
