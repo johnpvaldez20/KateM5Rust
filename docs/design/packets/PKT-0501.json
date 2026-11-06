@@ -1,0 +1,158 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0501",
+  "title": "kate-ui: show the find bar",
+  "summary": "cmd-f opens a find bar under the tab bar and focuses its field. Enter finds the next hit and shift-enter the previous one; cmd-g and cmd-shift-g do the same from the editor. cmd-alt-f opens the replace field. Toggles for regex, case, and whole word sit in the bar. Hits are painted behind the text.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0501-find-bar",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs imports GPUI, the crate builds only on macOS, and the owner looks at the window after the change.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/findbar.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0071",
+      "PKT-0088",
+      "PKT-0089",
+      "PKT-0112",
+      "PKT-0372",
+      "PKT-0498",
+      "PKT-0499",
+      "PKT-0500"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "// gpui::actions!(kate_ui, [...]) declares these unit structs.\npub struct ShowFind;\npub struct ShowReplace;\npub struct FindNext;\npub struct FindPrevious;\npub struct ReplaceOne;\npub struct ReplaceAll;\npub struct ToggleRegex;\npub struct ToggleCase;\npub struct ToggleWholeWord;\npub struct CloseFind;"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "/// Map a key name in the find field to its action name, or None for text input.\nfn find_field_action(binding: &str) -> Option<&'static str>"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/paint.rs",
+        "definition": "/// The items below are pub(crate).\n/// Background spans for the find hits on one line, in columns.\nfn hit_spans(line: u32, hits: &[kate_search::Match], buf: &kate_text::TextBuffer) -> Vec<(u32, u32)>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Store a findbar::FindState on WindowRoot. ShowFind sets open and moves focus to the field; typing edits bar.pattern and runs find_command from the primary caret on each change; CloseFind (escape) closes and returns focus to the editor. FindNext and FindPrevious set bar.backwards and run find_command; ReplaceOne runs replace_one_command for the current hit then FindNext; ReplaceAll runs replace_all_command. The toggles flip bar.mode between Plain and Regex, bar.case_sensitive, and bar.whole_words. Bind cmd-f, cmd-alt-f, cmd-g, cmd-shift-g, cmd-alt-r, cmd-alt-c, cmd-alt-w, and escape while the bar has focus. paint::hit_spans turns FindBar::highlights into column spans per line and the line paint fills them with a lighter selection color before the text. find_field_action maps enter to FindNext, shift-enter to FindPrevious, escape to CloseFind, and other names to None. The test find_field_action_names_the_keys asserts those three and that a is None. The owner types a word, sees the hits, and replaces one. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked session::tests",
+      "cargo test -p kate-ui --locked paint::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "session::tests::find_field_action_names_the_keys",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because find_field_action does not exist. After the change enter, shift-enter, and escape map to their actions and a letter is text."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

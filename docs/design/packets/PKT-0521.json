@@ -1,0 +1,163 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0521",
+  "title": "kate-ui: show the project tree and the document list panes",
+  "summary": "cmd-shift-e toggles a sidebar with two sections. The upper section paints tree::visible_rows for the project; a click on a directory expands or collapses it and a click on a file opens it. The lower section paints doclist::document_rows; a click activates that document's view.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0521-sidebar-panes",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs imports GPUI, the crate builds only on macOS, and the owner looks at the window after the change.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/tree.rs",
+      "crates/kate-ui/src/doclist.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0031",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0089",
+      "PKT-0112",
+      "PKT-0372",
+      "PKT-0498",
+      "PKT-0499",
+      "PKT-0501",
+      "PKT-0503",
+      "PKT-0505",
+      "PKT-0506",
+      "PKT-0507",
+      "PKT-0508",
+      "PKT-0509",
+      "PKT-0510",
+      "PKT-0511",
+      "PKT-0518",
+      "PKT-0519",
+      "PKT-0520"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "// gpui::actions!(kate_ui, [...]) declares these unit structs.\npub struct ToggleSidebar;"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "/// Add `path` to the set, or remove it when it is there. Returns true when it is expanded after the call.\nfn toggle_expanded(expanded: &mut std::collections::BTreeSet<std::path::PathBuf>, path: &std::path::Path) -> bool"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Store sidebar_open, the TreeNode built from the project file list, and the expanded set on WindowRoot. Render the sidebar at a fixed width of 240 px on the left when open. A directory row click calls toggle_expanded. A file row click sends FileRequest::OpenPath for base_dir joined with the row path. A document row click calls Workspace::activate on the first view of that document. Bind cmd-shift-e and add Toggle Sidebar to the View menu. The test toggle_expanded_flips_the_set asserts an empty set becomes expanded for src and returns true, and a second call removes it and returns false. The owner opens a file in a project and sees the tree. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked session::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "session::tests::toggle_expanded_flips_the_set",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because toggle_expanded does not exist. After the change a path toggles in and out of the set."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

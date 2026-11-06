@@ -1,0 +1,140 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0534",
+  "title": "kate-lsp: poll the server for events",
+  "summary": "poll drains every body the reader thread has queued without blocking and returns them as ServerEvent values: published diagnostics, a response to one of our requests with its method, a request from the server, a log or show message, or a notification the client ignores. The window calls poll on a timer.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0534-lsp-poll",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. The crate is pure Rust, the test runs a fake server over pipes on Linux, and the backlog marks the LSP client CLOUD.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/src/client.rs",
+      "crates/kate-lsp/tests/client.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-lsp/src/lib.rs",
+      "crates/kate-lsp/src/jsonrpc.rs",
+      "crates/kate-lsp/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-lsp"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0033",
+      "PKT-0034"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/client.rs",
+        "definition": "/// One thing the server sent.\n#[derive(Debug)]\npub enum ServerEvent {\n    Diagnostics(lsp_types::PublishDiagnosticsParams),\n    Response { id: i64, method: &'static str, result: Result<serde_json::Value, LspError> },\n    Request { id: serde_json::Value, method: String, params: serde_json::Value },\n    Log(String),\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/client.rs",
+        "definition": "impl LspClient {\n    /// Every queued body as an event, oldest first. Returns at once when nothing is queued.\n    pub fn poll(&mut self) -> Vec<ServerEvent>;\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "poll first moves the held bodies from wait_for, then try_recv until Empty or Disconnected. textDocument/publishDiagnostics deserializes to Diagnostics; window/logMessage and window/showMessage give Log with the message text; a Response whose id is in pending gives Response with the method and removes it; a Request is passed through; other notifications are dropped. Extend tests/client.rs with hover_response_arrives_through_poll: after initialize, request textDocument/hover with a position, loop poll with a 10 ms sleep up to 5 seconds, and assert a Response for hover whose result is Ok and not Null. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "client::hover_response_arrives_through_poll",
+        "kind": "INTEGRATION",
+        "asserts": "This test fails on main because poll does not exist. After the change the hover response arrives as a Response event named hover."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

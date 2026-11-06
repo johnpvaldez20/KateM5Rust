@@ -1,0 +1,168 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0510",
+  "title": "kate-ui: wrap long lines and move by visual rows",
+  "summary": "A View menu item toggles View::dynamic_wrap. When it is on, a line that is wider than the editor wraps at the column count from layout::visual_row_count, and Up and Down move by one visual row with layout::visual_step and Command::MoveTo. The caret and the selections paint on the wrapped rows.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0510-dynamic-wrap",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs imports GPUI, the crate builds only on macOS, and the owner looks at the window after the change.",
+    "requires": [
+      "MACOS_HOST",
+      "GUI_DISPLAY",
+      "OWNER_EYES"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/layout.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0021",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0068",
+      "PKT-0069",
+      "PKT-0071",
+      "PKT-0088",
+      "PKT-0089",
+      "PKT-0105",
+      "PKT-0112",
+      "PKT-0129",
+      "PKT-0152",
+      "PKT-0168",
+      "PKT-0183",
+      "PKT-0213",
+      "PKT-0249",
+      "PKT-0372",
+      "PKT-0496",
+      "PKT-0498",
+      "PKT-0499",
+      "PKT-0501",
+      "PKT-0503",
+      "PKT-0505",
+      "PKT-0506",
+      "PKT-0507",
+      "PKT-0508",
+      "PKT-0509"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "// gpui::actions!(kate_ui, [...]) declares these unit structs.\npub struct ToggleDynamicWrap;"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "/// Number of columns that fit in the editor width.\nfn wrap_columns(editor_width: Pixels, column_width: Pixels) -> u32"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "wrap_columns divides the width by the column width and floors it, with a minimum of 1. When view.dynamic_wrap is on, the layout splits each line into visual_row_count rows of wrap_columns and paints each row at its own y. Up and Down call layout::visual_step with the display column and send MoveTo for the new offset; when dynamic_wrap is off the key path stays Command::Move. ToggleDynamicWrap flips view.dynamic_wrap on the active view and is in the View menu as Dynamic Word Wrap. The test wrap_columns_floors_the_width asserts wrap_columns(px(100.0), px(8.0)) is 12 and wrap_columns(px(4.0), px(8.0)) is 1. The owner turns wrap on in a file with a long line. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked session::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "session::tests::wrap_columns_floors_the_width",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because wrap_columns does not exist. After the change the column count is the floor and never below 1."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

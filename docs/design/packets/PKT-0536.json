@@ -1,0 +1,144 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0536",
+  "title": "kate-lsp: anchor the diagnostics in the buffer",
+  "summary": "anchor_diagnostics turns a publishDiagnostics payload into Diagnostic values whose start and end are Anchors in the buffer at its current revision, so they move with later edits. Severity maps the four LSP levels. diagnostic_span resolves one diagnostic back to offsets or None when it is stale.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0536-anchored-diagnostics",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "EITHER",
+    "reason": "Either lane may code this packet. It is one file, one behavior, and one test, and the rule text in this packet is the oracle. The first idle lane takes it.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/src/diagnostics.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-lsp/src/lib.rs",
+      "crates/kate-lsp/src/client.rs",
+      "crates/kate-lsp/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-lsp"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0033",
+      "PKT-0530"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/diagnostics.rs",
+        "definition": "#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]\npub enum Severity {\n    Error,\n    Warning,\n    Information,\n    Hint,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/diagnostics.rs",
+        "definition": "/// One diagnostic that moves with the text.\n#[derive(Clone, Debug, PartialEq, Eq)]\npub struct Diagnostic {\n    pub start: kate_text::Anchor,\n    pub end: kate_text::Anchor,\n    pub severity: Severity,\n    pub message: String,\n    pub source: Option<String>,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/diagnostics.rs",
+        "definition": "/// Anchor every diagnostic of `params` in `buf`. A missing severity is Error.\npub fn anchor_diagnostics(buf: &kate_text::TextBuffer, params: &lsp_types::PublishDiagnosticsParams, encoding: PositionEncoding) -> Vec<Diagnostic>\n/// Current offsets of one diagnostic, or None when an anchor is stale.\npub fn diagnostic_span(buf: &kate_text::TextBuffer, diagnostic: &Diagnostic) -> Option<kate_text::CharRange>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "start uses Bias::Left and end uses Bias::Right through TextBuffer::anchor after from_lsp. The test diagnostics_move_with_an_insert builds a buffer ab\\ncd, anchors one warning at line 1 character 0 to 1, applies an insert of X at Offset(0), and asserts diagnostic_span is 4..5 and severity Warning. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "diagnostics::tests::diagnostics_move_with_an_insert",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because the types do not exist. After the change the span follows an insert before it and the severity maps."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,152 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0500",
+  "title": "kate-ui: find bar state over kate-search",
+  "summary": "kate-ui gains the kate-search dependency and findbar.rs. FindState wraps a kate_search::FindBar with the open flags. Three functions turn a find, a replace one, and a replace all into Commands: MoveTo for a hit and ReplaceRanges for the edits. The GPUI bar comes in the next packet.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0500-find-state",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The file has no GPUI import, but kate-ui tests run in the rust (macos-15) job and the Mac lane owns crates/kate-ui.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/findbar.rs",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs",
+      "Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0012",
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0491",
+      "PKT-0494",
+      "PKT-0497"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "TOML",
+        "path": "crates/kate-ui/Cargo.toml",
+        "definition": "[dependencies]\n# Find and replace over the buffer. The bar model is kate_search::FindBar.\nkate-search = { workspace = true }"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/findbar.rs",
+        "definition": "/// The items below are pub(crate).\n/// The find bar and its open flags.\n#[derive(Clone, Debug, Default)]\nstruct FindState {\n    pub bar: kate_search::FindBar,\n    pub open: bool,\n    pub with_replace: bool,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/findbar.rs",
+        "definition": "/// The items below are pub(crate).\n/// MoveTo the next hit from `from`, or None when there is no hit or the pattern is bad.\nfn find_command(state: &FindState, buf: &kate_text::TextBuffer, from: kate_text::Offset) -> Option<kate_core::Command>\n/// ReplaceRanges for one hit.\nfn replace_one_command(state: &FindState, buf: &kate_text::TextBuffer, hit: &kate_search::Match) -> Option<kate_core::Command>\n/// ReplaceRanges for every hit.\nfn replace_all_command(state: &FindState, buf: &kate_text::TextBuffer) -> Option<kate_core::Command>\n/// (range, text) pairs from the edits of a transaction.\nfn pairs_from(tx: &kate_text::Transaction) -> Vec<(kate_text::CharRange, String)>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Add kate-search to the kate-ui dependencies for every target with the justification comment above. Run cargo update -p kate-ui so Cargo.lock gains the edge and nothing else changes. Create findbar.rs with the SPDX header and add mod findbar; to lib.rs with the same dead_code attribute as files. find_command calls state.bar.find_from(buf, from); Ok(Some(hit)) becomes Command::MoveTo of one selection with anchor hit.range.start() and head hit.range.end(); Ok(None) and Err return None. replace_one_command calls bar.replace_one and replace_all_command calls bar.replace_all; each maps the Transaction with pairs_from into Command::ReplaceRanges; an empty transaction returns None. pairs_from maps each Edit to CharRange::new(edit.start, edit.old_end()) and edit.new. kate_search::FindBar needs Default; when it has none, build it field by field in FindState::default. The test module builds a TextBuffer from a string, so it runs on Linux too. The test find_command_moves_to_the_hit uses text foo bar foo, pattern foo, from Offset(1), and asserts MoveTo with one selection 8..11; replace_all_command with replacement x asserts ReplaceRanges with pairs (0..3, x) and (8..11, x). Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked findbar::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "findbar::tests::find_command_moves_to_the_hit",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because findbar.rs does not exist. After the change a find is a MoveTo of the hit and a replace all is one ReplaceRanges with every hit."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

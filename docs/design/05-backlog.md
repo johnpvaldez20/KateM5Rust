@@ -3,7 +3,8 @@
 Every packet is one Gate 1 payload, one issue, one branch, one squash
 commit. Phase 0 and Phase 1 packets exist as JSON under `packets/` and
 validate against `docs/governance/schemas/gate1-planning-handoff.schema.json`
-(run `cargo run -p gatecheck`). Later phases are listed here as titles with
+(run `cargo run -p gatecheck`). Phase 2 and Phase 3 are JSON payloads under `packets/` too; their indexes
+are the `WAVE-*.md` files named below. Phase 4 is listed as titles with
 lane and dependencies; each becomes a JSON payload when the gatekeeper opens
 its issue, not before, because writing a Gate 1 payload for a packet eight
 dependencies away is speculation with extra steps.
@@ -73,7 +74,8 @@ PKT-0368 to PKT-0371 fix the engine for nine queued files.
 PKT-0372 makes the window load every vendored definition.
 PKT-0373 to PKT-0488 wire the 116 files, one packet per file, in copy order.
 The lane split for the Cursor coding agents is in `docs/design/07-lane-split.md`.
-Phase 3 stays titles.
+The window remnants of Phase 2 are PKT-0489 to PKT-0511 in `docs/design/WAVE-0489.md`.
+Phase 3 is planned: the titles PKT-0030 to PKT-0042 and the slices PKT-0512 to PKT-0555 are in `docs/design/WAVE-0030.md`, `WAVE-0031.md`, `WAVE-0033.md`, `WAVE-0034.md`, `WAVE-0035.md`, `WAVE-0038.md`, `WAVE-0039.md`, and `WAVE-0041.md`.
 
 | Packet | Title | Lane | Depends on |
 |---|---|---|---|
@@ -95,6 +97,11 @@ Phase 3 stays titles.
 | PKT-0029 | `kate-ui`: theme switching, system light/dark following | LOCAL | 0009 |
 
 ## Phase 3 — Workspace features
+
+Every title below is planned as packet JSON.
+The first slice of each title keeps its number; the other slices are PKT-0512 to PKT-0555.
+The indexes are `docs/design/WAVE-0030.md` (0030), `WAVE-0031.md` (0031, 0032), `WAVE-0033.md` and `WAVE-0034.md` (0033, 0034), `WAVE-0035.md` (0035, 0036, 0037), `WAVE-0038.md` (0038), `WAVE-0039.md` (0039, 0040), and `WAVE-0041.md` (0041, 0042).
+The lane column below is the lane of the title packet; the slices carry their own lane.
 
 | Packet | Title | Lane | Depends on |
 |---|---|---|---|
@@ -1351,6 +1358,201 @@ The index is `docs/design/WAVE-0485.md`.
 | PKT-0486 | `kate-syntax`: wire the XKeyboardConfig definition into VENDORED | LOCAL | 0364, 0485 |
 | PKT-0487 | `kate-syntax`: wire the YARA definition into VENDORED | LOCAL | 0365, 0486 |
 | PKT-0488 | `kate-syntax`: wire the Zig definition into VENDORED | LOCAL | 0366, 0487 |
+
+## Wave PKT-0489
+
+This wave finishes Phase 2.
+The model slices of WAVE-0020 and WAVE-0024 are on main, but the window does not call them yet.
+Each packet here either adds a command to `kate-core` or makes the window use a slice.
+The CLOUD packets edit `command.rs`, `workspace.rs`, and `view.rs` and run one after the other.
+The LOCAL packets edit `kate-ui` and run on the owner Mac.
+A `kate-ui` packet that paints lists `GUI_DISPLAY` and `OWNER_EYES`; the owner looks at the window after it.
+A `kate-ui` packet that only adds a model file lists `MACOS_HOST`.
+Phase 2 ends when this wave, the fifteen copy waves, and the fifteen wiring waves are on main.
+The index is `docs/design/WAVE-0489.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0489 | kate-core: compare the file on disk with the last read | CLOUD | — |
+| PKT-0490 | kate-core: select the next copy of the primary selection | CLOUD | 0489 |
+| PKT-0491 | kate-core: replace the selections of a view | CLOUD | 0489, 0490 |
+| PKT-0492 | kate-core: split, activate, and list the views from the workspace | CLOUD | 0489, 0490, 0491 |
+| PKT-0493 | kate-core: fold and unfold the region at the primary caret | CLOUD | 0489, 0490, 0491, 0492 |
+| PKT-0494 | kate-core: replace a list of ranges in one transaction | CLOUD | 0489, 0490, 0491, 0492, 0493 |
+| PKT-0495 | kate-core: list the lines edited since the last save | CLOUD | 0489, 0490, 0491, 0492, 0493, 0494 |
+| PKT-0496 | kate-ui: map visual rows to lines around collapsed folds | LOCAL | — |
+| PKT-0497 | kate-ui: build the tab rows | LOCAL | 0492 |
+| PKT-0498 | kate-ui: paint the tab bar and switch tabs | LOCAL | 0492, 0497 |
+| PKT-0499 | kate-ui: split the window after the active view | LOCAL | 0498 |
+| PKT-0500 | kate-ui: find bar state over kate-search | LOCAL | 0491, 0494, 0497 |
+| PKT-0501 | kate-ui: show the find bar | LOCAL | 0498, 0499, 0500 |
+| PKT-0502 | kate-ui: bind cmd-d and cmd-alt-bracket | LOCAL | 0490, 0493 |
+| PKT-0503 | kate-ui: place carets with the mouse | LOCAL | 0491, 0498, 0499, 0501, 0502 |
+| PKT-0504 | kate-ui: name the session file and write it atomically | LOCAL | — |
+| PKT-0505 | kate-ui: save the session on quit and restore it on launch | LOCAL | 0498, 0499, 0501, 0503, 0504 |
+| PKT-0506 | kate-ui: watch the open files and ask about a disk change | LOCAL | 0489, 0498, 0499, 0500, 0501, 0503, 0505 |
+| PKT-0507 | kate-ui: follow the system theme | LOCAL | 0498, 0499, 0501, 0503, 0505, 0506 |
+| PKT-0508 | kate-ui: paint fold markers, bookmarks, and the modified bar in the gutter | LOCAL | 0493, 0495, 0498, 0499, 0501, 0502, 0503, 0505, 0506, 0507 |
+| PKT-0509 | kate-ui: hide the lines of a collapsed fold | LOCAL | 0496, 0498, 0499, 0501, 0502, 0503, 0505, 0506, 0507, 0508 |
+| PKT-0510 | kate-ui: wrap long lines and move by visual rows | LOCAL | 0496, 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509 |
+| PKT-0511 | kate-ui: read the user config at launch | LOCAL | 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510 |
+
+## Wave PKT-0030
+
+This wave is the first Phase 3 wave.
+It expands the title PKT-0030 from the backlog.
+A new crate `kate-session` reads `.kateproject` files the way Kate's project plugin does.
+The crate creation packet runs in the cloud and leaves empty module files for the three Mac packets, so those can run together.
+`Project::files` joins the sources and applies the exclude patterns.
+`find_project_file` lets the window find the project of an open file.
+The session JSON stays in `kate-ui/src/profile.rs`; this crate holds projects only.
+svn, hg, darcs, fossil, and nested `projects` entries are not read in this version.
+The index is `docs/design/WAVE-0030.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0030 | kate-session: create the crate and read a .kateproject file | CLOUD | 0500, 0506, 0512 |
+| PKT-0512 | gatecheck: map kate-session and kate-lsp to LGPL-2.1-or-later | EITHER | — |
+| PKT-0513 | kate-session: list the files of a directory source | LOCAL | 0030 |
+| PKT-0514 | kate-session: list the files that git tracks | LOCAL | 0030 |
+| PKT-0515 | kate-session: drop the paths that match an exclude pattern | LOCAL | 0030 |
+| PKT-0516 | kate-session: collect the project files | LOCAL | 0030, 0513, 0514, 0515 |
+| PKT-0517 | kate-session: find and load the project file for a path | LOCAL | 0030, 0516 |
+
+## Wave PKT-0031
+
+This wave expands the titles PKT-0031 and PKT-0032.
+The tree, the document list, and the palette rows are model files in `kate-ui` with no GPUI import.
+The two paint packets wait for the tab and split packets of WAVE-0489.
+`fuzzy_rank` and `fuzzy_match_path` extend the fuzzy matcher that the earlier LOCAL waves built; this wave does not port `kfts_fuzzy_match.h` again.
+`kate-ui` gains the `kate-session` dependency in the packet that loads the project of the open file.
+The index is `docs/design/WAVE-0031.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0031 | kate-ui: build the project tree from a file list | LOCAL | 0497, 0500 |
+| PKT-0032 | kate-core: rank candidates by fuzzy score | LOCAL | — |
+| PKT-0518 | kate-ui: list the visible tree rows | LOCAL | 0031 |
+| PKT-0519 | kate-ui: list the open documents | LOCAL | 0031, 0497, 0500 |
+| PKT-0520 | kate-ui: load the project of the open file | LOCAL | 0030, 0498, 0499, 0500, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0517 |
+| PKT-0521 | kate-ui: show the project tree and the document list panes | LOCAL | 0031, 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0518, 0519, 0520 |
+| PKT-0522 | kate-core: score a path by its file name first | LOCAL | 0032 |
+| PKT-0523 | kate-ui: rank the quick open rows | LOCAL | 0031, 0497, 0500, 0519, 0522 |
+| PKT-0524 | kate-ui: list the command palette entries | LOCAL | 0503, 0523 |
+| PKT-0525 | kate-ui: open the quick open and command palettes | LOCAL | 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0523, 0524 |
+
+## Wave PKT-0033
+
+This wave expands the title PKT-0033.
+A new crate `kate-lsp` reads Kate's lspclient `settings.json`, frames JSON-RPC, converts positions, and turns a transaction into didChange events.
+The fake server binary gives the client tests a real process over pipes with no network.
+`kate-text` re-exports `Rope` so that `kate-core` and `kate-lsp` can name the snapshot type.
+The outbox packet in `kate-core` hands every applied transaction to the shell with its pre-state text.
+The parse and build helpers are small and marked EITHER; the sync builder is CLOUD.
+The index is `docs/design/WAVE-0033.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0033 | kate-lsp: create the crate and read the servers settings | CLOUD | 0030, 0500, 0506, 0512, 0520, 0526 |
+| PKT-0526 | kate-text: re-export Rope | EITHER | — |
+| PKT-0527 | kate-lsp: pick the server for a highlighting mode | EITHER | 0033 |
+| PKT-0528 | kate-lsp: frame a JSON-RPC message | EITHER | 0033 |
+| PKT-0529 | kate-lsp: tell a request from a response and a notification | EITHER | 0033, 0528 |
+| PKT-0530 | kate-lsp: convert positions between offsets and LSP positions | EITHER | 0033 |
+| PKT-0531 | kate-lsp: turn a transaction into didChange events | CLOUD | 0033, 0530 |
+| PKT-0532 | kate-lsp: add a fake language server for the tests | CLOUD | 0033, 0529 |
+| PKT-0533 | kate-core: keep the applied transactions for the shell | CLOUD | 0489, 0490, 0491, 0492, 0493, 0494, 0495, 0522, 0526 |
+
+## Wave PKT-0034
+
+This wave expands the title PKT-0034.
+`LspClient` is two threads and two channels: a reader thread fills a channel, the window drains it with `poll`.
+Every test spawns the fake server through `CARGO_BIN_EXE_fake-lsp-server`.
+Diagnostics are anchored in the buffer so they move with later edits.
+Semantic tokens, inlay hints, code actions, rename, and formatting stay in Phase 4.
+The index is `docs/design/WAVE-0034.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0034 | kate-lsp: start, initialize, and stop a server | CLOUD | 0033, 0527, 0532 |
+| PKT-0534 | kate-lsp: poll the server for events | CLOUD | 0033, 0034 |
+| PKT-0535 | kate-lsp: open, change, and close a document on the server | CLOUD | 0033, 0034, 0534 |
+| PKT-0536 | kate-lsp: anchor the diagnostics in the buffer | EITHER | 0033, 0530 |
+| PKT-0537 | kate-lsp: read a hover result | EITHER | 0033 |
+
+## Wave PKT-0035
+
+This wave expands the titles PKT-0035, PKT-0036, and PKT-0037.
+`kate-ui` gains the `kate-lsp` dependency in the diagnostics model packet.
+The window starts one server per server name, sends didOpen, didChange from `drain_changes`, and didClose, and polls on a timer.
+Completion merges the buffer words from `word_completions` with the server items.
+Each paint packet has a small pure helper with a unit test; the owner checks the rest in the window.
+The index is `docs/design/WAVE-0035.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0035 | kate-ui: build the diagnostics rows and the underline spans | LOCAL | 0030, 0031, 0033, 0497, 0500, 0506, 0519, 0520, 0523, 0536 |
+| PKT-0036 | kate-ui: keep the completion popup state | LOCAL | 0031, 0035, 0497, 0500, 0519, 0523 |
+| PKT-0037 | kate-lsp: build and read completion requests | EITHER | 0033 |
+| PKT-0538 | kate-ui: start a language server for the open document | LOCAL | 0035, 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0531, 0533, 0535 |
+| PKT-0539 | kate-ui: underline diagnostics, list them, and show hover | LOCAL | 0035, 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0537, 0538 |
+| PKT-0540 | kate-ui: show the completion popup | LOCAL | 0036, 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0538, 0539 |
+| PKT-0541 | kate-lsp: build and read definition and references requests | EITHER | 0033, 0037 |
+| PKT-0542 | kate-ui: go to the definition and list the references | LOCAL | 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0538, 0539, 0540, 0541 |
+
+## Wave PKT-0038
+
+This wave expands the title PKT-0038.
+The journal is JSON Lines: one header line with the path, then one line per applied transaction.
+The journal file name is the hex digest of the file bytes at the last read, so a changed file on disk voids the journal.
+`kate-core` gains serde and serde_json for the journal.
+Untitled modified documents are stashed at quit and reopened at launch.
+The index is `docs/design/WAVE-0038.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0038 | kate-core: write a history entry as a journal line | CLOUD | 0030, 0033, 0035, 0500, 0506, 0520, 0522, 0533 |
+| PKT-0543 | kate-core: append to, read, and clear a journal file | EITHER | 0038 |
+| PKT-0544 | kate-core: replay a journal onto the text on disk | CLOUD | 0038, 0543 |
+| PKT-0545 | kate-core: journal each applied transaction and clear it on save | CLOUD | 0489, 0490, 0491, 0492, 0493, 0494, 0495, 0533, 0544 |
+| PKT-0546 | kate-core: list the journals that are left and stash untitled text | EITHER | 0038, 0522, 0533, 0543, 0544, 0545 |
+| PKT-0547 | kate-ui: offer recovery at launch and stash unsaved text on quit | LOCAL | 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0538, 0539, 0540, 0542, 0546 |
+
+## Wave PKT-0039
+
+This wave expands the titles PKT-0039 and PKT-0040.
+`kate-search` reads files from disk and reuses `find_all` over a buffer per file.
+The pane runs the search on a background thread and lists the hits by file.
+The two indenters follow the rule text in each packet, not the upstream JavaScript, because `xml.js` is LGPL-2.0-only.
+Python stays as `python_newline` already is.
+The index is `docs/design/WAVE-0039.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0039 | kate-search: search one file on disk | LOCAL | — |
+| PKT-0040 | kate-core: indent a CMake line after a block opener | EITHER | — |
+| PKT-0548 | kate-search: search a list of files | LOCAL | 0039 |
+| PKT-0549 | kate-ui: group the search hits by file | LOCAL | 0031, 0035, 0036, 0497, 0500, 0519, 0523, 0548 |
+| PKT-0550 | kate-ui: show the search in files pane | LOCAL | 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0538, 0539, 0540, 0542, 0547, 0549 |
+| PKT-0551 | kate-core: indent an XML line after an opening tag | EITHER | 0040 |
+| PKT-0552 | kate-core: choose the cmake and xml newline from the indenter name | EITHER | 0040, 0551 |
+
+## Wave PKT-0041
+
+This wave expands the titles PKT-0041 and PKT-0042.
+The settings window edits the six `EditorConfig` fields through a TOML round trip, so the parser in `kate-core` stays the one source of validation.
+The bundle packet adds `Info.plist`, `bundle.sh`, and a plist test; the icon, signing, and notarization are owner steps outside the repository.
+The governance packet adds the `OWNER_LINUX` host kind so that a Gate 2 payload from the Framework machine can be honest.
+The gatekeeper holds that packet because `docs/governance/` is a protected path.
+The index is `docs/design/WAVE-0041.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0041 | kate-ui: list the settings fields and apply one edit | LOCAL | 0031, 0035, 0036, 0497, 0500, 0519, 0523, 0549 |
+| PKT-0042 | katem5rust: add the app bundle files | LOCAL | — |
+| PKT-0553 | kate-ui: show the settings window and save the config | LOCAL | 0041, 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0538, 0539, 0540, 0542, 0547, 0550 |
+| PKT-0554 | kate-ui: open the files that macOS sends | LOCAL | 0042, 0498, 0499, 0501, 0503, 0505, 0506, 0507, 0508, 0509, 0510, 0511, 0520, 0521, 0525, 0538, 0539, 0540, 0542, 0547, 0550, 0553 |
+| PKT-0555 | governance: add the OWNER_LINUX host kind | CLOUD | — |
 
 ## Packet sizing rules the gatekeeper applies
 

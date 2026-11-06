@@ -1,0 +1,147 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0036",
+  "title": "kate-ui: keep the completion popup state",
+  "summary": "completion.rs holds the popup: the items and the selected index. popup_from_words builds it from the buffer words, step moves the selection, accepted gives the selected item, and merge_completions puts server items before buffer words without duplicates. suffix_for gives the text to insert after the prefix.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0036-completion-popup-state",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The file has no GPUI import, but kate-ui tests run in the rust (macos-15) job and the Mac lane owns crates/kate-ui.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/completion.rs",
+      "crates/kate-ui/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/session.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0031",
+      "PKT-0035",
+      "PKT-0051",
+      "PKT-0497",
+      "PKT-0500",
+      "PKT-0519",
+      "PKT-0523"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/completion.rs",
+        "definition": "/// The items below are pub(crate).\n/// The open completion popup.\n#[derive(Clone, Debug, PartialEq, Eq)]\nstruct CompletionPopup {\n    pub items: Vec<String>,\n    pub selected: usize,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/completion.rs",
+        "definition": "/// The items below are pub(crate).\n/// None for an empty list. `selected` starts at 0.\nfn popup_from_words(words: Vec<String>, limit: usize) -> Option<CompletionPopup>\nimpl CompletionPopup {\n    /// Move the selection with wrap around.\n    pub fn step(&mut self, delta: i32);\n    pub fn accepted(&self) -> &str;\n}\n/// Server items first, then buffer words that are not already there, at most `limit`.\nfn merge_completions(server: Vec<String>, buffer_words: Vec<String>, limit: usize) -> Vec<String>\n/// The part of `item` after `prefix`, or None when `item` does not start with `prefix` or adds nothing.\nfn suffix_for(item: &str, prefix: &str) -> Option<String>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Create completion.rs with the SPDX header and add mod completion; to lib.rs with the dead_code attribute. The test merge_and_suffix asserts merge_completions([foo, bar], [bar, baz], 5) is [foo, bar, baz], suffix_for(\"foobar\", \"foo\") is Some(bar), suffix_for(\"foo\", \"foo\") is None, and that a popup from [a, b] stepped by -1 selects b. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked completion::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "completion::tests::merge_and_suffix",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because completion.rs does not exist. After the change the merge keeps order without duplicates and the suffix drops the prefix."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

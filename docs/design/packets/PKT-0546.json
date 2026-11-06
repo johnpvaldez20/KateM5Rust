@@ -1,0 +1,152 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0546",
+  "title": "kate-core: list the journals that are left and stash untitled text",
+  "summary": "pending_journals lists the journal files in the recovery directory. The stash keeps the text of untitled modified documents between runs: write_stash writes one file per document, read_stashes returns them in order, and clear_stash removes them. The window uses them at quit and at launch.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0546-stash",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "EITHER",
+    "reason": "Either lane may code this packet. It is one file, one behavior, and one test, and the rule text in this packet is the oracle. The first idle lane takes it.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/recovery.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0016",
+      "PKT-0038",
+      "PKT-0043",
+      "PKT-0060",
+      "PKT-0066",
+      "PKT-0092",
+      "PKT-0522",
+      "PKT-0533",
+      "PKT-0543",
+      "PKT-0544",
+      "PKT-0545"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/recovery.rs",
+        "definition": "/// Every `*.jsonl` file in `dir`, sorted. A missing directory gives an empty list.\npub fn pending_journals(dir: &std::path::Path) -> Vec<std::path::PathBuf>\n/// `home/Library/Application Support/KateM5Rust/stash`.\npub fn stash_dir(home: &std::path::Path) -> std::path::PathBuf\n/// Write `text` to `dir/untitled-<index>.txt` through a temp file and a rename.\npub fn write_stash(dir: &std::path::Path, index: u32, text: &str) -> std::io::Result<std::path::PathBuf>\n/// The stashed texts in index order.\npub fn read_stashes(dir: &std::path::Path) -> std::io::Result<Vec<String>>\n/// Remove every stash file.\npub fn clear_stash(dir: &std::path::Path) -> std::io::Result<()>"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/lib.rs",
+        "definition": "pub use recovery::{ReplayError, append_journal, clear_journal, clear_stash, pending_journals, read_journal, read_stashes, replay_journal, stash_dir, start_journal, write_stash};"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add the exports to lib.rs together with the earlier recovery functions that are not exported yet. The test stashes_round_trip_in_index_order uses tempfile::tempdir, writes stashes 2 and 1 with texts b and a, asserts read_stashes is [a, b], clears, and asserts an empty list; pending_journals of a dir with x.jsonl and y.txt lists only x.jsonl. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked recovery::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "recovery::tests::stashes_round_trip_in_index_order",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because the stash functions do not exist. After the change the stashes read back in index order and only journal files are pending."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

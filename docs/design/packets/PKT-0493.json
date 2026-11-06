@@ -1,0 +1,180 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0493",
+  "title": "kate-core: fold and unfold the region at the primary caret",
+  "summary": "View gains collapsed, the list of ranges that are folded shut, and toggle_fold_at, which moves the innermost indent fold range at an offset in or out of that list. Command::ToggleFold calls it at the primary head. refresh_indent_folds drops a collapsed range that no longer exists.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0493-toggle-fold",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. workspace.rs is a 3,500-line file and the change touches its command dispatch. The Linux VM builds and tests kate-core. The owner Mac stays free for the window.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/fold.rs",
+      "crates/kate-core/src/selection.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0018",
+      "PKT-0025",
+      "PKT-0055",
+      "PKT-0063",
+      "PKT-0065",
+      "PKT-0073",
+      "PKT-0074",
+      "PKT-0087",
+      "PKT-0091",
+      "PKT-0093",
+      "PKT-0102",
+      "PKT-0110",
+      "PKT-0117",
+      "PKT-0123",
+      "PKT-0137",
+      "PKT-0188",
+      "PKT-0211",
+      "PKT-0247",
+      "PKT-0250",
+      "PKT-0489",
+      "PKT-0490",
+      "PKT-0491",
+      "PKT-0492"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/view.rs",
+        "definition": "pub struct View {\n    // the existing fields stay\n    /// Fold ranges that are shut. Each one is also in `folds`.\n    pub collapsed: Vec<CharRange>,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/view.rs",
+        "definition": "impl View {\n    /// Shut the innermost fold range at `at`, or open it when it is shut. False when no range contains `at`.\n    pub fn toggle_fold_at(&mut self, at: Offset) -> bool;\n    /// Drop every collapsed range that is not in `folds`.\n    pub fn retain_live_collapsed(&mut self);\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/command.rs",
+        "definition": "pub enum Command {\n    // the existing variants stay\n    /// Fold or unfold the region at the primary caret.\n    ToggleFold,\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "/// Call `View::toggle_fold_at` at the primary head.\nfn toggle_fold_cmd(ws: &mut Workspace, view: ViewId) -> Result<(), CommandError>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add the collapsed field to View and set collapsed: Vec::new() in every View literal in view.rs tests and in Workspace::new_view. toggle_fold_at uses folded_range_at; None returns false; when collapsed holds the range, remove it; otherwise push it; return true. retain_live_collapsed keeps the ranges that folds contains. refresh_indent_folds calls retain_live_collapsed after apply_indent_folds. Add ToggleFold after Scroll in command.rs and the arm Command::ToggleFold => toggle_fold_cmd(ws, view) in run_motion. toggle_fold_cmd takes the primary head and calls toggle_fold_at on the view; the bool is dropped. The test in view.rs toggle_fold_at_shuts_the_innermost_range applies indent folds to a\\n  b\\n and asserts toggle at Offset(1) returns true and collapsed has one range, a second toggle empties it, and toggle at Offset(0) is false. The test in workspace.rs toggle_fold_folds_at_the_caret types a\\n  b\\n, moves the caret to line 1, executes ToggleFold, and asserts collapsed has one range. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked view::tests",
+      "cargo test -p kate-core --locked workspace::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "view::tests::toggle_fold_at_shuts_the_innermost_range",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because View has no collapsed field. After the change a toggle inside a fold shuts it, a second toggle opens it, and the header offset is not inside."
+      },
+      {
+        "name": "workspace::tests::toggle_fold_folds_at_the_caret",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because Command::ToggleFold does not exist. After the change the caret line fold is collapsed."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

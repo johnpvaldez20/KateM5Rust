@@ -1,0 +1,155 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0545",
+  "title": "kate-core: journal each applied transaction and clear it on save",
+  "summary": "Workspace::set_recovery_dir turns the journal on. When it is on, each applied transaction on a document with a path is appended to that document's journal, a new journal starts with the header, and a successful save or an open clears the journal. A write error is kept for the shell to show.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0545-journal-hook",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. workspace.rs is a 3,500-line file and the change touches its command dispatch. The Linux VM builds and tests kate-core. The owner Mac stays free for the window.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/workspace.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/view.rs",
+      "crates/kate-core/src/lib.rs",
+      "crates/kate-core/src/recovery.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0018",
+      "PKT-0025",
+      "PKT-0055",
+      "PKT-0063",
+      "PKT-0074",
+      "PKT-0091",
+      "PKT-0093",
+      "PKT-0110",
+      "PKT-0117",
+      "PKT-0247",
+      "PKT-0250",
+      "PKT-0489",
+      "PKT-0490",
+      "PKT-0491",
+      "PKT-0492",
+      "PKT-0493",
+      "PKT-0494",
+      "PKT-0495",
+      "PKT-0533",
+      "PKT-0544"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/workspace.rs",
+        "definition": "impl Workspace {\n    /// None turns the journal off. Some(dir) journals every document with a path under dir.\n    pub fn set_recovery_dir(&mut self, dir: Option<std::path::PathBuf>);\n    /// The last journal write error, once.\n    pub fn take_recovery_error(&mut self) -> Option<String>;\n}"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Add recovery_dir: Option<PathBuf> and recovery_error: Option<String> to Workspace. In apply_change, undo_cmd, and redo_cmd, after the buffer apply and when the document has a file and recovery_dir is Some, compute journal_path(dir, &file.digest_on_disk); when the file does not exist call start_journal with header_line(&file.path); then append_journal(journal_line of the entry). An io error sets recovery_error to its text. In write_file after a successful save and in insert_loaded after an open, call clear_journal for the old digest path and ignore NotFound. The test the_journal_follows_edits_and_save uses tempfile::tempdir for the file and for the recovery dir, opens the file, types a, asserts the journal file exists with a header and one line, executes Save, and asserts the file is gone. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked workspace::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "workspace::tests::the_journal_follows_edits_and_save",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because set_recovery_dir does not exist. After the change an edit writes a journal line and a save removes the journal."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

@@ -1,0 +1,131 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0512",
+  "title": "gatecheck: map kate-session and kate-lsp to LGPL-2.1-or-later",
+  "summary": "SPDX_BY_PREFIX gains crates/kate-session/ and crates/kate-lsp/ with LGPL-2.1-or-later, the license that 06-licensing.md gives the library crates. Without this row gatecheck reports no license mapping for every Rust file of the new crates. The crate packets wait for this one.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0512-spdx-new-crates",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "EITHER",
+    "reason": "Either lane may code this packet. It is one file, one behavior, and one test, and the rule text in this packet is the oracle. The first idle lane takes it.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "tools/gatecheck/src/spdx.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "crates/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "tools/gatecheck/src/lib.rs",
+      "tools/gatecheck/src/main.rs",
+      "docs/"
+    ],
+    "crates_touched": [
+      "gatecheck"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0013",
+      "PKT-0043"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "tools/gatecheck/src/spdx.rs",
+        "definition": "const SPDX_BY_PREFIX: &[(&str, &str)] = &[\n    (\"crates/kate-syntax/\", \"MIT\"),\n    (\"crates/kate-text/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-fileio/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-search/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-core/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-session/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-lsp/\", \"LGPL-2.1-or-later\"),\n    (\"crates/kate-ui/\", \"GPL-3.0-or-later\"),\n    (\"apps/\", \"GPL-3.0-or-later\"),\n    (\"tools/\", \"GPL-3.0-or-later\"),\n];"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Add the two rows between kate-core and kate-ui. Add the test new_library_crates_map_to_lgpl at the end of the existing tests module. It asserts expected_spdx_license of crates/kate-session/src/lib.rs and of crates/kate-lsp/src/lib.rs are both Some(\"LGPL-2.1-or-later\"). The existing test prefix_map_matches_the_owner_split stays as it is. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p gatecheck --all-targets --locked -- -D warnings",
+      "cargo test -p gatecheck --locked",
+      "cargo run -p gatecheck --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "spdx::tests::new_library_crates_map_to_lgpl",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because the two prefixes are not in the map and the function returns None. After the change both map to LGPL-2.1-or-later."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

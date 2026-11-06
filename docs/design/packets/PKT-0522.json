@@ -1,0 +1,153 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0522",
+  "title": "kate-core: score a path by its file name first",
+  "summary": "fuzzy_match_path matches the pattern against the file name after the last slash and adds 32 to that score with the positions shifted to the whole string. When the file name does not match, the whole path is matched. lib.rs exports fuzzy_rank and fuzzy_match_path.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0522-fuzzy-path",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The crate is pure Rust and builds anywhere. The backlog marks this title LOCAL so the Mac lane keeps the panes and their models together.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-core/src/fuzzy.rs",
+      "crates/kate-core/src/lib.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-core/src/command.rs",
+      "crates/kate-core/src/workspace.rs",
+      "crates/kate-core/src/view.rs"
+    ],
+    "crates_touched": [
+      "kate-core"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0011",
+      "PKT-0012",
+      "PKT-0016",
+      "PKT-0032",
+      "PKT-0043",
+      "PKT-0060",
+      "PKT-0062",
+      "PKT-0066",
+      "PKT-0092",
+      "PKT-0124",
+      "PKT-0136",
+      "PKT-0151",
+      "PKT-0178",
+      "PKT-0198",
+      "PKT-0217"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/fuzzy.rs",
+        "definition": "/// File-name match plus 32, with positions offset by the directory prefix, or a whole-path match.\npub fn fuzzy_match_path(pattern: &str, path: &str) -> Option<FuzzyHit>"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-core/src/lib.rs",
+        "definition": "pub use fuzzy::{FuzzyHit, fuzzy_match, fuzzy_match_path, fuzzy_rank};"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "The directory prefix is everything through the last / in path, counted in scalars. When fuzzy_match(pattern, name) is Some, add 32 to the score and add the prefix length to each position. Otherwise return fuzzy_match(pattern, path). Update the pub use line in lib.rs. The test fuzzy_match_path_prefers_the_file_name asserts fuzzy_match_path(\"main\", \"src/main.rs\") has a score 32 higher than fuzzy_match(\"main\", \"main.rs\") and positions [4, 5, 6, 7], and that fuzzy_match_path(\"src\", \"src/main.rs\") equals fuzzy_match(\"src\", \"src/main.rs\"). Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-core --all-targets --locked -- -D warnings",
+      "cargo test -p kate-core --locked fuzzy::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "fuzzy::tests::fuzzy_match_path_prefers_the_file_name",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because fuzzy_match_path does not exist. After the change a file-name hit scores higher and its positions point into the whole path."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

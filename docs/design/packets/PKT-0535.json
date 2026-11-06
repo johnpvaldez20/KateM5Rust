@@ -1,0 +1,141 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0535",
+  "title": "kate-lsp: open, change, and close a document on the server",
+  "summary": "did_open, did_change, and did_close send the three textDocument notifications. uri_for_path makes a file URI for an absolute path. The window sends did_open when a document with a server opens, did_change for each drained DocumentChange, and did_close when the last view closes.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0535-lsp-did-open",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "CLOUD",
+    "reason": "A Cursor cloud agent codes this packet. The crate is pure Rust, the test runs a fake server over pipes on Linux, and the backlog marks the LSP client CLOUD.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/src/client.rs",
+      "crates/kate-lsp/tests/client.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-lsp/src/lib.rs",
+      "crates/kate-lsp/src/jsonrpc.rs",
+      "crates/kate-lsp/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-lsp"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0033",
+      "PKT-0034",
+      "PKT-0534"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/client.rs",
+        "definition": "impl LspClient {\n    pub fn did_open(&mut self, uri: &lsp_types::Uri, language_id: &str, version: i32, text: &str) -> Result<(), LspError>;\n    pub fn did_change(&mut self, uri: &lsp_types::Uri, version: i32, changes: Vec<lsp_types::TextDocumentContentChangeEvent>) -> Result<(), LspError>;\n    pub fn did_close(&mut self, uri: &lsp_types::Uri) -> Result<(), LspError>;\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/client.rs",
+        "definition": "/// `file://` URI for an absolute path. A relative path gives None.\npub fn uri_for_path(path: &std::path::Path) -> Option<lsp_types::Uri>"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Build the params with the lsp_types structs and serde_json::to_value. uri_for_path percent-encodes the path segments that need it and parses with Uri::from_str. Extend tests/client.rs with did_open_brings_a_diagnostic: after initialize, did_open a temp file URI with language_id rust, version 1, and text fn main() {}, then poll until a Diagnostics event arrives within 5 seconds and assert one diagnostic with message fake; did_change with version 2 and an empty change list then brings an empty Diagnostics event. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "client::did_open_brings_a_diagnostic",
+        "kind": "INTEGRATION",
+        "asserts": "This test fails on main because did_open does not exist. After the change the fake server publishes one diagnostic after didOpen and none after didChange."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

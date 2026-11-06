@@ -1,0 +1,135 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0514",
+  "title": "kate-session: list the files that git tracks",
+  "summary": "git_files runs git ls-files -z in a directory and returns the tracked paths relative to it. recursive adds --recurse-submodules. A missing git binary or a non-zero exit is ProjectError::Git with the message. The test makes a repository in a temp directory.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0514-git-files",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. The crate is pure Rust and builds anywhere. The backlog marks this title LOCAL so the Mac lane keeps the panes and their models together.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-session/src/git.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-session/src/lib.rs",
+      "crates/kate-session/src/project.rs",
+      "crates/kate-session/src/walk.rs",
+      "crates/kate-session/src/exclude.rs",
+      "crates/kate-session/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-session"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0030"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-session/src/git.rs",
+        "definition": "/// The items below are pub(crate).\n/// Paths from `git ls-files -z .` run in `directory`, relative to it, sorted.\n/// `recursive` adds `--recurse-submodules`.\nfn git_files(directory: &std::path::Path, recursive: bool) -> Result<Vec<std::path::PathBuf>, ProjectError>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "git_files carries #[cfg_attr(not(test), allow(dead_code))] until Project::files calls it. Build std::process::Command::new(\"git\") with current_dir(directory) and the arguments ls-files -z and . , plus --recurse-submodules when recursive is true. A spawn error or a non-zero status is ProjectError::Git with the stderr text or the io error text. Split stdout on NUL, drop the empty tail, and convert each part with PathBuf::from. The test git_files_lists_tracked_paths makes a tempfile::tempdir, runs git init -q and git add on two files a.rs and sub/b.rs through std::process::Command, and asserts git_files(dir, false) is [a.rs, sub/b.rs]. It asserts git_files of an empty temp directory that is not a repository is Err(ProjectError::Git { .. }). Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-session --all-targets --locked -- -D warnings",
+      "cargo test -p kate-session --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "git::tests::git_files_lists_tracked_paths",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because git_files does not exist. After the change the two added files are listed and a directory without a repository is a Git error."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

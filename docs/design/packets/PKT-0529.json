@@ -1,0 +1,140 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0529",
+  "title": "kate-lsp: tell a request from a response and a notification",
+  "summary": "Message is the three JSON-RPC shapes. parse_message classifies a body: an id with a method is a request from the server, an id with a result or an error is a response, and a method alone is a notification. Three builders make the bodies the client sends.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 308,
+    "branch": "pkt/PKT-0529-jsonrpc-message",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/308"
+  },
+  "lane": {
+    "runtime": "EITHER",
+    "reason": "Either lane may code this packet. It is one file, one behavior, and one test, and the rule text in this packet is the oracle. The first idle lane takes it.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-lsp/src/jsonrpc.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "upstream/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-syntax/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-lsp/src/lib.rs",
+      "crates/kate-lsp/src/client.rs",
+      "crates/kate-lsp/src/config.rs",
+      "crates/kate-lsp/Cargo.toml"
+    ],
+    "crates_touched": [
+      "kate-lsp"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0033",
+      "PKT-0528"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/jsonrpc.rs",
+        "definition": "/// One JSON-RPC body.\n#[derive(Clone, Debug, PartialEq)]\npub enum Message {\n    Request { id: serde_json::Value, method: String, params: serde_json::Value },\n    Response { id: i64, result: Option<serde_json::Value>, error: Option<serde_json::Value> },\n    Notification { method: String, params: serde_json::Value },\n}"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-lsp/src/jsonrpc.rs",
+        "definition": "/// Classify a body. A response whose id is not an integer and a body with neither id nor method give None.\npub fn parse_message(body: serde_json::Value) -> Option<Message>\npub fn request_body(id: i64, method: &str, params: serde_json::Value) -> serde_json::Value\npub fn notification_body(method: &str, params: serde_json::Value) -> serde_json::Value\npub fn response_body(id: serde_json::Value, result: serde_json::Value) -> serde_json::Value"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "Each builder sets jsonrpc to 2.0. Missing params read as Value::Null. The test parse_message_tells_the_three_shapes asserts request_body(1, \"initialize\", Null) parses to Request with id 1, that {\"id\": 2, \"result\": {}} is Response with result Some, that {\"method\": \"x\"} is Notification, and that {} is None. Do not nest an if inside an if. When two arms return the same value, write one condition with ||. Add each new test at the end of the one test module of the file, before its closing brace; create that module when the file is new. Do not write a second mod tests. An item with no caller outside tests gets #[cfg_attr(not(test), allow(dead_code))]; the packet that adds the caller removes it. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-lsp --all-targets --locked -- -D warnings",
+      "cargo test -p kate-lsp --locked"
+    ],
+    "regression_tests": [
+      {
+        "name": "jsonrpc::tests::parse_message_tells_the_three_shapes",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because Message does not exist. After the change the three shapes classify and an empty object is None."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
