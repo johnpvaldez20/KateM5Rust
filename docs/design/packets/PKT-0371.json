@@ -1,0 +1,137 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0371",
+  "title": "kate-syntax: accept white space between ] and > in a doctype",
+  "summary": "nginx.xml closes its doctype internal subset with ] on one line and > on the next line. split_doctype looks for ]> as two adjacent bytes and reports unclosed doctype. The subset now ends at the first ] outside a comment or a quoted string, and white space may follow before >. nginx.xml needs this before its wiring packet.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 307,
+    "branch": "pkt/PKT-0371-doctype-newline",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/307"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine codes this packet in the ~/code/KateM5Rust-wire worktree. kate-syntax builds and tests on Linux. No macOS tool is needed. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/load.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/definitions/",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/vendored.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/tests/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/load.rs",
+        "definition": "/// Return the index of the `]` that ends the subset and the index after the `>` that follows it.\n/// Comments and quoted strings inside the subset are skipped. White space may sit between `]` and `>`.\nfn subset_end(xml: &str, start: usize) -> Result<Option<(usize, usize)>, LoadError>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "load.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add subset_end. It scans from start, skips <!-- --> comments with close_comment, skips single-quoted and double-quoted strings, and stops at the first ]. It then skips ASCII white space and requires >. A missing ] or a missing > returns Ok(None). split_doctype uses subset_end instead of find_marker for the Bracket arm: the subset is xml[subset_at..close] and the body is join_without(xml, start, after_gt). find_marker stays for its other callers. Do not nest an if inside an if. The test a_doctype_may_break_the_line_before_its_closing_angle parses a minimal definition whose doctype is <!DOCTYPE language\\n[\\n  <!-- note -->\\n  <!ENTITY u \"x\">\\n]\\n> and whose one RegExpr uses &u;, and asserts parse_xml returns Ok and the rule pattern is x. The existing tests stay green. Branch from the current tip of main. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked load::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "load::tests::a_doctype_may_break_the_line_before_its_closing_angle",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because split_doctype returns unclosed doctype when a newline sits between ] and >. After the change the subset is read, the entity expands, and parse_xml is Ok."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

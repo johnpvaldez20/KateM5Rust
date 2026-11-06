@@ -1,0 +1,140 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0372",
+  "title": "kate-ui: load every vendored definition at launch",
+  "summary": "load_repository in session.rs lists five xml files by hand and misses ansic89.xml. It now calls kate_syntax::vendored_repository, so every wired definition reaches the window. The highlighter lookup and the theme stay as they are. This is the only kate-ui packet in the wiring plan.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 307,
+    "branch": "pkt/PKT-0372-window-vendored",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/307"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the owner Mac codes this packet. session.rs is a macOS-only module and its tests need the GPUI build. The owner checks that a C file opens with color.",
+    "requires": [
+      "MACOS_HOST"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-ui/src/session.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/",
+      "crates/kate-core/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/",
+      "crates/kate-ui/src/lib.rs",
+      "crates/kate-ui/src/paint.rs",
+      "crates/kate-ui/src/files.rs",
+      "crates/kate-ui/src/keys.rs",
+      "crates/kate-ui/src/layout.rs"
+    ],
+    "crates_touched": [
+      "kate-ui"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0013",
+      "PKT-0015",
+      "PKT-0045",
+      "PKT-0051",
+      "PKT-0089",
+      "PKT-0112",
+      "PKT-0367"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-ui/src/session.rs",
+        "definition": "/// Every vendored definition, parsed and linked once.\nfn load_repository() -> Repository"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "Replace the five include_str lines and the loop in load_repository with kate_syntax::vendored_repository().expect(\"vendored definitions link\"). Remove the add_xml loop and the link call there. shared_repository, themed_workspace, and highlighter_for stay unchanged. session.rs has a test module named tests. Add the new test at the end of that module. Do not write a second mod tests. The test the_shared_repository_holds_ansi_c89 asserts shared_repository().by_name(\"ANSI C89\") is Some and shared_repository().by_name(\"Rust\") is Some. The existing tests stay green. Branch from the current tip of main. If main has moved, use the new tip. Keep the change under about 30 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-ui --all-targets --locked -- -D warnings",
+      "cargo test -p kate-ui --locked session::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "session::tests::the_shared_repository_holds_ansi_c89",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because load_repository lists five files and ansic89.xml is not one of them. After the change by_name of ANSI C89 is Some."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
