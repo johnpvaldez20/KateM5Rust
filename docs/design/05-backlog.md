@@ -63,7 +63,11 @@ MIT copy wave 2 of 15 is in `docs/design/WAVE-0259.md`.
 Eight files start at `cashscript.xml`.
 MIT copy wave 3 of 15 is in `docs/design/WAVE-0267.md`.
 Eight files start at `csv-semicolon.xml`.
-92 MIT files remain queued.
+MIT copy waves 4 to 15 are in `docs/design/WAVE-0275.md` through `docs/design/WAVE-0363.md`.
+Wave 4 starts at `elixir-eex.xml`.
+Wave 15 ends at `zig.xml`.
+No MIT file stays queued after wave 15.
+The lane split for the Cursor coding agents is in `docs/design/07-lane-split.md`.
 Phase 3 stays titles.
 
 | Packet | Title | Lane | Depends on |
@@ -792,6 +796,266 @@ The index is `docs/design/WAVE-0267.md`.
 | PKT-0272 | `kate-syntax`: copy the MIT DotEnv definition | CLOUD | 0028 |
 | PKT-0273 | `kate-syntax`: copy the MIT Doxygen definition | CLOUD | 0028 |
 | PKT-0274 | `kate-syntax`: copy the MIT Earthfile definition | CLOUD | 0028 |
+
+## Wave PKT-0275
+
+This is MIT copy wave 4 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+84 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0397 through PKT-0404.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0275.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0275 | `kate-syntax`: copy the MIT Elixir/EEx definition | LOCAL | 0028 |
+| PKT-0276 | `kate-syntax`: copy the MIT Elixir/HEEx definition | LOCAL | 0028 |
+| PKT-0277 | `kate-syntax`: copy the MIT Elm definition | LOCAL | 0028 |
+| PKT-0278 | `kate-syntax`: copy the MIT Email definition | LOCAL | 0028 |
+| PKT-0279 | `kate-syntax`: copy the MIT Expect definition | LOCAL | 0028 |
+| PKT-0280 | `kate-syntax`: copy the MIT FlatBuffers definition | LOCAL | 0028 |
+| PKT-0281 | `kate-syntax`: copy the MIT Fluent definition | LOCAL | 0028 |
+| PKT-0282 | `kate-syntax`: copy the MIT Fortran (Free Format) definition | LOCAL | 0028 |
+
+## Wave PKT-0283
+
+This is MIT copy wave 5 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+76 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0405 through PKT-0412.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0283.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0283 | `kate-syntax`: copy the MIT GDL definition | LOCAL | 0028 |
+| PKT-0284 | `kate-syntax`: copy the MIT Gemtext definition | LOCAL | 0028 |
+| PKT-0285 | `kate-syntax`: copy the MIT GNU Gettext definition | LOCAL | 0028 |
+| PKT-0286 | `kate-syntax`: copy the MIT Cucumber Gherkin feature definition | LOCAL | 0028 |
+| PKT-0287 | `kate-syntax`: copy the MIT Gleam definition | LOCAL | 0028 |
+| PKT-0288 | `kate-syntax`: copy the MIT GN definition | LOCAL | 0028 |
+| PKT-0289 | `kate-syntax`: copy the MIT GPRBuild definition | LOCAL | 0028 |
+| PKT-0290 | `kate-syntax`: copy the MIT GraphQL definition | LOCAL | 0028 |
+
+## Wave PKT-0291
+
+This is MIT copy wave 6 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+68 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0413 through PKT-0420.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0291.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0291 | `kate-syntax`: copy the MIT GTK Blueprint definition | LOCAL | 0028 |
+| PKT-0292 | `kate-syntax`: copy the MIT Hare definition | LOCAL | 0028 |
+| PKT-0293 | `kate-syntax`: copy the MIT Haxe definition | LOCAL | 0028 |
+| PKT-0294 | `kate-syntax`: copy the MIT Hjson definition | LOCAL | 0028 |
+| PKT-0295 | `kate-syntax`: copy the MIT InnoSetup definition | LOCAL | 0028 |
+| PKT-0296 | `kate-syntax`: copy the MIT Intel HEX definition | LOCAL | 0028 |
+| PKT-0297 | `kate-syntax`: copy the MIT Java Module definition | LOCAL | 0028 |
+| PKT-0298 | `kate-syntax`: copy the MIT Java Properties definition | LOCAL | 0028 |
+
+## Wave PKT-0299
+
+This is MIT copy wave 7 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+60 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0421 through PKT-0428.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0299.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0299 | `kate-syntax`: copy the MIT JCL definition | LOCAL | 0028 |
+| PKT-0300 | `kate-syntax`: copy the MIT Jinja definition | LOCAL | 0028 |
+| PKT-0301 | `kate-syntax`: copy the MIT JSON5 definition | LOCAL | 0028 |
+| PKT-0302 | `kate-syntax`: copy the MIT Jsonnet definition | LOCAL | 0028 |
+| PKT-0303 | `kate-syntax`: copy the MIT Just definition | LOCAL | 0028 |
+| PKT-0304 | `kate-syntax`: copy the MIT Kate Config definition | LOCAL | 0028 |
+| PKT-0305 | `kate-syntax`: copy the MIT KDL definition | LOCAL | 0028 |
+| PKT-0306 | `kate-syntax`: copy the MIT Klipper Config definition | LOCAL | 0028 |
+
+## Wave PKT-0307
+
+This is MIT copy wave 8 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+52 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0429 through PKT-0436.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0307.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0307 | `kate-syntax`: copy the MIT Klipper G-Code definition | LOCAL | 0028 |
+| PKT-0308 | `kate-syntax`: copy the MIT LaTeX Log File definition | LOCAL | 0028 |
+| PKT-0309 | `kate-syntax`: copy the MIT Log File (advanced) Selector definition | LOCAL | 0028 |
+| PKT-0310 | `kate-syntax`: copy the MIT Log File (simplified) Selector definition | LOCAL | 0028 |
+| PKT-0311 | `kate-syntax`: copy the MIT Log File (simplified) definition | LOCAL | 0028 |
+| PKT-0312 | `kate-syntax`: copy the MIT MapCSS definition | LOCAL | 0028 |
+| PKT-0313 | `kate-syntax`: copy the MIT Metamath definition | LOCAL | 0028 |
+| PKT-0314 | `kate-syntax`: copy the MIT MIB definition | LOCAL | 0028 |
+
+## Wave PKT-0315
+
+This is MIT copy wave 9 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+44 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0437 through PKT-0444.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0315.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0315 | `kate-syntax`: copy the MIT MIPS Assembler definition | LOCAL | 0028 |
+| PKT-0316 | `kate-syntax`: copy the MIT Modula-2 (ISO only) definition | LOCAL | 0028 |
+| PKT-0317 | `kate-syntax`: copy the MIT Modula-2 (PIM only) definition | LOCAL | 0028 |
+| PKT-0318 | `kate-syntax`: copy the MIT Modula-2 (R10 only) definition | LOCAL | 0028 |
+| PKT-0319 | `kate-syntax`: copy the MIT Modula-2 definition | LOCAL | 0028 |
+| PKT-0320 | `kate-syntax`: copy the MIT NFTables definition | LOCAL | 0028 |
+| PKT-0321 | `kate-syntax`: copy the MIT nginx Configuration definition | LOCAL | 0028 |
+| PKT-0322 | `kate-syntax`: copy the MIT Ninja definition | LOCAL | 0028 |
+
+## Wave PKT-0323
+
+This is MIT copy wave 10 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+36 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0445 through PKT-0452.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0323.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0323 | `kate-syntax`: copy the MIT Nix definition | LOCAL | 0028 |
+| PKT-0324 | `kate-syntax`: copy the MIT Odin definition | LOCAL | 0028 |
+| PKT-0325 | `kate-syntax`: copy the MIT OORS definition | LOCAL | 0028 |
+| PKT-0326 | `kate-syntax`: copy the MIT OpenSCAD definition | LOCAL | 0028 |
+| PKT-0327 | `kate-syntax`: copy the MIT Overpass QL definition | LOCAL | 0028 |
+| PKT-0328 | `kate-syntax`: copy the MIT PIO Assembler definition | LOCAL | 0028 |
+| PKT-0329 | `kate-syntax`: copy the MIT Pony definition | LOCAL | 0028 |
+| PKT-0330 | `kate-syntax`: copy the MIT PowerShell definition | LOCAL | 0028 |
+
+## Wave PKT-0331
+
+This is MIT copy wave 11 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+28 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0453 through PKT-0460.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0331.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0331 | `kate-syntax`: copy the MIT QDoc Configuration definition | LOCAL | 0028 |
+| PKT-0332 | `kate-syntax`: copy the MIT QFace definition | LOCAL | 0028 |
+| PKT-0333 | `kate-syntax`: copy the MIT QMake definition | LOCAL | 0028 |
+| PKT-0334 | `kate-syntax`: copy the MIT QML definition | LOCAL | 0028 |
+| PKT-0335 | `kate-syntax`: copy the MIT R documentation definition | LOCAL | 0028 |
+| PKT-0336 | `kate-syntax`: copy the MIT RenPy definition | LOCAL | 0028 |
+| PKT-0337 | `kate-syntax`: copy the MIT RETRO definition | LOCAL | 0028 |
+| PKT-0338 | `kate-syntax`: copy the MIT Robot definition | LOCAL | 0028 |
+
+## Wave PKT-0339
+
+This is MIT copy wave 12 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+20 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0461 through PKT-0468.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0339.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0339 | `kate-syntax`: copy the MIT SASS definition | LOCAL | 0028 |
+| PKT-0340 | `kate-syntax`: copy the MIT Sieve definition | LOCAL | 0028 |
+| PKT-0341 | `kate-syntax`: copy the MIT Slint definition | LOCAL | 0028 |
+| PKT-0342 | `kate-syntax`: copy the MIT Smali definition | LOCAL | 0028 |
+| PKT-0343 | `kate-syntax`: copy the MIT SML definition | LOCAL | 0028 |
+| PKT-0344 | `kate-syntax`: copy the MIT Snort/Suricata definition | LOCAL | 0028 |
+| PKT-0345 | `kate-syntax`: copy the MIT Solidity definition | LOCAL | 0028 |
+| PKT-0346 | `kate-syntax`: copy the MIT SPARQL definition | LOCAL | 0028 |
+
+## Wave PKT-0347
+
+This is MIT copy wave 13 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+12 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0469 through PKT-0476.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0347.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0347 | `kate-syntax`: copy the MIT IATA SSIM definition | LOCAL | 0028 |
+| PKT-0348 | `kate-syntax`: copy the MIT Stan definition | LOCAL | 0028 |
+| PKT-0349 | `kate-syntax`: copy the MIT STEP definition | LOCAL | 0028 |
+| PKT-0350 | `kate-syntax`: copy the MIT Swift definition | LOCAL | 0028 |
+| PKT-0351 | `kate-syntax`: copy the MIT Terraform definition | LOCAL | 0028 |
+| PKT-0352 | `kate-syntax`: copy the MIT TextProto definition | LOCAL | 0028 |
+| PKT-0353 | `kate-syntax`: copy the MIT Tiger definition | LOCAL | 0028 |
+| PKT-0354 | `kate-syntax`: copy the MIT Todo.txt definition | LOCAL | 0028 |
+
+## Wave PKT-0355
+
+This is MIT copy wave 14 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+4 MIT files remain queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0477 through PKT-0484.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0355.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0355 | `kate-syntax`: copy the MIT toit definition | LOCAL | 0028 |
+| PKT-0356 | `kate-syntax`: copy the MIT TSV definition | LOCAL | 0028 |
+| PKT-0357 | `kate-syntax`: copy the MIT Twig/Twig definition | LOCAL | 0028 |
+| PKT-0358 | `kate-syntax`: copy the MIT Typst definition | LOCAL | 0028 |
+| PKT-0359 | `kate-syntax`: copy the MIT V definition | LOCAL | 0028 |
+| PKT-0360 | `kate-syntax`: copy the MIT Viper definition | LOCAL | 0028 |
+| PKT-0361 | `kate-syntax`: copy the MIT Wayland Trace definition | LOCAL | 0028 |
+| PKT-0362 | `kate-syntax`: copy the MIT Web Video Text Tracks definition | LOCAL | 0028 |
+
+## Wave PKT-0363
+
+This is MIT copy wave 15 of 15.
+Four syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+No MIT file remains queued.
+A Cursor local agent on the Framework machine copies each file.
+The owner Mac stays out of this wave.
+The wiring packets are PKT-0485 through PKT-0488.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0363.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0363 | `kate-syntax`: copy the MIT XHTML definition | LOCAL | 0028 |
+| PKT-0364 | `kate-syntax`: copy the MIT XKeyboardConfig definition | LOCAL | 0028 |
+| PKT-0365 | `kate-syntax`: copy the MIT YARA definition | LOCAL | 0028 |
+| PKT-0366 | `kate-syntax`: copy the MIT Zig definition | LOCAL | 0028 |
 
 ## Packet sizing rules the gatekeeper applies
 
