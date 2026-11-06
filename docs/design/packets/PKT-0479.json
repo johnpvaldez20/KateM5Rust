@@ -1,0 +1,256 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0479",
+  "title": "kate-syntax: wire the Twig/Twig definition into VENDORED",
+  "summary": "Add include_str of twig.xml to the VENDORED list in vendored.rs, add the SOURCES.md row for twig.xml, and add a test that loads Twig/Twig by name and builds its Highlighter. This is wiring 3 of 8 in wiring wave 14 of 15. The xml file stays as PKT-0357 copied it.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 299,
+    "branch": "pkt/PKT-0479-wire-twig",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/299"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine codes this packet in the ~/code/KateM5Rust-wire worktree. kate-syntax builds and tests on Linux. No macOS tool is needed. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/vendored.rs",
+      "crates/kate-syntax/definitions/SOURCES.md"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/definitions/twig.xml",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-syntax/tests/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0357",
+      "PKT-0367",
+      "PKT-0373",
+      "PKT-0374",
+      "PKT-0375",
+      "PKT-0376",
+      "PKT-0377",
+      "PKT-0378",
+      "PKT-0379",
+      "PKT-0380",
+      "PKT-0381",
+      "PKT-0382",
+      "PKT-0383",
+      "PKT-0384",
+      "PKT-0385",
+      "PKT-0386",
+      "PKT-0387",
+      "PKT-0388",
+      "PKT-0389",
+      "PKT-0390",
+      "PKT-0391",
+      "PKT-0392",
+      "PKT-0393",
+      "PKT-0394",
+      "PKT-0395",
+      "PKT-0396",
+      "PKT-0397",
+      "PKT-0398",
+      "PKT-0399",
+      "PKT-0400",
+      "PKT-0401",
+      "PKT-0402",
+      "PKT-0403",
+      "PKT-0404",
+      "PKT-0405",
+      "PKT-0406",
+      "PKT-0407",
+      "PKT-0408",
+      "PKT-0409",
+      "PKT-0410",
+      "PKT-0411",
+      "PKT-0412",
+      "PKT-0413",
+      "PKT-0414",
+      "PKT-0415",
+      "PKT-0416",
+      "PKT-0417",
+      "PKT-0418",
+      "PKT-0419",
+      "PKT-0420",
+      "PKT-0421",
+      "PKT-0422",
+      "PKT-0423",
+      "PKT-0424",
+      "PKT-0425",
+      "PKT-0426",
+      "PKT-0427",
+      "PKT-0428",
+      "PKT-0429",
+      "PKT-0430",
+      "PKT-0431",
+      "PKT-0432",
+      "PKT-0433",
+      "PKT-0434",
+      "PKT-0435",
+      "PKT-0436",
+      "PKT-0437",
+      "PKT-0438",
+      "PKT-0439",
+      "PKT-0440",
+      "PKT-0441",
+      "PKT-0442",
+      "PKT-0443",
+      "PKT-0444",
+      "PKT-0445",
+      "PKT-0446",
+      "PKT-0447",
+      "PKT-0448",
+      "PKT-0449",
+      "PKT-0450",
+      "PKT-0451",
+      "PKT-0452",
+      "PKT-0453",
+      "PKT-0454",
+      "PKT-0455",
+      "PKT-0456",
+      "PKT-0457",
+      "PKT-0458",
+      "PKT-0459",
+      "PKT-0460",
+      "PKT-0461",
+      "PKT-0462",
+      "PKT-0463",
+      "PKT-0464",
+      "PKT-0465",
+      "PKT-0466",
+      "PKT-0467",
+      "PKT-0468",
+      "PKT-0469",
+      "PKT-0470",
+      "PKT-0471",
+      "PKT-0472",
+      "PKT-0473",
+      "PKT-0474",
+      "PKT-0475",
+      "PKT-0476",
+      "PKT-0477",
+      "PKT-0478"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/vendored.rs",
+        "definition": "pub const VENDORED: &[&str] = &[\n    // the earlier entries stay in their order\n    include_str!(\"../definitions/twig.xml\"),\n];"
+      },
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/vendored.rs",
+        "definition": "#[test]\nfn twig_is_vendored()"
+      },
+      {
+        "language": "MARKDOWN_TABLE",
+        "path": "crates/kate-syntax/definitions/SOURCES.md",
+        "definition": "| file | upstream path | upstream commit | license attribute |\n|---|---|---|---|\n| twig.xml | data/syntax/twig.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |"
+      }
+    ],
+    "public_api_change": "ADDITIVE",
+    "schema_diff_summary": "vendored.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add include_str!(\"../definitions/twig.xml\") as the last entry of VENDORED. Keep every earlier entry in its order. Add one row to the table in SOURCES.md after the last row: | twig.xml | data/syntax/twig.xml | 6d8ab7945958e7354295db7f399cce06f7de7571 | MIT |. Do not change another row. The test twig_is_vendored calls vendored_repository, unwraps it, finds by_name(\"Twig/Twig\"), asserts definition(id).license is MIT, and asserts Highlighter::new(&repo, id) is Ok. The existing test every_vendored_definition_loads_and_links stays green. Do not edit twig.xml. Do not edit repository.rs. Wait until PKT-0357 and PKT-0478 are on main. Branch from the current tip of main. base_sha records that tip at planning time. If main has moved, use the new tip. When Highlighter::new returns RegexError::Unsupported, stop, keep the xml unchanged, and open an issue that names the pattern. Keep the change under about 20 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked vendored::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "vendored::tests::twig_is_vendored",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because by_name(\"Twig/Twig\") is None. After the change the definition loads with license MIT and its rules compile."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}

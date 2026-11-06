@@ -1,0 +1,140 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0369",
+  "title": "kate-syntax: escape a literal bracket inside a character class",
+  "summary": "PCRE reads [ inside a character class as a plain character unless [: starts a POSIX class. The regex crate reads it as a nested class and rejects the pattern. translate_pattern now writes \\[ for that bracket. doxygen.xml, ninja.xml, and rdoc.xml need this before their wiring packets.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 299,
+    "branch": "pkt/PKT-0369-class-bracket",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/299"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine codes this packet in the ~/code/KateM5Rust-wire worktree. kate-syntax builds and tests on Linux. No macOS tool is needed. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/regex.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/definitions/",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/vendored.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/repository.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-syntax/tests/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0008",
+      "PKT-0202",
+      "PKT-0228"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/regex.rs",
+        "definition": "/// Translates QRegularExpression syntax that differs from fancy-regex.\n/// A `[` inside a class that does not start a POSIX class becomes `\\[`.\npub fn translate_pattern(pcre: &str, insensitive: bool, minimal: bool, captures: Option<&[String]>) -> Result<String, RegexError>"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "regex.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. In translate_pcre, after the POSIX check, add one branch: when in_class and ch is [ push \\[ and advance by one. Write that branch as one if with && conditions. Do not nest an if inside an if. skip_class_opener, copy_posix, and push_escape stay unchanged. The test a_bracket_inside_a_class_is_escaped asserts translate_pattern of [^{[]* is [^{\\[]*, that translate_pattern of [][,?;()] is []\\[,?;()], that translate_pattern of [[:alpha:]] stays [[:alpha:]], and that fancy_regex::Regex::new accepts each result. The existing tests stay green. Branch from the current tip of main. If main has moved, use the new tip. Keep the change under about 40 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked regex::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "regex::tests::a_bracket_inside_a_class_is_escaped",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because translate_pattern copies the inner [ and fancy_regex rejects [^{[]*. After the change the inner bracket is escaped and the result compiles, while a POSIX class stays as it is."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
