@@ -67,6 +67,11 @@ MIT copy waves 4 to 15 are in `docs/design/WAVE-0275.md` through `docs/design/WA
 Wave 4 starts at `elixir-eex.xml`.
 Wave 15 ends at `zig.xml`.
 No MIT file stays queued after wave 15.
+The include_str wiring is in `docs/design/WAVE-0367.md` through `docs/design/WAVE-0485.md`.
+PKT-0367 moves the vendored list to `crates/kate-syntax/src/vendored.rs`.
+PKT-0368 to PKT-0371 fix the engine for nine queued files.
+PKT-0372 makes the window load every vendored definition.
+PKT-0373 to PKT-0488 wire the 116 files, one packet per file, in copy order.
 The lane split for the Cursor coding agents is in `docs/design/07-lane-split.md`.
 Phase 3 stays titles.
 
@@ -1056,6 +1061,296 @@ The index is `docs/design/WAVE-0363.md`.
 | PKT-0364 | `kate-syntax`: copy the MIT XKeyboardConfig definition | LOCAL | 0028 |
 | PKT-0365 | `kate-syntax`: copy the MIT YARA definition | LOCAL | 0028 |
 | PKT-0366 | `kate-syntax`: copy the MIT Zig definition | LOCAL | 0028 |
+
+## Wave PKT-0367
+
+This is include_str wiring wave 1 of 15.
+It wires the eight files of MIT copy wave 1.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+PKT-0367 moves the vendored list to `vendored.rs`.
+PKT-0368 to PKT-0371 fix the engine for `cabal.xml`, `d2.xml`, `fortran-free.xml`, `sass.xml`, `doxygen.xml`, `ninja.xml`, `rdoc.xml`, `mib.xml`, and `nginx.xml`.
+PKT-0372 is the one Mac packet. It makes the window load every vendored definition.
+The index is `docs/design/WAVE-0367.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0367 | `kate-syntax`: list every vendored definition in vendored.rs | LOCAL | 0028, 0231 |
+| PKT-0368 | `kate-syntax`: skip a keyword include from a missing definition | LOCAL | 0367 |
+| PKT-0369 | `kate-syntax`: escape a literal bracket inside a character class | LOCAL | 0228 |
+| PKT-0370 | `kate-syntax`: read a branch reset group | LOCAL | 0369 |
+| PKT-0371 | `kate-syntax`: accept white space between ] and > in a doctype | LOCAL | 0007 |
+| PKT-0372 | `kate-ui`: load every vendored definition at launch | LOCAL | 0367 |
+| PKT-0373 | `kate-syntax`: wire the ABNF definition into VENDORED | LOCAL | 0251, 0367 |
+| PKT-0374 | `kate-syntax`: wire the Adblock Plus definition into VENDORED | LOCAL | 0252, 0373 |
+| PKT-0375 | `kate-syntax`: wire the AHDL definition into VENDORED | LOCAL | 0253, 0374 |
+| PKT-0376 | `kate-syntax`: wire the ANTLR definition into VENDORED | LOCAL | 0254, 0375 |
+| PKT-0377 | `kate-syntax`: wire the ARM Assembler definition into VENDORED | LOCAL | 0255, 0376 |
+| PKT-0378 | `kate-syntax`: wire the BrightScript definition into VENDORED | LOCAL | 0256, 0377 |
+| PKT-0379 | `kate-syntax`: wire the Cabal definition into VENDORED | LOCAL | 0257, 0378, 0368 |
+| PKT-0380 | `kate-syntax`: wire the Cap'n Proto definition into VENDORED | LOCAL | 0258, 0379 |
+
+## Wave PKT-0381
+
+This is include_str wiring wave 2 of 15.
+It wires the eight files of MIT copy wave 2.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0381.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0381 | `kate-syntax`: wire the CashScript definition into VENDORED | LOCAL | 0259, 0380 |
+| PKT-0382 | `kate-syntax`: wire the ChangeLog definition into VENDORED | LOCAL | 0260, 0381 |
+| PKT-0383 | `kate-syntax`: wire the Common Intermediate Language (CIL) definition into VENDORED | LOCAL | 0261, 0382 |
+| PKT-0384 | `kate-syntax`: wire the CLIST definition into VENDORED | LOCAL | 0262, 0383 |
+| PKT-0385 | `kate-syntax`: wire the COBOL definition into VENDORED | LOCAL | 0263, 0384 |
+| PKT-0386 | `kate-syntax`: wire the CoffeeScript definition into VENDORED | LOCAL | 0264, 0385 |
+| PKT-0387 | `kate-syntax`: wire the Common Lisp definition into VENDORED | LOCAL | 0265, 0386 |
+| PKT-0388 | `kate-syntax`: wire the CSV (pipe) definition into VENDORED | LOCAL | 0266, 0387 |
+
+## Wave PKT-0389
+
+This is include_str wiring wave 3 of 15.
+It wires the eight files of MIT copy wave 3.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0389.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0389 | `kate-syntax`: wire the CSV (semicolon) definition into VENDORED | LOCAL | 0267, 0388 |
+| PKT-0390 | `kate-syntax`: wire the CSV (whitespace) definition into VENDORED | LOCAL | 0268, 0389 |
+| PKT-0391 | `kate-syntax`: wire the D2 definition into VENDORED | LOCAL | 0269, 0390, 0368 |
+| PKT-0392 | `kate-syntax`: wire the Dart definition into VENDORED | LOCAL | 0270, 0391 |
+| PKT-0393 | `kate-syntax`: wire the Dockerfile definition into VENDORED | LOCAL | 0271, 0392 |
+| PKT-0394 | `kate-syntax`: wire the DotEnv definition into VENDORED | LOCAL | 0272, 0393 |
+| PKT-0395 | `kate-syntax`: wire the Doxygen definition into VENDORED | LOCAL | 0273, 0394, 0369 |
+| PKT-0396 | `kate-syntax`: wire the Earthfile definition into VENDORED | LOCAL | 0274, 0395 |
+
+## Wave PKT-0397
+
+This is include_str wiring wave 4 of 15.
+It wires the eight files of MIT copy wave 4.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0397.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0397 | `kate-syntax`: wire the Elixir/EEx definition into VENDORED | LOCAL | 0275, 0396 |
+| PKT-0398 | `kate-syntax`: wire the Elixir/HEEx definition into VENDORED | LOCAL | 0276, 0397 |
+| PKT-0399 | `kate-syntax`: wire the Elm definition into VENDORED | LOCAL | 0277, 0398 |
+| PKT-0400 | `kate-syntax`: wire the Email definition into VENDORED | LOCAL | 0278, 0399 |
+| PKT-0401 | `kate-syntax`: wire the Expect definition into VENDORED | LOCAL | 0279, 0400 |
+| PKT-0402 | `kate-syntax`: wire the FlatBuffers definition into VENDORED | LOCAL | 0280, 0401 |
+| PKT-0403 | `kate-syntax`: wire the Fluent definition into VENDORED | LOCAL | 0281, 0402 |
+| PKT-0404 | `kate-syntax`: wire the Fortran (Free Format) definition into VENDORED | LOCAL | 0282, 0403, 0368 |
+
+## Wave PKT-0405
+
+This is include_str wiring wave 5 of 15.
+It wires the eight files of MIT copy wave 5.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0405.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0405 | `kate-syntax`: wire the GDL definition into VENDORED | LOCAL | 0283, 0404 |
+| PKT-0406 | `kate-syntax`: wire the Gemtext definition into VENDORED | LOCAL | 0284, 0405 |
+| PKT-0407 | `kate-syntax`: wire the GNU Gettext definition into VENDORED | LOCAL | 0285, 0406 |
+| PKT-0408 | `kate-syntax`: wire the Cucumber Gherkin feature definition into VENDORED | LOCAL | 0286, 0407 |
+| PKT-0409 | `kate-syntax`: wire the Gleam definition into VENDORED | LOCAL | 0287, 0408 |
+| PKT-0410 | `kate-syntax`: wire the GN definition into VENDORED | LOCAL | 0288, 0409 |
+| PKT-0411 | `kate-syntax`: wire the GPRBuild definition into VENDORED | LOCAL | 0289, 0410 |
+| PKT-0412 | `kate-syntax`: wire the GraphQL definition into VENDORED | LOCAL | 0290, 0411 |
+
+## Wave PKT-0413
+
+This is include_str wiring wave 6 of 15.
+It wires the eight files of MIT copy wave 6.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0413.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0413 | `kate-syntax`: wire the GTK Blueprint definition into VENDORED | LOCAL | 0291, 0412 |
+| PKT-0414 | `kate-syntax`: wire the Hare definition into VENDORED | LOCAL | 0292, 0413 |
+| PKT-0415 | `kate-syntax`: wire the Haxe definition into VENDORED | LOCAL | 0293, 0414 |
+| PKT-0416 | `kate-syntax`: wire the Hjson definition into VENDORED | LOCAL | 0294, 0415 |
+| PKT-0417 | `kate-syntax`: wire the InnoSetup definition into VENDORED | LOCAL | 0295, 0416 |
+| PKT-0418 | `kate-syntax`: wire the Intel HEX definition into VENDORED | LOCAL | 0296, 0417 |
+| PKT-0419 | `kate-syntax`: wire the Java Module definition into VENDORED | LOCAL | 0297, 0418 |
+| PKT-0420 | `kate-syntax`: wire the Java Properties definition into VENDORED | LOCAL | 0298, 0419 |
+
+## Wave PKT-0421
+
+This is include_str wiring wave 7 of 15.
+It wires the eight files of MIT copy wave 7.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0421.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0421 | `kate-syntax`: wire the JCL definition into VENDORED | LOCAL | 0299, 0420 |
+| PKT-0422 | `kate-syntax`: wire the Jinja definition into VENDORED | LOCAL | 0300, 0421 |
+| PKT-0423 | `kate-syntax`: wire the JSON5 definition into VENDORED | LOCAL | 0301, 0422 |
+| PKT-0424 | `kate-syntax`: wire the Jsonnet definition into VENDORED | LOCAL | 0302, 0423 |
+| PKT-0425 | `kate-syntax`: wire the Just definition into VENDORED | LOCAL | 0303, 0424 |
+| PKT-0426 | `kate-syntax`: wire the Kate Config definition into VENDORED | LOCAL | 0304, 0425 |
+| PKT-0427 | `kate-syntax`: wire the KDL definition into VENDORED | LOCAL | 0305, 0426 |
+| PKT-0428 | `kate-syntax`: wire the Klipper Config definition into VENDORED | LOCAL | 0306, 0427 |
+
+## Wave PKT-0429
+
+This is include_str wiring wave 8 of 15.
+It wires the eight files of MIT copy wave 8.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0429.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0429 | `kate-syntax`: wire the Klipper G-Code definition into VENDORED | LOCAL | 0307, 0428 |
+| PKT-0430 | `kate-syntax`: wire the LaTeX Log File definition into VENDORED | LOCAL | 0308, 0429 |
+| PKT-0431 | `kate-syntax`: wire the Log File (advanced) Selector definition into VENDORED | LOCAL | 0309, 0430 |
+| PKT-0432 | `kate-syntax`: wire the Log File (simplified) Selector definition into VENDORED | LOCAL | 0310, 0431 |
+| PKT-0433 | `kate-syntax`: wire the Log File (simplified) definition into VENDORED | LOCAL | 0311, 0432 |
+| PKT-0434 | `kate-syntax`: wire the MapCSS definition into VENDORED | LOCAL | 0312, 0433 |
+| PKT-0435 | `kate-syntax`: wire the Metamath definition into VENDORED | LOCAL | 0313, 0434 |
+| PKT-0436 | `kate-syntax`: wire the MIB definition into VENDORED | LOCAL | 0314, 0435, 0370 |
+
+## Wave PKT-0437
+
+This is include_str wiring wave 9 of 15.
+It wires the eight files of MIT copy wave 9.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0437.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0437 | `kate-syntax`: wire the MIPS Assembler definition into VENDORED | LOCAL | 0315, 0436 |
+| PKT-0438 | `kate-syntax`: wire the Modula-2 (ISO only) definition into VENDORED | LOCAL | 0316, 0437 |
+| PKT-0439 | `kate-syntax`: wire the Modula-2 (PIM only) definition into VENDORED | LOCAL | 0317, 0438 |
+| PKT-0440 | `kate-syntax`: wire the Modula-2 (R10 only) definition into VENDORED | LOCAL | 0318, 0439 |
+| PKT-0441 | `kate-syntax`: wire the Modula-2 definition into VENDORED | LOCAL | 0319, 0440 |
+| PKT-0442 | `kate-syntax`: wire the NFTables definition into VENDORED | LOCAL | 0320, 0441 |
+| PKT-0443 | `kate-syntax`: wire the nginx Configuration definition into VENDORED | LOCAL | 0321, 0442, 0371 |
+| PKT-0444 | `kate-syntax`: wire the Ninja definition into VENDORED | LOCAL | 0322, 0443, 0369 |
+
+## Wave PKT-0445
+
+This is include_str wiring wave 10 of 15.
+It wires the eight files of MIT copy wave 10.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0445.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0445 | `kate-syntax`: wire the Nix definition into VENDORED | LOCAL | 0323, 0444 |
+| PKT-0446 | `kate-syntax`: wire the Odin definition into VENDORED | LOCAL | 0324, 0445 |
+| PKT-0447 | `kate-syntax`: wire the OORS definition into VENDORED | LOCAL | 0325, 0446 |
+| PKT-0448 | `kate-syntax`: wire the OpenSCAD definition into VENDORED | LOCAL | 0326, 0447 |
+| PKT-0449 | `kate-syntax`: wire the Overpass QL definition into VENDORED | LOCAL | 0327, 0448 |
+| PKT-0450 | `kate-syntax`: wire the PIO Assembler definition into VENDORED | LOCAL | 0328, 0449 |
+| PKT-0451 | `kate-syntax`: wire the Pony definition into VENDORED | LOCAL | 0329, 0450 |
+| PKT-0452 | `kate-syntax`: wire the PowerShell definition into VENDORED | LOCAL | 0330, 0451 |
+
+## Wave PKT-0453
+
+This is include_str wiring wave 11 of 15.
+It wires the eight files of MIT copy wave 11.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0453.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0453 | `kate-syntax`: wire the QDoc Configuration definition into VENDORED | LOCAL | 0331, 0452 |
+| PKT-0454 | `kate-syntax`: wire the QFace definition into VENDORED | LOCAL | 0332, 0453 |
+| PKT-0455 | `kate-syntax`: wire the QMake definition into VENDORED | LOCAL | 0333, 0454 |
+| PKT-0456 | `kate-syntax`: wire the QML definition into VENDORED | LOCAL | 0334, 0455 |
+| PKT-0457 | `kate-syntax`: wire the R documentation definition into VENDORED | LOCAL | 0335, 0456, 0369 |
+| PKT-0458 | `kate-syntax`: wire the RenPy definition into VENDORED | LOCAL | 0336, 0457 |
+| PKT-0459 | `kate-syntax`: wire the RETRO definition into VENDORED | LOCAL | 0337, 0458 |
+| PKT-0460 | `kate-syntax`: wire the Robot definition into VENDORED | LOCAL | 0338, 0459 |
+
+## Wave PKT-0461
+
+This is include_str wiring wave 12 of 15.
+It wires the eight files of MIT copy wave 12.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0461.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0461 | `kate-syntax`: wire the SASS definition into VENDORED | LOCAL | 0339, 0460, 0368 |
+| PKT-0462 | `kate-syntax`: wire the Sieve definition into VENDORED | LOCAL | 0340, 0461 |
+| PKT-0463 | `kate-syntax`: wire the Slint definition into VENDORED | LOCAL | 0341, 0462 |
+| PKT-0464 | `kate-syntax`: wire the Smali definition into VENDORED | LOCAL | 0342, 0463 |
+| PKT-0465 | `kate-syntax`: wire the SML definition into VENDORED | LOCAL | 0343, 0464 |
+| PKT-0466 | `kate-syntax`: wire the Snort/Suricata definition into VENDORED | LOCAL | 0344, 0465 |
+| PKT-0467 | `kate-syntax`: wire the Solidity definition into VENDORED | LOCAL | 0345, 0466 |
+| PKT-0468 | `kate-syntax`: wire the SPARQL definition into VENDORED | LOCAL | 0346, 0467 |
+
+## Wave PKT-0469
+
+This is include_str wiring wave 13 of 15.
+It wires the eight files of MIT copy wave 13.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0469.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0469 | `kate-syntax`: wire the IATA SSIM definition into VENDORED | LOCAL | 0347, 0468 |
+| PKT-0470 | `kate-syntax`: wire the Stan definition into VENDORED | LOCAL | 0348, 0469 |
+| PKT-0471 | `kate-syntax`: wire the STEP definition into VENDORED | LOCAL | 0349, 0470 |
+| PKT-0472 | `kate-syntax`: wire the Swift definition into VENDORED | LOCAL | 0350, 0471 |
+| PKT-0473 | `kate-syntax`: wire the Terraform definition into VENDORED | LOCAL | 0351, 0472 |
+| PKT-0474 | `kate-syntax`: wire the TextProto definition into VENDORED | LOCAL | 0352, 0473 |
+| PKT-0475 | `kate-syntax`: wire the Tiger definition into VENDORED | LOCAL | 0353, 0474 |
+| PKT-0476 | `kate-syntax`: wire the Todo.txt definition into VENDORED | LOCAL | 0354, 0475 |
+
+## Wave PKT-0477
+
+This is include_str wiring wave 14 of 15.
+It wires the eight files of MIT copy wave 14.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0477.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0477 | `kate-syntax`: wire the toit definition into VENDORED | LOCAL | 0355, 0476 |
+| PKT-0478 | `kate-syntax`: wire the TSV definition into VENDORED | LOCAL | 0356, 0477 |
+| PKT-0479 | `kate-syntax`: wire the Twig/Twig definition into VENDORED | LOCAL | 0357, 0478 |
+| PKT-0480 | `kate-syntax`: wire the Typst definition into VENDORED | LOCAL | 0358, 0479 |
+| PKT-0481 | `kate-syntax`: wire the V definition into VENDORED | LOCAL | 0359, 0480 |
+| PKT-0482 | `kate-syntax`: wire the Viper definition into VENDORED | LOCAL | 0360, 0481 |
+| PKT-0483 | `kate-syntax`: wire the Wayland Trace definition into VENDORED | LOCAL | 0361, 0482 |
+| PKT-0484 | `kate-syntax`: wire the Web Video Text Tracks definition into VENDORED | LOCAL | 0362, 0483 |
+
+## Wave PKT-0485
+
+This is include_str wiring wave 15 of 15.
+It wires the four files of MIT copy wave 15.
+A Cursor local agent on the Framework machine codes each packet.
+The wiring packets share `vendored.rs` and `SOURCES.md`, so they run one after the other.
+The index is `docs/design/WAVE-0485.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0485 | `kate-syntax`: wire the XHTML definition into VENDORED | LOCAL | 0363, 0484 |
+| PKT-0486 | `kate-syntax`: wire the XKeyboardConfig definition into VENDORED | LOCAL | 0364, 0485 |
+| PKT-0487 | `kate-syntax`: wire the YARA definition into VENDORED | LOCAL | 0365, 0486 |
+| PKT-0488 | `kate-syntax`: wire the Zig definition into VENDORED | LOCAL | 0366, 0487 |
 
 ## Packet sizing rules the gatekeeper applies
 

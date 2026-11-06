@@ -1,0 +1,142 @@
+{
+  "gate": "G1_PLANNING",
+  "packet_id": "PKT-0368",
+  "title": "kate-syntax: skip a keyword include from a missing definition",
+  "summary": "A keyword list include such as properties##SCSS names a definition that is not loaded. link now adds no words for that include and continues. An include that names a loaded definition and a missing list still fails with UnknownKeywordList. Upstream warns and skips the same way. cabal.xml, d2.xml, fortran-free.xml, and sass.xml need this before their wiring packets.",
+  "provenance": {
+    "schema_version": "2.0.0",
+    "produced_at": "2026-11-06T00:30:00Z",
+    "author": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    },
+    "worker": {
+      "agent_id": "overseer-linus-v1",
+      "role": "GATEKEEPER",
+      "runtime": "CLOUD",
+      "host": {
+        "kind": "CURSOR_CLOUD",
+        "name": "cursor-cloud-vm",
+        "os": "Ubuntu 24.04.5 LTS",
+        "arch": "x86_64"
+      },
+      "model": {
+        "provider": "ANTHROPIC",
+        "name": "claude-fable-5.1",
+        "settings": {
+          "reasoning_effort": "xhigh",
+          "context_window_tokens": 1000000,
+          "cursor_agent_id": "bc-14db1efe-f304-5500-b441-f2a3a13d5628"
+        }
+      },
+      "tool": {
+        "name": "CURSOR_CLOUD_AGENT"
+      }
+    }
+  },
+  "github": {
+    "repository": "johnpvaldez20/KateM5Rust",
+    "issue_number": 307,
+    "branch": "pkt/PKT-0368-missing-keyword-include",
+    "base_sha": "9cdd805440ec7d678f7dd8d000d288a3f75d101d"
+  },
+  "handoff_artifact": {
+    "kind": "ISSUE",
+    "url": "https://github.com/johnpvaldez20/KateM5Rust/issues/307"
+  },
+  "lane": {
+    "runtime": "LOCAL",
+    "reason": "A Cursor local agent on the Framework machine codes this packet in the ~/code/KateM5Rust-wire worktree. kate-syntax builds and tests on Linux. No macOS tool is needed. A Cursor cloud agent may take the packet when the Framework lane is busy.",
+    "requires": [
+      "NONE"
+    ]
+  },
+  "verdict": "PASS",
+  "subsystem_scope": {
+    "allowed_files": [
+      "crates/kate-syntax/src/repository.rs"
+    ],
+    "forbidden_paths": [
+      "apps/",
+      "Cargo.lock",
+      "Cargo.toml",
+      "upstream/",
+      "crates/kate-syntax/definitions/",
+      "crates/kate-syntax/src/lib.rs",
+      "crates/kate-syntax/src/vendored.rs",
+      "crates/kate-syntax/src/engine.rs",
+      "crates/kate-syntax/src/regex.rs",
+      "crates/kate-syntax/src/load.rs",
+      "crates/kate-syntax/tests/",
+      "crates/kate-core/",
+      "crates/kate-ui/",
+      "crates/kate-text/",
+      "crates/kate-search/",
+      "crates/kate-fileio/"
+    ],
+    "crates_touched": [
+      "kate-syntax"
+    ],
+    "is_atomic": true,
+    "depends_on_packets": [
+      "PKT-0001",
+      "PKT-0007",
+      "PKT-0028",
+      "PKT-0100",
+      "PKT-0205",
+      "PKT-0231",
+      "PKT-0367"
+    ]
+  },
+  "data_contracts": {
+    "structures_defined_upfront": true,
+    "definitions": [
+      {
+        "language": "RUST",
+        "path": "crates/kate-syntax/src/repository.rs",
+        "definition": "impl Repository {\n    /// Return the list that `spec` names.\n    /// `None` when `spec` has a `##` part that names a definition that is not loaded.\n    fn included_list(&self, def_index: usize, spec: &str) -> Result<Option<KeywordListId>, LoadError>;\n}"
+      }
+    ],
+    "public_api_change": "NONE",
+    "schema_diff_summary": "repository.rs has one test module named tests. Add the new test function at the end of that module, before its closing brace. Do not write a second mod tests. Add included_list next to lookup_list. When spec has no ##, it calls lookup_list and wraps the id in Some. When spec has ## and find_def returns None, it returns Ok(None). When find_def returns Some, it looks the list up in that definition and returns Some, or UnknownKeywordList when the list is missing. resolve_list calls included_list instead of lookup_list and writes let Some(target) = self.included_list(owner, &spec)? else { continue };. lookup_list stays unchanged for Keyword rules. Do not nest an if inside an if. The test a_keyword_include_from_a_missing_definition_adds_no_words loads one definition whose list a has item x and <include>b##Nope</include>, links it, and asserts the list a holds exactly x. It then loads a definition with <include>nope##Inner</include> next to the INNER definition and asserts link returns UnknownKeywordList. The existing tests stay green. Do not rewrite their assertions. Branch from the current tip of main. If main has moved, use the new tip. Keep the change under about 60 lines."
+  },
+  "verification_plan": {
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy -p kate-syntax --all-targets --locked -- -D warnings",
+      "cargo test -p kate-syntax --locked repository::tests"
+    ],
+    "regression_tests": [
+      {
+        "name": "repository::tests::a_keyword_include_from_a_missing_definition_adds_no_words",
+        "kind": "UNIT",
+        "asserts": "This test fails on main because link returns UnknownKeywordList for b##Nope. After the change link is Ok and list a holds only x, while an include of a missing list in a loaded definition still fails."
+      }
+    ],
+    "deterministic": true
+  },
+  "abstraction_audit": {
+    "introduces_speculative_patterns": false,
+    "flagged_anti_patterns": []
+  },
+  "rejection_reasons": []
+}
