@@ -63,7 +63,9 @@ MIT copy wave 2 of 15 is in `docs/design/WAVE-0259.md`.
 Eight files start at `cashscript.xml`.
 MIT copy wave 3 of 15 is in `docs/design/WAVE-0267.md`.
 Eight files start at `csv-semicolon.xml`.
-92 MIT files remain queued.
+MIT copy wave 4 of 15 is in `docs/design/WAVE-0275.md`.
+Eight files start at `elixir-eex.xml`.
+84 MIT files remain queued.
 Phase 3 stays titles.
 
 | Packet | Title | Lane | Depends on |
@@ -792,6 +794,29 @@ The index is `docs/design/WAVE-0267.md`.
 | PKT-0272 | `kate-syntax`: copy the MIT DotEnv definition | CLOUD | 0028 |
 | PKT-0273 | `kate-syntax`: copy the MIT Doxygen definition | CLOUD | 0028 |
 | PKT-0274 | `kate-syntax`: copy the MIT Earthfile definition | CLOUD | 0028 |
+
+## Wave PKT-0275
+
+This is MIT copy wave 4 of 15.
+Eight syntax files are copied from KSyntaxHighlighting `v6.31.0`.
+84 MIT files remain queued.
+A Cursor cloud agent copies each file.
+The owner Mac stays out of this wave.
+The `include_str` packets wait until these eight files are on main.
+Phase 3 stays titles.
+Packet numbers 0237 through 0244 stay unused.
+The index is `docs/design/WAVE-0275.md`.
+
+| Packet | Title | Lane | Depends on |
+|---|---|---|---|
+| PKT-0275 | `kate-syntax`: copy the MIT Elixir/EEx definition | CLOUD | 0028 |
+| PKT-0276 | `kate-syntax`: copy the MIT Elixir/HEEx definition | CLOUD | 0028 |
+| PKT-0277 | `kate-syntax`: copy the MIT Elm definition | CLOUD | 0028 |
+| PKT-0278 | `kate-syntax`: copy the MIT Email definition | CLOUD | 0028 |
+| PKT-0279 | `kate-syntax`: copy the MIT Expect definition | CLOUD | 0028 |
+| PKT-0280 | `kate-syntax`: copy the MIT FlatBuffers definition | CLOUD | 0028 |
+| PKT-0281 | `kate-syntax`: copy the MIT Fluent definition | CLOUD | 0028 |
+| PKT-0282 | `kate-syntax`: copy the MIT Fortran (Free Format) definition | CLOUD | 0028 |
 
 ## Packet sizing rules the gatekeeper applies
 
